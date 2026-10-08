@@ -1,0 +1,50 @@
+// Settings (prototype P8): activation, keys, data. No usage anywhere (spec 0002 §7).
+import type { KeyStatus, LicenseStatus } from '../../../shared/ipc.ts';
+import { KeyForm } from './Keys.tsx';
+import { useToast } from '../lib/ui.tsx';
+
+export function Settings({ license, keys, onChange }: { license: Extract<LicenseStatus, { state: 'active' }>; keys: KeyStatus; onChange: () => void }) {
+  const toast = useToast();
+  async function clear(which: 'ancher' | 'gemini') {
+    await window.api.keys.clear(which);
+    toast(which === 'ancher' ? '已移除 Ancher key' : '已移除 Gemini key');
+    onChange();
+  }
+  async function deactivate() {
+    if (!confirm('确定在这台电脑上取消激活吗？本地剧本不会删除，但需要重新输入激活码才能继续使用。')) return;
+    await window.api.license.deactivate();
+    onChange();
+  }
+  return (
+    <>
+      <div className="topbar drag"><b>设置</b></div>
+      <div className="settings">
+        <section className="card">
+          <h2 style={{ fontSize: 15 }}>激活与授权</h2>
+          <dl className="kv">
+            <dt>状态</dt><dd>已激活（{license.via === 'keygen' ? '在线激活' : '手动激活'}）</dd>
+            {license.customer && <><dt>授权给</dt><dd>{license.customer}{license.seat ? ` · 第 ${license.seat} 台` : ''}</dd></>}
+            <dt>到期</dt><dd>{license.expiresAt ? new Date(license.expiresAt).toLocaleDateString('zh-CN') : '长期有效'}</dd>
+            <dt>机器码</dt><dd className="tnum" style={{ fontFamily: 'var(--font-mono)' }}>{license.machineCode}</dd>
+          </dl>
+          <div><button className="btn btn-ghost" onClick={deactivate}>在这台电脑上取消激活</button></div>
+        </section>
+        <section className="card">
+          <h2 style={{ fontSize: 15 }}>模型与密钥</h2>
+          {!keys.encryption && <div className="err">系统钥匙串不可用，暂时无法保存密钥。</div>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ flex: 1 }}>Ancher：{keys.ancher ? <span className="ok">已连接{keys.ancherAccount ? ` · ${keys.ancherAccount}` : ''}</span> : <span className="muted">未填写（AI 写作需要）</span>}</span>
+            {keys.ancher && <button className="btn btn-quiet" onClick={() => clear('ancher')}>移除</button>}
+          </div>
+          <KeyForm which="ancher" onSaved={onChange} compact />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <span style={{ flex: 1 }}>Gemini：{keys.gemini ? <span className="ok">已填写</span> : <span className="muted">未填写（可选，用于视频转写）</span>}</span>
+            {keys.gemini && <button className="btn btn-quiet" onClick={() => clear('gemini')}>移除</button>}
+          </div>
+          <KeyForm which="gemini" onSaved={onChange} compact />
+          <p className="muted" style={{ fontSize: 12, margin: 0 }}>密钥只保存在这台电脑的系统钥匙串里，不会上传到任何服务器。用量请在各自的服务商账户里查看。</p>
+        </section>
+      </div>
+    </>
+  );
+}

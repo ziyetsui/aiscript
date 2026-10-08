@@ -1,0 +1,22 @@
+{
+  "name": "ancher-scripter",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @scripter/desktop dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "prototype": "node specs/images/prototypes/build.mjs && node specs/images/prototypes/check.mjs",
+    "license": "node tools/license/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "typescript": "6.0.3",
+    "vitest": "5.0.3"
+  }
+}
