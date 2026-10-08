@@ -10,8 +10,21 @@ function replyFor(prompt: string): string {
     const m = prompt.match(/\[([a-z0-9]+)\] dialogue: (.*)/);
     if (m) return `把这句改得更像孩子说话。<ops>[{"op":"updateNode","id":"${m[1]}","text":"石头……石头它会说话？！"}]</ops>`;
   }
+  const r = (o: unknown) => `好的。<result>${JSON.stringify(o)}</result>`;
+  if (prompt.includes('做简短调研')) return '1. 胡同里的孩子放学后在门口玩。2. 避开"许愿成真"的老套路。';
+  if (prompt.includes('写 3 个故事走向')) return r({ items: [1, 2, 3].map((i) => ({ title: `走向${i}：门墩儿的秘密${i}`, conflict: `冲突来源${i}`, resolution: `解决方式${i}`, beats: ['起', '承', '转', '合'], joke: `笑点${i}` })) });
+  if (prompt.includes('整理成可以复用的写作规则')) return r({ items: [{ text: '笑点要来自孩子的视角', scope: '全剧', level: 'hard', conflict: '' }, { text: '不要出现手机', scope: '全剧', level: 'pref', conflict: '' }] });
+  if (prompt.includes('逐项检查剧本是否偏离')) {
+    const id = prompt.match(/\[([a-z0-9]+)\] dialogue:/)?.[1] ?? null;
+    return r({ summary: '有一处可能跑偏', items: [{ nodeId: id, quote: '石头', problem: '豆豆太快接受了石头会说话', suggestion: '加一拍怀疑' }] });
+  }
+  if (prompt.includes('搜索今天')) return '1. 北京胡同口新开了修鞋铺。2. 学校推广跳绳。';
+  if (prompt.includes('筛出最多 5 个')) return r({ items: [{ title: '修鞋铺', logline: '门墩儿想修好姥爷的旧鞋', why: '贴近胡同生活' }, { title: '跳绳比赛', logline: '豆豆为跳绳比赛借来一双鞋', why: '学校题材' }, { title: '雨天', logline: '下雨天门墩儿怕冷', why: '季节' }] });
   return REPLY;
 }
+
+/** Prompts containing __SLOW__ stall before streaming, so the E2E can cancel a workflow mid-step. */
+export const isSlow = (prompt: string) => prompt.includes('__SLOW__');
 
 export function startFakeAncher(): Promise<{ url: string; server: Server; prompts: string[] }> {
   const prompts: string[] = [];
@@ -36,11 +49,14 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
       // Main-agent text arrives as `content` envelopes (what parseChatStream maps to ChatEvent 'text').
       const ev = (delta: string) => ({ type: 'content', conversation_id: 'c1', message_id: 'm1', delta, created_at: Date.now() / 1000 });
       let i = 0;
-      const t = setInterval(() => {
+      const delay = isSlow(prompts.at(-1) ?? '') ? 2500 : 0;
+      let t: NodeJS.Timeout | undefined;
+      const go = () => { t = setInterval(() => {
         if (i < chunks.length) res.write(`data: ${JSON.stringify(ev(chunks[i++]!))}\n\n`);
         else { res.write(`data: ${JSON.stringify({ type: 'done', conversation_id: 'c1', message_id: 'm1', finish_reason: 'stop' })}\n\n`); res.end(); clearInterval(t); }
-      }, 120);
-      req.on('close', () => clearInterval(t));
+      }, 120); };
+      const wait = setTimeout(go, delay);
+      req.on('close', () => { clearTimeout(wait); clearInterval(t); });
       return;
     }
     if (req.method === 'POST' && url.endsWith('/interruption')) return json(204, {});

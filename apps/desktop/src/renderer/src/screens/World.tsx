@@ -74,9 +74,60 @@ export function World({ id }: { id: string }) {
                 onChange={(patch) => void p.update('world', s.id, patch)} onDelete={() => void p.remove('world', s.id)} />)}
             </div>
           )}
+          <Library p={p} />
         </div>
       </section>
     </div>
+  );
+}
+
+/** Rules, topics and humor examples gathered by the ⚡ workflows (spec §1.1: 规则库 / 选题池 / 正反例库). */
+function Library({ p }: { p: ReturnType<typeof useProject> }) {
+  const b = p.st!.bible;
+  return (
+    <>
+      <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>规则库 · 导演确认过的规则，AI 写作时必须遵守</div>
+      {b.rules.length === 0 ? <div className="card empty">还没有规则。用「⚡ 导演意见 → 规则」把批注整理进来。</div> : (
+        <div className="card" style={{ padding: 4 }}><table className="tb"><tbody>
+          {b.rules.map((r) => (
+            <tr key={r.id}>
+              <td style={{ width: 70 }}><span className="chip">{r.level === 'hard' ? '硬规则' : '偏好'}</span></td>
+              <td>{r.text}<div className="muted" style={{ fontSize: 11.5 }}>{r.scope} · 来源：{r.source || '手动'}</div></td>
+              <td style={{ width: 120 }}><button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void p.update('rules', r.id, { level: r.level === 'hard' ? 'pref' : 'hard' })}>改为{r.level === 'hard' ? '偏好' : '硬规则'}</button></td>
+              <td style={{ width: 40 }}><button className="btn btn-quiet btn-icon" style={{ width: 26, height: 26 }} aria-label={`删除规则 ${r.text}`} onClick={() => void p.remove('rules', r.id)}><Icon name="trash" size={12} /></button></td>
+            </tr>
+          ))}
+        </tbody></table></div>
+      )}
+      <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>选题池</div>
+      {b.topics.length === 0 ? <div className="card empty">还没有选题。用「⚡ 今日热点选题」找一些。</div> : (
+        <div className="sets">
+          {b.topics.map((t) => (
+            <div key={t.id} className="card setting" style={{ opacity: t.status === 'dropped' ? 0.6 : 1 }}>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><b style={{ flex: 1 }}>{t.title}</b><span className="chip">{{ idea: '待定', picked: '已选', dropped: '已否' }[t.status]}</span></div>
+              <span>{t.logline}</span><span className="muted" style={{ fontSize: 12 }}>{t.why}</span>
+              {t.status === 'dropped' && t.reason && <span className="muted" style={{ fontSize: 12 }}>否掉的原因：{t.reason}</span>}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn btn-ghost" style={{ height: 26 }} onClick={() => void p.update('topics', t.id, { status: 'picked' })}>选这个</button>
+                <input className="input" style={{ height: 26, fontSize: 12 }} placeholder="否掉的原因（会进反例库）" aria-label={`否掉 ${t.title} 的原因`} defaultValue={t.reason}
+                  onKeyDown={(e) => { if (e.key === 'Enter') void p.update('topics', t.id, { status: 'dropped', reason: e.currentTarget.value.trim() }); }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {b.jokes.length > 0 && (
+        <>
+          <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>正反例 · 好笑 / 不好笑</div>
+          <div className="chipset">{b.jokes.map((j) => (
+            <span key={j.id} className="chip" title={j.mechanism} style={{ height: 'auto', padding: '4px 10px', color: j.verdict === 'good' ? 'var(--success)' : 'var(--danger)' }}>
+              {j.verdict === 'good' ? '好笑' : '不好笑'}：{j.text}
+              <button aria-label="删除这条例子" onClick={() => void p.remove('jokes', j.id)}><Icon name="x" size={11} /></button>
+            </span>
+          ))}</div>
+        </>
+      )}
+    </>
   );
 }
 

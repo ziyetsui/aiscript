@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ScriptDoc, scenes, wordCount, type BibleItem, type BibleKind, type Op, type Turn } from '@scripter/core';
+import { recoverInterrupted, type RunState } from '@scripter/agent';
 import type { ChatMsg, Edit, ProjectMeta, ProjectState } from '../shared/ipc.ts';
 import { dataDir, writeAtomic } from './store.ts';
 
@@ -12,6 +13,7 @@ interface Meta extends ProjectMeta {
   chat?: ChatMsg[];
   /** Ops behind each open modification preview, keyed by chat message id. Never sent to the renderer. */
   pending?: Record<string, { ops: Op[]; label: string }>;
+  workflows?: RunState[];
 }
 interface Open { meta: Meta; doc: ScriptDoc; timer?: NodeJS.Timeout }
 
@@ -48,7 +50,7 @@ export function list(): ProjectMeta[] {
   if (!existsSync(root())) return [];
   return readdirSync(root())
     .filter((d) => existsSync(join(root(), d, 'meta.json')))
-    .map((d) => { const { conversationId: _c, turns: _t, chat: _h, pending: _p, ...m } = readMeta(d); return m; })
+    .map((d) => { const { conversationId: _c, turns: _t, chat: _h, pending: _p, workflows: _w, ...m } = readMeta(d); return m; })
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
@@ -70,6 +72,8 @@ export function get(id: string): Open {
     const meta = readMeta(id);
     const doc = ScriptDoc.fromSnapshot(new Uint8Array(readFileSync(join(dirOf(id), 'script.loro'))));
     doc.loadTurns(meta.turns ?? []);
+    // Workflow runs left "running" by a quit become retryable failures.
+    for (const r of meta.workflows ?? []) if (r.status === 'running') recoverInterrupted(r);
     p = { meta, doc };
     open.set(id, p);
   }
@@ -78,8 +82,8 @@ export function get(id: string): Open {
 
 export function state(p: Open): ProjectState {
   const nodes = p.doc.nodes();
-  const { conversationId: _c, turns: _t, chat = [], pending: _p, ...meta } = p.meta;
-  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat };
+  const { conversationId: _c, turns: _t, chat = [], pending: _p, workflows = [], ...meta } = p.meta;
+  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {} })), outline: p.doc.outline };
 }
 
 export function edit(id: string, edits: Edit[]): ProjectState {
@@ -172,6 +176,14 @@ export function bibleMove(id: string, kind: BibleKind, itemId: string, to: numbe
   const p = get(id);
   p.doc.bible(kind).move(itemId, to);
   p.doc.commit(`move ${kind}`);
+  schedule(p);
+  return state(p);
+}
+
+export function setOutline(id: string, text: string): ProjectState {
+  const p = get(id);
+  p.doc.setOutline(text);
+  p.doc.commit('outline');
   schedule(p);
   return state(p);
 }

@@ -36,6 +36,18 @@ export class ScriptDoc {
     this.doc.commit({ message: 'title' });
   }
 
+  /** Story outline (大纲): one rich-text-free LoroText, edited as plain text. */
+  get outline(): string {
+    return this.doc.getText('outline').toString();
+  }
+
+  setOutline(text: string): void {
+    const t = this.doc.getText('outline');
+    if (t.toString() === text) return;
+    t.delete(0, t.length);
+    t.insert(0, text);
+  }
+
   bible<K extends BibleKind>(kind: K): Collection<K> {
     return new Collection(this.doc, kind);
   }

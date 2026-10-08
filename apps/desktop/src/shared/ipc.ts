@@ -1,5 +1,6 @@
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
 import type { PreviewItem } from '@scripter/core';
+import type { RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
 import type { Bible, BibleItem, BibleKind, ElementType, ScriptNode, SceneSummary } from '@scripter/core/script';
 
 export type LicenseStatus =
@@ -22,10 +23,19 @@ export interface ChatMsg {
   applied?: number;
   error?: string;
   citations?: { url: string; title: string }[];
+  /** A workflow run shown in the conversation. */
+  runId?: string;
   /** A rewrite waiting for the writer's decision (modification preview). */
   preview?: { items: PreviewItem[]; state: 'open' | 'accepted' | 'rejected' | 'stale' };
 }
-export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[] }
+export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string }
+export type WorkflowAction =
+  | { type: 'direction'; index: number }
+  | { type: 'preview' }
+  | { type: 'joke'; index: number; verdict?: 'good' | 'bad' }
+  | { type: 'rules'; indexes: number[] }
+  | { type: 'topics'; indexes: number[] };
+export type { RunState, WorkflowId, WorkflowInput };
 export interface AddFilesResult { state: ProjectState; added: number; skipped: string[] }
 
 export type Edit =
@@ -71,6 +81,15 @@ export interface Api {
     remove(id: string): Promise<void>;
     edit(id: string, edits: Edit[]): Promise<ProjectState>;
     undoTurn(id: string, turnId: string): Promise<ProjectState>;
+    setOutline(id: string, text: string): Promise<ProjectState>;
+  };
+  workflows: {
+    start(projectId: string, wf: WorkflowId, input: WorkflowInput): Promise<ProjectState>;
+    cancel(runId: string): Promise<void>;
+    retry(projectId: string, runId: string): Promise<ProjectState>;
+    apply(projectId: string, runId: string, action: WorkflowAction): Promise<{ ok: boolean; message: string; state: ProjectState }>;
+    pickFile(kind: 'media' | 'any'): Promise<string | null>;
+    onUpdate(cb: (e: { projectId: string; run: RunState }) => void): () => void;
   };
   bible: {
     add<K extends BibleKind>(id: string, kind: K, data: Partial<BibleItem<K>>): Promise<ProjectState>;

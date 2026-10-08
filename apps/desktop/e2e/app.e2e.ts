@@ -216,6 +216,58 @@ try {
   await page.getByRole('button', { name: '添加文件' }).click();
   await page.getByText('导演意见.txt').waitFor();
 
+  step('⚡ ⌥1 from the keyboard: cancel mid-step, retry, then write a direction into the outline');
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await page.locator('.paper .node').first().click();
+  await page.keyboard.press('Alt+1');
+  await page.getByLabel('创意', { exact: true }).fill('__SLOW__ 门墩儿会说话');
+  await page.getByRole('button', { name: '开始' }).click();
+  const run1 = page.locator('.run').last();
+  await run1.locator('li.st-running', { hasText: 'Ancher 联网调研' }).waitFor();
+  await run1.getByRole('button', { name: '取消' }).click();
+  await run1.getByText('已取消，没有写入任何内容').waitFor();
+  await run1.getByRole('button', { name: '重试' }).click();
+  await run1.getByText('走向1：门墩儿的秘密1').waitFor({ timeout: 20_000 });
+  assert.equal(await run1.locator('li.st-done').count(), 4);
+  await shot(page, '10-workflow-directions');
+  await run1.getByRole('button', { name: '写进大纲' }).nth(1).click();
+  await run1.getByText('已写进大纲：走向2：门墩儿的秘密2').waitFor();
+  await page.getByRole('tab', { name: '大纲' }).click();
+  assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /【走向】走向2：门墩儿的秘密2[\s\S]*冲突：冲突来源2/);
+  await page.getByRole('tab', { name: '剧本' }).click();
+
+  step('⚡ ⌥5 from the menu: director notes become confirmed rules that reach the next prompt');
+  await page.getByRole('button', { name: '⚡ 工作流' }).click();
+  await page.getByRole('menuitem', { name: /导演意见 → 规则/ }).click();
+  await page.getByLabel('内容', { exact: true }).fill('第一集：笑点要来自孩子的视角，不要大人式的抖机灵。别让孩子玩手机。');
+  await page.getByRole('button', { name: '开始' }).click();
+  const run5 = page.locator('.run').last();
+  await run5.getByText('笑点要来自孩子的视角').waitFor({ timeout: 20_000 });
+  await run5.getByRole('checkbox').nth(1).uncheck();
+  await run5.getByRole('button', { name: '确认加入规则库（1）' }).click();
+  await run5.getByText('已加入规则库 1 条').waitFor();
+
+  step('⚡ ⌥4 drift check points at a line; ⌥8 topics go into the pool');
+  await page.keyboard.press('Alt+4');
+  const run4 = page.locator('.run').last();
+  await run4.getByText('豆豆太快接受了石头会说话').waitFor({ timeout: 20_000 });
+  await run4.getByText('豆豆太快接受了石头会说话').click();
+  await page.waitForFunction(() => (document.activeElement as HTMLElement | null)?.dataset.type === 'dialogue'); // the issue jumps to its line
+  await page.keyboard.press('Alt+8');
+  const run8 = page.locator('.run').last();
+  await run8.getByText('门墩儿想修好姥爷的旧鞋').waitFor({ timeout: 20_000 });
+  await run8.getByRole('button', { name: '加入选题池（3）' }).click();
+  await run8.getByText('已加入选题池 3 个').waitFor();
+  await page.getByLabel('给 AI 的指令').fill('续写下一场');
+  await page.keyboard.press('Enter');
+  await page.getByText('写入 6 处修改').last().waitFor({ timeout: 20_000 });
+  assert.ok(fake.prompts.at(-1)!.includes('笑点要来自孩子的视角'), 'confirmed rules are sent with the next writing request');
+  assert.ok(!fake.prompts.at(-1)!.includes('不要出现手机'), 'unconfirmed rules are not');
+  await page.getByRole('button', { name: '世界观', exact: true }).click();
+  await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
+  await page.locator('.setting', { hasText: '门墩儿想修好姥爷的旧鞋' }).waitFor();
+  await shot(page, '11-library');
+
   step('restart again: the whole bible persisted');
   await app.close();
   ({ app, page } = await launch());
@@ -232,6 +284,10 @@ try {
   assert.match(await page.getByLabel('世界规则', { exact: true }).inputValue(), /只能“借”/);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
   await page.getByText('导演意见.txt').waitFor();
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await page.locator('.run', { hasText: '已加入规则库 1 条' }).waitFor(); // workflow runs are kept with the project
+  await page.getByRole('tab', { name: '大纲' }).click();
+  assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /走向2：门墩儿的秘密2/);
 
   step('settings shows the activation, no usage anywhere');
   await page.getByRole('button', { name: '设置', exact: true }).click();
