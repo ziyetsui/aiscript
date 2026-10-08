@@ -12,7 +12,7 @@ const I = {
   home: 'M3 10.5 12 3l9 7.5V21H3ZM9 21v-6h6v6', plus: 'M12 5v14M5 12h14', export: 'M12 3v12M7 8l5-5 5 5M5 21h14',
   chart: 'M3 3v18h18M7 15v3M12 10v8M17 6v12', panel: 'M3 3h18v18H3ZM15 3v18', laptop: 'M4 5h16v11H4ZM2 19h20',
   doc: 'M14 3H6v18h12V7ZM14 3v4h4', video: 'M3 6h13v12H3ZM16 10l5-3v10l-5-3', send: 'M12 19V5M5 12l7-7 7 7', stop: 'M7 7h10v10H7Z',
-  x: 'M18 6 6 18M6 6l12 12', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
+  x: 'M18 6 6 18M6 6l12 12', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
   chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z', copy: 'M9 9h12v12H9ZM5 15H3V3h12v2', up: 'M7 10v11M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 18.4 21H7V10l4-8a3 3 0 0 1 4 3.9Z',
   down: 'M17 14V3M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 5.6 3H17v11l-4 8a3 3 0 0 1-4-3.9Z', undo: 'M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8',
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6', trash: 'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15', check: 'M20 6 9 17l-5-5',
@@ -555,20 +555,117 @@ TW.ui(); setTimeout(turn1, 700);
 const ICONS_JS = `<script>window.ICON=${JSON.stringify({ copy: icon('copy', 13), up: icon('up', 13), down: icon('down', 13), undo: icon('undo', 13), send: icon('send', 15), stop: icon('stop', 13), video: icon('video', 12) })};</script>`;
 
 /* ═════ P5 角色画布（laper /characters） ═════ */
+const RELS = [[0, 1, '秘密朋友', '只有豆豆看得见门墩儿'], [0, 2, '祖孙', '豆豆跟姥爷住，姥爷不知道门墩儿的事'], [0, 3, '同学 · 较劲', '大壮总拿新鞋显摆，豆豆不服又不敢说'],
+  [1, 2, '旧相识', '那双白球鞋是姥爷小时候的——门墩儿认得他'], [1, 3, '捉弄', '门墩儿偷偷让大壮的鞋灯不亮']];
+const CAST = [['童声 · 清亮', '8–10 岁 · 偏快 · 带京腔'], ['童声 · 软糯', '8–10 岁 · 偏慢 · 气声多'], ['AI 音色 · 少年 01', '可调年龄 / 语速']];
+const LOOKS = ['圆脸短发 · 蓝校服', '寸头 · 红毛衣', '大眼 · 黄雨衣'];
 const p5 = () => chrome('Ancher Scripter — 角色', `${rail('角色')}
   <section class="center" style="background-image:radial-gradient(var(--line-strong) 1px, transparent 1px);background-size:20px 20px">
-    <div class="center-hd" style="background:var(--bg)"><b>角色</b><span class="chip tnum" style="height:20px">4</span><span style="flex:1"></span><div class="seg"><button class="on">概览</button><button>关系</button><button>选角</button></div><span style="flex:1"></span>
+    <div class="center-hd" style="background:var(--bg)"><b>角色</b><span class="chip tnum" style="height:20px">4</span><span style="flex:1"></span><div class="seg" role="tablist" id="cv-tabs">${['概览', '关系', '选角'].map((t, i) => `<button role="tab" data-v="${i}" class="${i ? '' : 'on'}" aria-selected="${!i}">${t}</button>`).join('')}</div><span style="flex:1"></span>
       <button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出">${icon('export', 14)}</button><button class="btn btn-primary" style="height:28px">${icon('plus', 13)} 新角色</button></div>
-    <div class="card" style="position:absolute;right:16px;top:58px;display:flex;gap:2px;padding:4px;z-index:2">${['chat', 'trash', 'expand', 'zoom', 'zoom'].map((ic) => `<button class="btn btn-quiet" style="width:26px;height:26px;padding:0">${icon(ic, 13)}</button>`).join('')}</div>
+    <div class="cv" data-v="0" style="flex:1;display:flex;flex-direction:column;min-height:0;position:relative">
+    <div class="card" style="position:absolute;right:16px;top:10px;display:flex;gap:2px;padding:4px;z-index:2">${['chat', 'trash', 'expand', 'zoom', 'zoom'].map((ic) => `<button class="btn btn-quiet" style="width:26px;height:26px;padding:0">${icon(ic, 13)}</button>`).join('')}</div>
     <div class="chars-row" style="flex:1;overflow:auto;padding:40px 32px;display:flex;gap:20px;align-items:flex-start">
-      ${CHARS.map(([n, m, d, c, sc, ln]) => `<div style="width:230px;flex:none"><div class="seg" style="margin-bottom:6px"><button class="on">肖像</button><button>高级</button></div>
-        <div class="card enter" style="overflow:hidden"><div style="height:150px;background:linear-gradient(160deg, ${c}, color-mix(in srgb, ${c}, black 35%));display:flex;flex-direction:column;justify-content:flex-end;padding:12px;color:#fff">
+      ${CHARS.map(([n, m, d, c, sc, ln], ci) => `<div style="width:230px;flex:none"><div class="seg ch-seg" style="margin-bottom:6px"><button class="on" data-m="0">肖像</button><button data-m="1">高级</button></div>
+        <div class="card enter" style="overflow:hidden"><div class="ch-face" style="height:150px;background:linear-gradient(160deg, ${c}, color-mix(in srgb, ${c}, black 35%));display:flex;flex-direction:column;justify-content:flex-end;padding:12px;color:#fff">
           <div style="flex:1;display:grid;place-items:center;opacity:.7">${icon('user', 40)}</div><b style="font-size:17px">${n}</b><span style="font-size:11.5px;opacity:.9">${m}</span></div>
+          <dl class="ch-adv" hidden>${[['外形', LOOKS[ci % 3]], ['口头禅', ['"那可说不准。"', '"借，不叫偷。"', '"跑不了。"', '"看我的！"'][ci]], ['想要', ['被同学看见', '有人陪他说话', '把胡同守住', '赢'][ci]], ['害怕', ['被当成怪孩子', '被忘掉', '胡同拆了', '输给豆豆'][ci]], ['配音', '未定 · 去「选角」']].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
           <div style="padding:12px;display:flex;flex-direction:column;gap:10px"><div style="display:flex;gap:6px"><span class="chip" style="height:22px">${icon('film', 11)} ${sc} 场</span><span class="chip" style="height:22px">${icon('chat', 11)} ${ln} 句</span></div>
           <p style="margin:0;font-size:13px;color:var(--ink-2)">${d}</p>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button class="btn btn-ghost" style="height:30px">${icon('pen', 13)} 编辑</button><button class="btn btn-ghost" style="height:30px">${icon('upload', 13)} 上传</button></div>
           <button class="btn btn-quiet" style="height:30px" onclick="toast('正在根据角色设定生成肖像…')">${icon('spark', 13)} 生成</button></div></div></div>`).join('')}
-    </div></section>`);
+    </div></div>
+
+    <div class="cv" data-v="1" hidden style="flex:1;display:flex;min-height:0">
+      <div class="rel-stage" id="rel-stage"><svg id="rel-svg" aria-hidden="true"></svg>
+        ${CHARS.map(([n, m, , c], i) => `<button class="rel-node" data-i="${i}" style="--c:${c}"><span class="rel-dot">${n[0]}</span><span><b>${n}</b><br><span class="muted" style="font-size:11px">${m.split(' · ')[0]}</span></span></button>`).join('')}
+        <div class="muted rel-hint">拖动角色调整位置 · 点角色看它的关系 · 点连线上的标签可改</div></div>
+      <aside class="rel-side"><b style="font-size:14px" id="rel-side-t">全部关系</b><div id="rel-list" style="display:flex;flex-direction:column;gap:8px;margin-top:10px"></div>
+        <form id="rel-add" class="card" style="padding:10px;display:flex;flex-direction:column;gap:8px;margin-top:14px"><b style="font-size:12.5px">添加关系</b>
+          <div style="display:flex;gap:6px">${['ra', 'rb'].map((id, k) => `<select id="${id}" aria-label="角色${k ? '二' : '一'}" class="rel-in">${CHARS.map(([n], i) => `<option value="${i}" ${i === k + 2 ? 'selected' : ''}>${n}</option>`).join('')}</select>`).join('')}</div>
+          <input id="rl" class="rel-in" placeholder="关系，比如：互相看不顺眼" aria-label="关系">
+          <button class="btn btn-primary" style="height:30px">${icon('plus', 13)} 添加</button>
+          <button type="button" class="btn btn-quiet" style="height:30px" onclick="toast('Agent 正在从剧本里梳理人物关系…')">${icon('spark', 13)} 让 Agent 从剧本梳理</button></form></aside>
+    </div>
+
+    <div class="cv" data-v="2" hidden style="flex:1;overflow:auto;padding:22px 28px">
+      <p class="muted" style="margin:0 0 14px;font-size:13px">为每个角色定配音和形象。试听用的是本角色在剧本里的第一句台词。定角后，制作页的分镜和配音会用这里的选择。</p>
+      <div style="display:flex;flex-direction:column;gap:14px">${CHARS.map(([n, m, , c], ci) => `<section class="card cast" data-c="${ci}" style="padding:14px;display:grid;grid-template-columns:150px 1fr 1fr auto;gap:18px;align-items:start">
+        <div style="display:flex;gap:10px;align-items:center"><span class="rel-dot" style="--c:${c}">${n[0]}</span><span><b>${n}</b><br><span class="muted" style="font-size:11.5px">${m}</span></span></div>
+        <div><div class="cast-h">配音</div>${CAST.map(([t, d], k) => `<label class="cast-opt"><input type="radio" name="v${ci}" ${k === 0 && ci === 0 ? 'checked' : ''}><span style="flex:1"><b>${t}</b><br><span class="muted" style="font-size:11.5px">${d}</span></span>
+          <button type="button" class="btn btn-quiet cast-play" style="width:28px;height:28px;padding:0" aria-label="试听 ${t}" data-f="${[440, 520, 380][k] + ci * 30}">${icon('play', 12)}</button><i class="cast-bar"></i></label>`).join('')}</div>
+        <div><div class="cast-h">形象</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${LOOKS.map((t, k) => `<label class="cast-look"><input type="radio" name="l${ci}" ${k === 0 && ci === 0 ? 'checked' : ''}><span class="cast-sw" style="background:linear-gradient(160deg, ${c}, color-mix(in srgb, ${c}, ${['black 35%', 'white 25%', 'var(--ink) 50%'][k]}))">${icon('user', 22)}</span><span style="font-size:11px">${t}</span></label>`).join('')}</div>
+          <button type="button" class="btn btn-quiet" style="height:28px;margin-top:6px" onclick="toast('正在为 ${n} 生成 3 个新形象…')">${icon('spark', 12)} 再生成 3 个</button></div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"><span class="chip cast-st" style="height:22px">待定</span><button type="button" class="btn btn-primary cast-ok" style="height:30px">定角</button></div>
+      </section>`).join('')}</div>
+    </div>
+  </section>`, `
+  <style>
+  .ch-adv{margin:0;padding:12px 12px 0;display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12.5px}.ch-adv[hidden]{display:none}.ch-adv dt{color:var(--ink-3)}.ch-adv dd{margin:0}
+  .cv[hidden]{display:none!important}
+  .rel-stage{flex:1;position:relative;overflow:hidden;touch-action:none}
+  #rel-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #rel-svg line{stroke:var(--line-strong);stroke-width:1.5;transition:stroke 150ms ease,opacity 150ms ease}
+  #rel-svg line.hot{stroke:var(--ink);stroke-width:2}#rel-svg line.dim,.rel-tag.dim{opacity:.25}
+  .rel-node{position:absolute;display:flex;gap:8px;align-items:center;padding:8px 12px 8px 8px;background:var(--surface);border-radius:999px;box-shadow:var(--shadow-card),inset 0 0 0 1px var(--line);cursor:grab;text-align:left;font-size:13px;user-select:none;transition:box-shadow 150ms ease,opacity 150ms ease}
+  .rel-node.drag{cursor:grabbing;box-shadow:var(--shadow-pop),inset 0 0 0 1px var(--line)}.rel-node.on{box-shadow:var(--shadow-card),inset 0 0 0 2px var(--ink)}.rel-node.dim{opacity:.45}
+  .rel-dot{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--c);color:#fff;font-weight:700;font-size:13px}
+  .rel-tag{position:absolute;transform:translate(-50%,-50%);font-size:11.5px;padding:2px 8px;border-radius:999px;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-2);white-space:nowrap;transition:opacity 150ms ease}
+  .rel-hint{position:absolute;left:16px;bottom:12px;font-size:11.5px}
+  .rel-side{width:260px;flex:none;border-left:1px solid var(--line);background:var(--bg);padding:14px;overflow:auto}
+  .rel-it{padding:8px 10px;border-radius:var(--r);background:var(--surface);box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px}
+  .rel-in{height:30px;border-radius:var(--r-sm);border:1px solid var(--line);background:var(--surface);padding:0 8px;font-size:13px;min-width:0;flex:1}
+  .cast-h{font-size:11.5px;color:var(--ink-3);margin-bottom:6px}
+  .cast-opt{position:relative;display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:var(--r);cursor:pointer;font-size:12.5px;overflow:hidden}
+  .cast-opt:has(input:checked){background:var(--hover)}@media (hover:hover) and (pointer:fine){.cast-opt:hover{background:var(--hover)}}
+  .cast-bar{position:absolute;left:0;bottom:0;height:2px;width:100%;background:var(--ink);transform-origin:left;transform:scaleX(0)}
+  .cast-look{display:flex;flex-direction:column;gap:4px;cursor:pointer;text-align:center}.cast-look input,.cast-opt input{accent-color:var(--ink)}
+  .cast-look input{position:absolute;opacity:0;pointer-events:none}
+  .cast-sw{height:64px;border-radius:var(--r);display:grid;place-items:center;color:#fff;opacity:.85;transition:box-shadow 150ms ease}
+  .cast-look:has(input:checked) .cast-sw{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--ink);opacity:1}
+  .cast-look:has(input:focus-visible) .cast-sw{outline:2px solid var(--ink);outline-offset:4px}
+  .cast.done{box-shadow:var(--shadow-card),inset 0 0 0 1.5px var(--color-success-500)}
+  </style>
+  <script>
+  const CH=${JSON.stringify(CHARS.map(([n]) => n))}; let RELS=${JSON.stringify(RELS)};
+  // view tabs — instant switch (used constantly)
+  const views=document.querySelectorAll('.cv');
+  document.querySelectorAll('#cv-tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#cv-tabs button').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-selected',x===b); }); views.forEach(v=>v.hidden=v.dataset.v!==b.dataset.v); if(b.dataset.v==='1') layout(); });
+  // 肖像 / 高级 per card
+  document.querySelectorAll('.ch-seg').forEach(sg=>sg.querySelectorAll('button').forEach(b=>b.onclick=()=>{ sg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); const card=sg.nextElementSibling; card.querySelector('.ch-face').hidden=b.dataset.m==='1'; card.querySelector('.ch-adv').hidden=b.dataset.m!=='1'; }));
+  // relationship graph
+  const stage=document.getElementById('rel-stage'), svg=document.getElementById('rel-svg'), nodesEl=[...stage.querySelectorAll('.rel-node')]; let pos=null, focus=-1;
+  function layout(){ if(!pos){ const w=stage.clientWidth, h=stage.clientHeight; pos=[[.42,.42],[.18,.2],[.7,.18],[.66,.72]].map(([x,y])=>[x*w,y*h]); } draw(); }
+  function center(i){ const n=nodesEl[i]; return [pos[i][0]+n.offsetWidth/2,pos[i][1]+n.offsetHeight/2]; }
+  function draw(){ nodesEl.forEach((n,i)=>{ n.style.left=pos[i][0]+'px'; n.style.top=pos[i][1]+'px'; const rel=focus<0||i===focus||RELS.some(r=>(r[0]===focus&&r[1]===i)||(r[1]===focus&&r[0]===i)); n.classList.toggle('dim',!rel); n.classList.toggle('on',i===focus); });
+    svg.innerHTML=''; stage.querySelectorAll('.rel-tag').forEach(t=>t.remove());
+    RELS.forEach((r,k)=>{ const [a,b]=[center(r[0]),center(r[1])]; const on=focus<0||r[0]===focus||r[1]===focus;
+      const l=document.createElementNS('http://www.w3.org/2000/svg','line'); l.setAttribute('x1',a[0]); l.setAttribute('y1',a[1]); l.setAttribute('x2',b[0]); l.setAttribute('y2',b[1]); if(focus>=0) l.classList.add(on?'hot':'dim'); svg.appendChild(l);
+      const t=document.createElement('button'); t.className='rel-tag'+(on?'':' dim'); t.textContent=r[2]; t.title=r[3]; t.style.left=(a[0]+b[0])/2+'px'; t.style.top=(a[1]+b[1])/2+'px';
+      t.onclick=()=>{ const v=prompt('修改关系：'+CH[r[0]]+' — '+CH[r[1]], r[2]); if(v&&v.trim()){ r[2]=v.trim(); draw(); } }; stage.appendChild(t); });
+    const list=RELS.filter(r=>focus<0||r[0]===focus||r[1]===focus);
+    document.getElementById('rel-side-t').textContent=focus<0?'全部关系（'+RELS.length+'）':CH[focus]+' 的关系（'+list.length+'）';
+    document.getElementById('rel-list').innerHTML=list.map(r=>'<div class="rel-it"><b>'+CH[r[0]]+' — '+CH[r[1]]+'</b> · '+r[2]+'<br><span class="muted">'+(r[3]||'')+'</span></div>').join('')||'<div class="muted" style="font-size:12.5px">还没有关系，在下面添加一条。</div>'; }
+  nodesEl.forEach((n,i)=>{ let sx,sy,ox,oy,moved=false;
+    n.addEventListener('pointerdown',e=>{ n.setPointerCapture(e.pointerId); sx=e.clientX; sy=e.clientY; [ox,oy]=pos[i]; moved=false; });
+    n.addEventListener('pointermove',e=>{ if(!n.hasPointerCapture(e.pointerId)) return; const dx=e.clientX-sx, dy=e.clientY-sy; if(!moved&&Math.hypot(dx,dy)<4) return; moved=true; n.classList.add('drag');
+      pos[i]=[Math.max(0,Math.min(stage.clientWidth-n.offsetWidth,ox+dx)),Math.max(0,Math.min(stage.clientHeight-n.offsetHeight,oy+dy))]; draw(); });
+    n.addEventListener('pointerup',()=>{ n.classList.remove('drag'); if(!moved){ focus=focus===i?-1:i; draw(); } }); });
+  stage.addEventListener('pointerdown',e=>{ if(e.target===stage){ focus=-1; draw(); } });
+  document.getElementById('rel-add').onsubmit=e=>{ e.preventDefault(); const a=+document.getElementById('ra').value, b=+document.getElementById('rb').value, l=document.getElementById('rl');
+    if(a===b){ toast('请选两个不同的角色'); return; } if(!l.value.trim()){ l.focus(); return; } RELS.push([a,b,l.value.trim(),'']); l.value=''; focus=-1; draw(); toast('已添加：'+CH[a]+' — '+CH[b]); };
+  addEventListener('resize',()=>{ if(!document.querySelector('.cv[data-v="1"]').hidden) draw(); });
+  // casting — synthesized preview "voice" + progress bar, lock choice
+  let ac, playing;
+  document.querySelectorAll('.cast-play').forEach(b=>b.onclick=e=>{ e.preventDefault(); const bar=b.nextElementSibling; if(playing){ playing.stop(); } ac=ac||new (window.AudioContext||window.webkitAudioContext)();
+    const o=ac.createOscillator(), g=ac.createGain(), f=+b.dataset.f, t=ac.currentTime; o.type='triangle'; [0,.25,.5,.75,1,1.25].forEach((d,k)=>o.frequency.setValueAtTime(f*(1+((k*7)%5-2)*.06),t+d)); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.06,t+.05); g.gain.setValueAtTime(.06,t+1.4); g.gain.linearRampToValueAtTime(0,t+1.5);
+    o.connect(g).connect(ac.destination); o.start(t); o.stop(t+1.5); const an=bar.animate([{transform:'scaleX(0)'},{transform:'scaleX(1)'}],{duration:1500,easing:'linear'}); an.onfinish=()=>bar.style.transform='scaleX(0)';
+    playing={stop(){ try{o.stop()}catch(_){} an.cancel(); }}; b.closest('label').querySelector('input').checked=true; });
+  document.querySelectorAll('.cast').forEach(c=>{ const ok=c.querySelector('.cast-ok'), st=c.querySelector('.cast-st');
+    ok.onclick=()=>{ if(c.classList.contains('done')){ c.classList.remove('done'); st.textContent='待定'; ok.textContent='定角'; return; }
+      const v=c.querySelector('input[name^=v]:checked'), l=c.querySelector('input[name^=l]:checked'); if(!v||!l){ toast('先选一个配音和一个形象'); return; }
+      c.classList.add('done'); st.textContent='已定角'; ok.textContent='改选'; toast(CH[+c.dataset.c]+' 已定角：'+v.closest('label').querySelector('b').textContent); }; });
+  </script>`);
 
 /* ═════ P6 制作设置 + 分镜（laper /production） ═════ */
 const p6 = () => chrome('Ancher Scripter — 制作', `${rail('制作')}
