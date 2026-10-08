@@ -14,10 +14,10 @@ jobs:
         with:
           node-version: 24
       - name: Build prototype
-        run: node prototypes/build.mjs
+        run: node specs/images/prototypes/build.mjs
       - name: Check prototype format contract
-        run: node prototypes/check.mjs
+        run: node specs/images/prototypes/check.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: prototype
-          path: prototypes/dist/index.html
+          path: specs/images/prototypes/dist/index.html

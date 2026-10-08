@@ -15,4 +15,5 @@ vendors/
 node_modules/
 
 # The built prototype is a deliverable, keep it in the repo
-!prototypes/dist/
+!specs/images/prototypes/dist/
+!specs/images/prototypes/v1/dist/

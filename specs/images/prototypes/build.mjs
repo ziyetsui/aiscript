@@ -38,7 +38,7 @@ for (const page of PAGES) for (const key of Object.keys(DIRECTIONS)) layers[`${p
 const json = JSON.stringify(layers).replace(/<\//g, '<\\/');
 const meta = JSON.stringify({
   pages: PAGES.map(({ id, name }) => ({ id, name })),
-  directions: Object.fromEntries(Object.entries(DIRECTIONS).map(([k, d]) => [k, { name: d.name, zh: d.zh, note: d.note }])),
+  directions: Object.fromEntries(Object.entries(DIRECTIONS).map(([k, d]) => [k, { name: d.name, zh: d.zh, note: d.note, swatch: d.swatch }])),
 });
 const shell = read('shell.html').replace('/*__LAYERS__*/', `const LAYERS = ${json};`).replace('/*__META__*/', `const META = ${meta};`);
 
