@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import type { ScriptNode } from '@scripter/core/script';
 import type { AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
 import { RunCard, WF_MENU, WorkflowLauncher, WorkflowMenu } from '../components/Workflows.tsx';
+import { SelectionBar } from '../components/SelectionBar.tsx';
 import type { Route } from '../App.tsx';
 import { bell, carriageReturn, keyClick, setSound, soundOn } from '../lib/typewriter.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
@@ -30,6 +31,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
   const [launcher, setLauncher] = useState<{ id: WorkflowId; focusId: string | null; focusText: string | null } | null>(null);
   const lastFocus = useRef<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
+  const paperRef = useRef<HTMLDivElement>(null);
   const outlineTimer = useRef<number | undefined>(undefined);
   const outlineSent = useRef<string | null>(null);
   const [outlineKey, setOutlineKey] = useState(0);
@@ -221,7 +223,8 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
               </button>
             ))}
         </aside>
-        <div className="paper-scroll" onFocus={(e) => { const nid = (e.target as HTMLElement).dataset?.id; if (nid) lastFocus.current = nid; }}>
+        <SelectionBar container={view === 'script' ? paperRef.current : null} />
+        <div ref={paperRef} className="paper-scroll" onFocus={(e) => { const nid = (e.target as HTMLElement).dataset?.id; if (nid) lastFocus.current = nid; }}>
           {view === 'script'
             ? <Editor nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
             : <textarea className="outline-doc" aria-label="大纲" key={outlineKey} defaultValue={st.outline} onChange={(e) => onOutline(e.target.value)}

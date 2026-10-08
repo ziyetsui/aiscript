@@ -95,3 +95,20 @@ describe('derived stats', () => {
     expect(s).not.toContain('空的');
   });
 });
+
+describe('reference brief', async () => {
+  const { referenceBrief } = await import('../src/index.ts');
+  it('includes only pinned, extracted files within budget', () => {
+    const d = new ScriptDoc();
+    d.bible('files').add({ name: 'a.txt', pinned: true, extract: 'ready', excerpt: '甲'.repeat(4000) });
+    d.bible('files').add({ name: 'b.txt', pinned: true, extract: 'ready', excerpt: '乙'.repeat(10) });
+    d.bible('files').add({ name: 'c.txt', pinned: false, extract: 'ready', excerpt: '丙' });
+    d.bible('files').add({ name: 'd.pdf', pinned: true, extract: 'working', excerpt: '' });
+    const r = referenceBrief(d.readBible(), 1000);
+    expect(r).toContain('《a.txt》');
+    expect(r).toContain('乙'.repeat(10));
+    expect(r).not.toContain('丙');
+    expect(r).not.toContain('d.pdf');
+    expect(r.length).toBeLessThan(1100);
+  });
+});

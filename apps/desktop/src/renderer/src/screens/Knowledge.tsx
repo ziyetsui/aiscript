@@ -55,7 +55,7 @@ export function Knowledge({ id }: { id: string }) {
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{l}<span className="tnum muted">{count(t)}</span></button>
           ))}
         </div>
-        <p className="muted" style={{ fontSize: 11.5, margin: '14px 6px 0', lineHeight: 1.6 }}>文件只保存在这台电脑的项目文件夹里。可以放参考剧本、人物小传、导演意见、参考视频。</p>
+        <p className="muted" style={{ fontSize: 11.5, margin: '14px 6px 0', lineHeight: 1.6 }}>文件只保存在这台电脑的项目文件夹里。可以放参考剧本、人物小传、导演意见、参考视频。打开「写作时参考」后，AI 写作会读它的内容（PDF、Word、视频通过 Ancher 读取）。</p>
       </aside>
       <section style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}
         onDragEnter={(e) => { e.preventDefault(); setOver((n) => n + 1); }} onDragOver={(e) => e.preventDefault()} onDragLeave={() => setOver((n) => Math.max(0, n - 1))} onDrop={(e) => void drop(e)}>
@@ -75,6 +75,10 @@ export function Knowledge({ id }: { id: string }) {
                   <button className="linkish" style={{ flex: 1, minWidth: 0 }} onClick={async () => { const err = await window.api.files.open(id, f.id); if (err) toast(err); }} title="用系统默认程序打开">
                     <b style={{ display: 'block', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</b>
                     <span className="muted tnum" style={{ fontSize: 11.5 }}>{kb(f.size)} · {f.src === 'chat' ? '聊天附件' : '直接上传'} · {new Date(f.addedAt).toLocaleDateString('zh-CN')}</span>
+                  </button>
+                  <button className="chip" aria-pressed={f.pinned} disabled={f.extract === 'working'} title="打开后，AI 写作时会参考这份文件的内容"
+                    onClick={async () => { const s = await window.api.files.pin(id, f.id, !f.pinned); p.setSt(s); }}>
+                    {f.extract === 'working' ? <><span className="spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }} />读取中</> : f.extract === 'failed' && !f.pinned ? '读取失败，重试' : f.pinned ? '写作时参考 ✓' : '写作时参考'}
                   </button>
                   <button className="btn btn-quiet btn-icon" style={{ width: 28, height: 28 }} aria-label={`移除 ${f.name}`} onClick={() => void remove(f)}><Icon name="trash" size={13} /></button>
                 </div>

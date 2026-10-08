@@ -77,3 +77,15 @@ export async function parseWithAncher(sdk: Pick<AncherSdk, 'Note' | 'File'>, src
   if (!text) throw new Error('Ancher 解析结果为空');
   return text;
 }
+
+/** 逆向提示词 (spec §5.2): reference image → visual prompt, in English and the local language. */
+export async function reversePrompt(sdk: Pick<AncherSdk, 'ImagePrompt'>, image: Blob): Promise<{ en: string; local: string }> {
+  const r = await sdk.ImagePrompt.generate(image);
+  return { en: r.prompt_en, local: r.prompt_local ?? '' };
+}
+
+/** Selection toolbar: explain / summarise / translate the selected script text. */
+export async function selectionAction(sdk: Pick<AncherSdk, 'TextSelection'>, kind: 'explain' | 'summarize' | 'translate', text: string, lang = 'English'): Promise<string> {
+  const r = kind === 'translate' ? await sdk.TextSelection.translate(text, lang) : await sdk.TextSelection[kind](text);
+  return r.content;
+}

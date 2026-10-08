@@ -70,6 +70,13 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
       return;
     }
     if (req.method === 'POST' && url.endsWith('/interruption')) return json(204, {});
+    if (req.method === 'POST' && url.startsWith('/api/v1/image-prompts')) { req.resume(); req.on('end', () => json(200, { prompt_en: 'a 9-year-old boy, round face, blue school uniform', prompt_local: '九岁男孩，圆脸，蓝色校服', local_lang: 'zh' })); return; }
+    if (req.method === 'POST' && url.startsWith('/api/v1/text-selections/')) {
+      let body = '';
+      req.on('data', (c) => (body += c));
+      req.on('end', () => { const t = JSON.parse(body).text; json(200, { content: url.endsWith('explanations') ? `解释：「${t}」是孩子的惊讶。` : url.endsWith('summaries') ? '总结' : 'Translation' }); });
+      return;
+    }
     json(404, { message: `no route ${req.method} ${url}` });
   });
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {

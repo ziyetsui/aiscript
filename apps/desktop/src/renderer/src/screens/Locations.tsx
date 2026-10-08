@@ -4,6 +4,7 @@ import { locationScenes, type Location } from '@scripter/core/script';
 import { ColorPicker, Drawer, PageHead, Section, Tabs } from '../components/Drawer.tsx';
 import { PALETTE, useImage, useProject } from '../lib/project.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
+import { cleanErr } from './Characters.tsx';
 
 const TIMES = ['日', '夜', '清晨', '傍晚', '黄昏'];
 type Draft = Pick<Location, 'name' | 'ie' | 'times' | 'desc' | 'visual' | 'color'>;
@@ -61,7 +62,8 @@ export function Locations({ id }: { id: string }) {
       ) : view === 'grid' ? (
         <div className="page dots"><div className="grid-cards">
           {locs.map((l) => <LocCard key={l.id} projectId={id} l={l} scenes={scenesOf(l.name)} onEdit={() => { setError(''); setEditing({ id: l.id, draft: { name: l.name, ie: l.ie, times: l.times, desc: l.desc, visual: l.visual, color: l.color } }); }}
-            onImage={async () => { const f = await window.api.files.pickImage(id); if (f) await p.update('locations', l.id, { image: f }); }} onDelete={() => void remove(l)} />)}
+            onImage={async () => { const f = await window.api.files.pickImage(id); if (f) await p.update('locations', l.id, { image: f }); }} onDelete={() => void remove(l)}
+            onReverse={async () => { try { const r = await window.api.ai.reverse(id, 'locations', l.id); p.setSt(r.state); toast(`已写进 ${l.name} 的「视觉备注」`); } catch (e) { toast(cleanErr(e)); } }} />)}
         </div></div>
       ) : (
         <div className="page" style={{ padding: '16px 20px' }}>
@@ -103,7 +105,7 @@ export function Locations({ id }: { id: string }) {
   );
 }
 
-function LocCard({ projectId, l, scenes, onEdit, onImage, onDelete }: { projectId: string; l: Location; scenes: number[]; onEdit(): void; onImage(): void; onDelete(): void }) {
+function LocCard({ projectId, l, scenes, onEdit, onImage, onDelete, onReverse }: { projectId: string; l: Location; scenes: number[]; onEdit(): void; onImage(): void; onDelete(): void; onReverse(): void }) {
   const img = useImage(projectId, l.image);
   return (
     <div className="card ecard">
@@ -119,6 +121,7 @@ function LocCard({ projectId, l, scenes, onEdit, onImage, onDelete }: { projectI
           <button className="btn btn-ghost" style={{ height: 30 }} onClick={onImage}><Icon name="upload" size={12} />{l.image ? '换参考图' : '参考图'}</button>
           <button className="btn btn-quiet btn-icon" style={{ width: 30, height: 30 }} aria-label={`删除 ${l.name}`} onClick={onDelete}><Icon name="trash" size={12} /></button>
         </div>
+        {l.image && <button className="btn btn-quiet" style={{ height: 28 }} onClick={onReverse} title="用 Ancher 从参考图反推视觉提示词，写进「视觉备注」"><Icon name="spark" size={12} />反推提示词</button>}
       </div>
     </div>
   );

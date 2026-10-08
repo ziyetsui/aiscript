@@ -3,10 +3,11 @@
 // Spec 0002 §0 "AI 改稿", §5.4, D9, §12.4.
 import { app, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { applyOps, bibleBrief, needsReview, parseReply, previewOps, type Op } from '@scripter/core';
-import { buildMessage, checkAncherKey, createAncher, describeError, runChat } from '@scripter/agent';
+import { applyOps, bibleBrief, needsReview, parseReply, previewOps, referenceBrief, type Op } from '@scripter/core';
+import { buildMessage, checkAncherKey, createAncher, describeError, reversePrompt, runChat, selectionAction } from '@scripter/agent';
 import type { AiWriteRequest, AiWriteResult, ChatMsg, TurnInfo } from '../shared/ipc.ts';
-import { get, pushChat, saveNow, state } from './projects.ts';
+import { filePath, get, pushChat, saveNow, state } from './projects.ts';
+import { openAsBlob } from 'node:fs';
 import { getSecret } from './secrets.ts';
 import { log } from './archive.ts';
 
@@ -27,7 +28,8 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   running.set(req.reqId, ac);
   try {
     const sdk = ancher(key);
-    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(p.doc.readBible()));
+    const bible = p.doc.readBible();
+    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible));
     const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, webSearch: req.webSearch, signal: ac.signal }, {
       onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
     });
@@ -123,3 +125,37 @@ export function cancel(reqId: string): void {
 }
 
 export { checkAncherKey, createAncher };
+
+const needKey = () => {
+  const k = getSecret('ancher');
+  if (!k) throw new Error('需要先在设置里填写 Ancher key');
+  return k;
+};
+
+/** 逆向提示词: a character portrait or location reference → visual prompt saved on the item. */
+export async function reverse(projectId: string, kind: 'characters' | 'locations', itemId: string) {
+  const p = get(projectId);
+  const item = kind === 'characters' ? p.doc.bible('characters').get(itemId) : p.doc.bible('locations').get(itemId);
+  const file = item && ('portrait' in item ? item.portrait : item.image);
+  if (!item || !file) throw new Error('先上传一张参考图');
+  try {
+    const r = await reversePrompt(ancher(needKey()), await openAsBlob(filePath(projectId, file)));
+    const text = r.local ? `${r.local}\n${r.en}` : r.en;
+    if (kind === 'characters') p.doc.bible('characters').update(itemId, { look: text });
+    else p.doc.bible('locations').update(itemId, { visual: text });
+    p.doc.commit('reverse prompt');
+    saveNow(p);
+    return { prompt: text, state: state(p) };
+  } catch (e) {
+    log('warn', `reverse prompt failed: ${describeError(e)}`);
+    throw new Error(describeError(e));
+  }
+}
+
+export async function selection(kind: 'explain' | 'summarize' | 'translate', text: string): Promise<string> {
+  try {
+    return await selectionAction(ancher(needKey()), kind, text.slice(0, 4000));
+  } catch (e) {
+    throw new Error(describeError(e));
+  }
+}

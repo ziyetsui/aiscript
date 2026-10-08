@@ -10,7 +10,11 @@ export interface Relation { id: string; a: string; b: string; label: string; not
 export interface Location { id: string; name: string; ie: '内景' | '外景' | '内外景'; times: string[]; desc: string; visual: string; color: string; image: string }
 export interface Prop { id: string; name: string; category: string; color: string; desc: string; visual: string; x: number; y: number }
 export interface WorldSetting { id: string; title: string; value: string }
-export interface KnowledgeFile { id: string; name: string; size: number; src: 'upload' | 'chat'; file: string; addedAt: number }
+export interface KnowledgeFile {
+  id: string; name: string; size: number; src: 'upload' | 'chat'; file: string; addedAt: number;
+  /** "写作时参考": the extracted text is sent with writing requests as reference material. */
+  pinned: boolean; excerpt: string; extract: 'none' | 'working' | 'ready' | 'failed';
+}
 /** Director-review rules (spec 0002 §1.1 "审稿与规则库"): pending until a human confirms; hard rules vs preferences. */
 export interface Rule { id: string; text: string; scope: string; source: string; level: 'hard' | 'pref'; status: 'pending' | 'active'; addedAt: number }
 /** Humor examples marked funny / not funny (正反例库). */
@@ -34,7 +38,7 @@ export const BIBLE_DEFAULTS: { [K in BibleKind]: Omit<BibleItem<K>, 'id'> } = {
   locations: { name: '', ie: '外景', times: ['日'], desc: '', visual: '', color: 'oklch(0.55 0.06 150)', image: '' },
   props: { name: '', category: '', color: 'oklch(0.36 0.07 160)', desc: '', visual: '', x: 40, y: 40 },
   world: { title: '', value: '' },
-  files: { name: '', size: 0, src: 'upload', file: '', addedAt: 0 },
+  files: { name: '', size: 0, src: 'upload', file: '', addedAt: 0, pinned: false, excerpt: '', extract: 'none' },
   rules: { text: '', scope: '全剧', source: '', level: 'hard', status: 'pending', addedAt: 0 },
   jokes: { text: '', mechanism: '', verdict: 'good', context: '', addedAt: 0 },
   topics: { title: '', logline: '', why: '', source: '', status: 'idea', reason: '', addedAt: 0 },
@@ -101,4 +105,12 @@ export function bibleBrief(b: Bible, maxChars = 3000): string {
   if (rules.length) parts.unshift('规则库（导演确认过，硬规则必须遵守）：\n' + rules.map((r) => `- [${r.level === 'hard' ? '硬规则' : '偏好'}·${r.scope}] ${r.text}`).join('\n'));
   const s = parts.join('\n\n');
   return s.length > maxChars ? `${s.slice(0, maxChars)}…` : s;
+}
+
+/** Pinned knowledge excerpts for the model, budgeted across files. */
+export function referenceBrief(b: Bible, maxChars = 5000): string {
+  const pinned = b.files.filter((f) => f.pinned && f.extract === 'ready' && f.excerpt.trim());
+  if (!pinned.length) return '';
+  const each = Math.floor(maxChars / pinned.length);
+  return pinned.map((f) => `《${f.name}》\n${f.excerpt.slice(0, each)}${f.excerpt.length > each ? '…' : ''}`).join('\n\n');
 }

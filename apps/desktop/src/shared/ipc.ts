@@ -113,12 +113,17 @@ export interface Api {
     open(id: string, fileId: string): Promise<string>;
     pickImage(id: string): Promise<string | null>;
     readImage(id: string, file: string): Promise<string | null>;
+    pin(id: string, fileId: string, on: boolean): Promise<ProjectState>;
+    /** Fires when background work (e.g. extracting a pinned file) changed a project. */
+    onProjectChanged(cb: (e: { projectId: string }) => void): () => void;
     /** Absolute path of a File dropped onto the window (Electron webUtils). */
     pathFor(file: File): string;
   };
   ai: {
     write(req: AiWriteRequest): Promise<AiWriteResult>;
     cancel(reqId: string): Promise<void>;
+    reverse(projectId: string, kind: 'characters' | 'locations', itemId: string): Promise<{ prompt: string; state: ProjectState }>;
+    selection(kind: 'explain' | 'summarize' | 'translate', text: string): Promise<string>;
     /** Accept or reject a pending modification preview. */
     resolve(projectId: string, msgId: string, accept: boolean): Promise<{ ok: boolean; message?: string; turn?: TurnInfo; state: ProjectState }>;
     onDelta(cb: (e: { reqId: string; text: string }) => void): () => void;
