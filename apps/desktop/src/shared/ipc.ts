@@ -1,5 +1,5 @@
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
-import type { ElementType, ScriptNode, SceneSummary } from '@scripter/core';
+import type { Bible, BibleItem, BibleKind, ElementType, ScriptNode, SceneSummary } from '@scripter/core/script';
 
 export type LicenseStatus =
   | { state: 'active'; via: 'keygen' | 'offline'; customer?: string; seat?: string; expiresAt?: string | null; machineCode: string }
@@ -11,7 +11,8 @@ export type KeyResult = { ok: true; account?: string } | { ok: false; message: s
 
 export interface ProjectMeta { id: string; title: string; kind: 'script' | 'video'; createdAt: number; updatedAt: number; words: number }
 export interface TurnInfo { id: string; label: string; undone: boolean }
-export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[] }
+export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible }
+export interface AddFilesResult { state: ProjectState; added: number; skipped: string[] }
 
 export type Edit =
   | { op: 'insert'; after: string | null | 'end'; type: ElementType; text: string; id?: string }
@@ -54,6 +55,21 @@ export interface Api {
     remove(id: string): Promise<void>;
     edit(id: string, edits: Edit[]): Promise<ProjectState>;
     undoTurn(id: string, turnId: string): Promise<ProjectState>;
+  };
+  bible: {
+    add<K extends BibleKind>(id: string, kind: K, data: Partial<BibleItem<K>>): Promise<ProjectState>;
+    update<K extends BibleKind>(id: string, kind: K, itemId: string, patch: Partial<BibleItem<K>>): Promise<ProjectState>;
+    remove(id: string, kind: BibleKind, itemId: string): Promise<ProjectState>;
+    move(id: string, kind: BibleKind, itemId: string, to: number): Promise<ProjectState>;
+  };
+  files: {
+    pick(id: string): Promise<AddFilesResult | null>;
+    addPaths(id: string, paths: string[]): Promise<AddFilesResult>;
+    open(id: string, fileId: string): Promise<string>;
+    pickImage(id: string): Promise<string | null>;
+    readImage(id: string, file: string): Promise<string | null>;
+    /** Absolute path of a File dropped onto the window (Electron webUtils). */
+    pathFor(file: File): string;
   };
   ai: {
     write(req: AiWriteRequest): Promise<AiWriteResult>;

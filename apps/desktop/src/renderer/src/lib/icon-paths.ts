@@ -27,6 +27,10 @@ export const PATHS = {
  "box": "M21 8 12 3 3 8v8l9 5 9-5ZM3 8l9 5 9-5M12 13v8",
  "panel": "M3 3h18v18H3ZM15 3v18",
  "eye": "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6",
- "menu": "M4 6h16M4 12h16M4 18h16"
+ "menu": "M4 6h16M4 12h16M4 18h16",
+ "chat": "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z",
+ "upload": "M12 15V3M7 8l5-5 5 5M4 21h16",
+ "zoom": "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3M8 11h6M11 8v6",
+ "expand": "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
 } as const;
 export type IconName = keyof typeof PATHS;

@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { ScriptDoc, scenes, wordCount, type Turn } from '@scripter/core';
+import { ScriptDoc, scenes, wordCount, type BibleItem, type BibleKind, type Turn } from '@scripter/core';
 import type { Edit, ProjectMeta, ProjectState } from '../shared/ipc.ts';
 import { dataDir, writeAtomic } from './store.ts';
 
@@ -73,7 +73,7 @@ export function get(id: string): Open {
 export function state(p: Open): ProjectState {
   const nodes = p.doc.nodes();
   const { conversationId: _c, turns: _t, ...meta } = p.meta;
-  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })) };
+  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible() };
 }
 
 export function edit(id: string, edits: Edit[]): ProjectState {
@@ -114,4 +114,52 @@ export function remove(id: string): void {
   if (p) clearTimeout(p.timer);
   open.delete(id);
   rmSync(dirOf(id), { recursive: true, force: true });
+}
+
+/** Project-owned files (knowledge base, reference images) live in <project>/files/. Names are generated, never user paths. */
+export const filesDir = (id: string) => join(dirOf(id), 'files');
+export function filePath(id: string, file: string): string {
+  if (!/^[a-z0-9]+\.[a-z0-9]{1,8}$/i.test(file) && !/^[a-z0-9]+$/i.test(file)) throw new Error('bad file name');
+  return join(filesDir(id), file);
+}
+
+export function bibleAdd<K extends BibleKind>(id: string, kind: K, data: Partial<BibleItem<K>>): ProjectState {
+  const p = get(id);
+  p.doc.bible(kind).add(data);
+  p.doc.commit(`add ${kind}`);
+  schedule(p);
+  return state(p);
+}
+
+export function bibleUpdate<K extends BibleKind>(id: string, kind: K, itemId: string, patch: Partial<BibleItem<K>>): ProjectState {
+  const p = get(id);
+  p.doc.bible(kind).update(itemId, patch);
+  p.doc.commit(`update ${kind}`);
+  schedule(p);
+  return state(p);
+}
+
+export function bibleRemove(id: string, kind: BibleKind, itemId: string): ProjectState {
+  const p = get(id);
+  if (kind === 'characters') {
+    // Relations pointing at a removed character go with it.
+    const rel = p.doc.bible('relations');
+    for (const r of rel.all()) if (r.a === itemId || r.b === itemId) rel.remove(r.id);
+  }
+  if (kind === 'files') {
+    const f = p.doc.bible('files').get(itemId);
+    if (f?.file) rmSync(filePath(id, f.file), { force: true });
+  }
+  p.doc.bible(kind).remove(itemId);
+  p.doc.commit(`remove ${kind}`);
+  schedule(p);
+  return state(p);
+}
+
+export function bibleMove(id: string, kind: BibleKind, itemId: string, to: number): ProjectState {
+  const p = get(id);
+  p.doc.bible(kind).move(itemId, to);
+  p.doc.commit(`move ${kind}`);
+  schedule(p);
+  return state(p);
 }

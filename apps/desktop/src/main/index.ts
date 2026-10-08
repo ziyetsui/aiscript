@@ -1,10 +1,12 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
 import { checkGeminiKey } from '@scripter/agent';
+import type { BibleKind } from '@scripter/core';
 import type { AiWriteRequest, Edit, ExportFormat, KeyResult, ProjectMeta } from '../shared/ipc.ts';
 import * as ai from './ai.ts';
 import { save as exportSave } from './exporter.ts';
 import { activateKeygen, activateOffline, deactivateLocal, licenseStatus } from './license.ts';
+import * as files from './files.ts';
 import * as projects from './projects.ts';
 import { encryptionAvailable, getSecret, setSecret } from './secrets.ts';
 import { readJson, writeJson } from './store.ts';
@@ -72,6 +74,20 @@ function registerIpc(): void {
   ipcMain.handle('projects:remove', gated((id: string) => projects.remove(id)));
   ipcMain.handle('projects:edit', gated((id: string, edits: Edit[]) => projects.edit(id, edits)));
   ipcMain.handle('projects:undoTurn', gated((id: string, turnId: string) => projects.undoTurn(id, turnId)));
+
+  const KINDS = new Set<BibleKind>(['characters', 'relations', 'locations', 'props', 'world', 'files']);
+  const kind = (k: string): BibleKind => { if (!KINDS.has(k as BibleKind)) throw new Error('bad kind'); return k as BibleKind; };
+  ipcMain.handle('bible:add', gated((id: string, k: string, data: object) => projects.bibleAdd(id, kind(k), data)));
+  ipcMain.handle('bible:update', gated((id: string, k: string, itemId: string, patch: object) => projects.bibleUpdate(id, kind(k), itemId, patch)));
+  ipcMain.handle('bible:remove', gated((id: string, k: string, itemId: string) => projects.bibleRemove(id, kind(k), itemId)));
+  ipcMain.handle('bible:move', gated((id: string, k: string, itemId: string, to: number) => projects.bibleMove(id, kind(k), itemId, to)));
+
+  const winOf = (e: Electron.IpcMainInvokeEvent) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) throw new Error('no window'); return w; };
+  ipcMain.handle('files:pick', (e, id: string) => { if (licenseStatus().state !== 'active') throw new Error('未激活'); return files.pickFiles(winOf(e), id); });
+  ipcMain.handle('files:addPaths', gated((id: string, paths: string[]) => files.addPaths(id, paths)));
+  ipcMain.handle('files:open', gated((id: string, fileId: string) => files.openFile(id, fileId)));
+  ipcMain.handle('files:pickImage', (e, id: string) => { if (licenseStatus().state !== 'active') throw new Error('未激活'); return files.pickImage(winOf(e), id); });
+  ipcMain.handle('files:readImage', gated((id: string, file: string) => files.readImage(id, file)));
 
   ipcMain.handle('ai:write', (e, req: AiWriteRequest) => {
     if (licenseStatus().state !== 'active') throw new Error('未激活');

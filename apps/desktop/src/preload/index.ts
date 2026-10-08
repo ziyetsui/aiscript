@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type { Api } from '../shared/ipc.ts';
 
 const call = (ch: string) => (...a: unknown[]) => ipcRenderer.invoke(ch, ...a);
@@ -34,6 +34,20 @@ const api: Api = {
       ipcRenderer.on('ai:delta', h);
       return () => ipcRenderer.removeListener('ai:delta', h);
     },
+  },
+  bible: {
+    add: call('bible:add') as Api['bible']['add'],
+    update: call('bible:update') as Api['bible']['update'],
+    remove: call('bible:remove') as Api['bible']['remove'],
+    move: call('bible:move') as Api['bible']['move'],
+  },
+  files: {
+    pick: call('files:pick') as Api['files']['pick'],
+    addPaths: call('files:addPaths') as Api['files']['addPaths'],
+    open: call('files:open') as Api['files']['open'],
+    pickImage: call('files:pickImage') as Api['files']['pickImage'],
+    readImage: call('files:readImage') as Api['files']['readImage'],
+    pathFor: (file: File) => webUtils.getPathForFile(file),
   },
   exporter: { save: call('export:save') as Api['exporter']['save'] },
 };
