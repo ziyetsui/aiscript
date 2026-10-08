@@ -158,13 +158,13 @@ const exportModal = `<div class="scrim" id="export"><div class="modal" style="pa
     <div style="background:var(--muted);border-radius:var(--r-xl);padding:12px"><div style="display:flex;justify-content:space-between;font-weight:600;font-size:13px;margin-bottom:8px">分集 <span class="muted" style="font-weight:400;font-size:12px">清空</span></div>
       ${[['门墩儿', '第 1 集'], ['借来的东西', '第 2 集']].map(([t, s]) => `<label class="card" style="display:flex;align-items:center;padding:10px;margin-bottom:6px;font-size:13px"><span style="flex:1"><b>${t}</b><br><span class="muted" style="font-size:11px">${s}</span></span><input type="checkbox" checked style="accent-color:var(--primary)"></label>`).join('')}</div>
     <div style="background:var(--muted);border-radius:var(--r-xl);padding:12px"><div style="font-weight:600;font-size:13px;margin-bottom:8px">导出内容</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${['剧本', '大纲', '节拍', '场景', '分镜', '选角表', '勘景本', '道具表'].map((t, i) => `<label class="card" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;font-size:12.5px">${t}<input type="radio" name="ec" ${i === 0 ? 'checked' : ''} style="accent-color:var(--primary)"></label>`).join('')}</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${['剧本', '大纲', '节拍', '场景', '分镜', '选角表', '勘景本', '道具表'].map((t, i) => `<label class="card" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;font-size:12.5px">${t}<input type="radio" name="ec" value="${t}" ${i === 0 ? 'checked' : ''} style="accent-color:var(--primary)"></label>`).join('')}</div></div>
     <div style="background:var(--muted);border-radius:var(--r-xl);padding:12px"><div style="font-weight:600;font-size:13px;margin-bottom:8px">文件格式</div>
-      ${['PDF', 'DOCX', 'TXT', 'FDX'].map((t, i) => `<label class="card" style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:6px;font-size:12.5px"><b>${t}</b><input type="radio" name="ff" ${i === 0 ? 'checked' : ''} style="accent-color:var(--primary)"></label>`).join('')}
+      ${[['pdf', 'PDF', '打印排版，可直接发给导演'], ['fdx', 'Final Draft', '.fdx · 行业标准'], ['fountain', 'Fountain', '.fountain · 纯文本剧本标准'], ['doc', 'Word', '可继续编辑'], ['txt', 'TXT', '纯文本']].map(([v, t, d], i) => `<label class="card" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;margin-bottom:6px;font-size:12.5px"><span><b>${t}</b><br><span class="muted" style="font-size:11px">${d}</span></span><input type="radio" name="ff" value="${v}" ${i === 0 ? 'checked' : ''} style="accent-color:var(--primary)"></label>`).join('')}
       <div style="font-size:12px;margin:8px 0 6px" class="muted">剧本格式</div><div class="seg"><button class="on">好莱坞</button><button>亚洲</button></div>
       <label style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;margin-top:10px">纸张纹理 <input type="checkbox" checked style="accent-color:var(--primary)"></label></div>
   </div>
-  <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-primary" onclick="closeModal('export');toast('已导出 门墩儿.pdf')">${icon('export', 14)} 导出</button></div></div></div>`;
+  <div style="display:flex;justify-content:flex-end;margin-top:14px"><span class="muted" style="font-size:12px;margin-right:auto;align-self:center">字体：Courier + 仿宋（打字机）</span><button class="btn btn-primary" onclick="doExport()">${icon('export', 14)} 导出</button></div></div></div>`;
 // Pain-point workflows from the client's 2026-09-17 meeting (specs/0002 §5.6). Each runs locally as a state machine.
 const WORKFLOWS = [
   ['一个创意 → 3 个走向', '联网调研 + 规则与反例，三个走向冲突来源不同'],
@@ -192,7 +192,9 @@ const workspace = () => chrome('AIScript — <span id="t-proj">新剧本</span>'
   </aside>
   <section class="center">
     <div class="center-hd"><b id="hd-title">剧本</b><span style="flex:1"></span><div class="seg" id="hd-seg"><button class="on">${icon('doc', 12)} 剧本</button><button>封面</button></div><span style="flex:1"></span>
-      <button class="btn btn-quiet" style="width:28px;padding:0" aria-label="撤销">${icon('undo', 14)}</button><button class="btn btn-quiet" style="width:28px;padding:0" aria-label="批注">${icon('chat', 14)}</button></div>
+      <button class="chip sound-off" id="snd" style="height:28px" onclick="TW.toggle()" aria-pressed="false" title="生成时播放打字机音效">🔇 点一下开启打字机音效</button>
+      <button class="btn btn-quiet" style="width:28px;padding:0" aria-label="撤销">${icon('undo', 14)}</button><button class="btn btn-quiet" style="width:28px;padding:0" aria-label="批注">${icon('chat', 14)}</button>
+      <button class="btn btn-ghost" style="height:28px" onclick="openModal('export')">${icon('export', 13)} 导出</button></div>
     <div class="toolbar" id="tb">${[['film', '场景'], ['pen', '动作'], ['user', '角色'], ['indent', '括号'], ['chat', '对白'], ['export', '转场'], ['doc', '注释'], ['book', '字幕']].map(([ic, t], i) => `<button class="${i === 1 ? 'on' : ''}">${icon(ic, 14)}${t}</button>`).join('')}</div>
     <div class="scroll" id="scroll">
       <article class="page" id="page"><div id="empty" style="font-family:var(--font-family-mono);font-size:12px;color:var(--ink-3);display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:center">
@@ -241,6 +243,50 @@ const LAPER_JS = String.raw`
 const $=s=>document.getElementById(s), feed=$('feed'), page=$('page');
 const CLS={heading:'sc-heading',action:'sc-action',char:'sc-char',paren:'sc-paren',dial:'sc-dial',trans:'sc-trans'};
 let busy=false, turn=0, done=new Set(), sceneN=0, words=0, inserted=[];
+// ── Typewriter sound, synthesised with Web Audio (no audio files). Browsers only allow sound after a click. ──
+const TW={ ctx:null, on:true, vol:.32, last:0,
+  ensure(){ try{ if(!this.ctx) this.ctx=new (window.AudioContext||window.webkitAudioContext)(); if(this.ctx.state==='suspended') this.ctx.resume().then(()=>this.ui()); }catch(_){} this.ui(); return this.ctx; },
+  ready(){ return this.on && this.ctx && this.ctx.state==='running'; },
+  ui(){ const b=$('snd'); if(!b) return; const live=this.ready(); b.textContent=!this.on?'🔇 打字机音效已关':(live?'🔊 打字机音效':'🔇 点一下开启打字机音效'); b.classList.toggle('sound-off',!live); b.setAttribute('aria-pressed',live); },
+  toggle(){ if(this.ctx && this.ctx.state==='running' && this.on){ this.on=false; } else { this.on=true; this.ensure(); } this.ui(); },
+  burst(dur, f0, q, gain, t){ const c=this.ctx, n=Math.floor(c.sampleRate*dur), b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
+    for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,5);
+    const s=c.createBufferSource(); s.buffer=b; const f=c.createBiquadFilter(); f.type='bandpass'; f.frequency.value=f0; f.Q.value=q; const g=c.createGain(); g.gain.value=gain*this.vol;
+    s.connect(f).connect(g).connect(c.destination); s.start(t); },
+  thock(freq, dur, gain, t){ const c=this.ctx, o=c.createOscillator(), g=c.createGain(); o.type='triangle'; o.frequency.setValueAtTime(freq,t); o.frequency.exponentialRampToValueAtTime(freq*.6,t+dur);
+    g.gain.setValueAtTime(gain*this.vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+dur); o.connect(g).connect(c.destination); o.start(t); o.stop(t+dur+.01); },
+  key(ch){ if(!this.ready()) return; const c=this.ctx, t=c.currentTime; if(t-this.last<.018) return; this.last=t;   // typebar strike: bright click + body thock
+    const soft=/[\s，。、；：！？“”‘’（）…—,.;:!?'"()]/.test(ch); this.burst(.03, 2200+Math.random()*1800, 1.4, soft?.5:1, t); this.thock(120+Math.random()*50, .035, soft?.35:.6, t); },
+  ret(){ if(!this.ready()) return; const t=this.ctx.currentTime; this.burst(.16, 900, .7, .5, t); this.thock(70, .09, .8, t+.12); },   // carriage return
+  ding(){ if(!this.ready()) return; const c=this.ctx, t=c.currentTime; [[2093,.35],[3136,.18],[4186,.08]].forEach(([f,a])=>{ const o=c.createOscillator(), g=c.createGain(); o.type='sine'; o.frequency.value=f;
+    g.gain.setValueAtTime(a*this.vol,t); g.gain.exponentialRampToValueAtTime(.0001,t+1.4); o.connect(g).connect(c.destination); o.start(t); o.stop(t+1.5); }); },
+};
+document.addEventListener('pointerdown',(e)=>{ if(e.target.closest('#snd')) return; if(TW.on && (!TW.ctx || TW.ctx.state!=='running')) TW.ensure(); },{capture:true});
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+async function typeInto(p, text){ p.classList.add('typing'); if(REDUCED){ p.textContent=text; p.classList.remove('typing'); return; }
+  const ms=text.length>40?16:24; for(let i=0;i<text.length;i++){ p.textContent=text.slice(0,i+1); TW.key(text[i]); await wait(ms); }
+  p.classList.remove('typing'); TW.ret(); await wait(90); }
+
+// ── Export: real files from the current script (the desktop app writes the same formats via the save dialog) ──
+function collect(){ return [...page.querySelectorAll('.sc-node:not([hidden])')].map(n=>[Object.keys(CLS).find(k=>n.classList.contains(CLS[k]))||'action', n.textContent]).filter(([,x])=>x.trim()); }
+const xesc=s=>s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function download(name, mime, text){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+text],{type:mime+';charset=utf-8'})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
+const FDX_TYPE={heading:'Scene Heading',action:'Action',char:'Character',paren:'Parenthetical',dial:'Dialogue',trans:'Transition'};
+const EXPORTERS={
+  fountain:(ns)=>ns.map(([t,x])=>t==='heading'?'\n.'+x.replace(' — ',' - '):t==='char'?'\n@'+x:t==='trans'?'\n> '+x:t==='action'?'\n'+x:x).join('\n').trim()+'\n',
+  txt:(ns)=>ns.map(([t,x])=>t==='heading'?'\n'+x:t==='char'?'\n'+' '.repeat(20)+x:t==='paren'?' '.repeat(16)+x:t==='dial'?' '.repeat(10)+x:t==='trans'?'\n'+' '.repeat(40)+x:'\n'+x).join('\n').trim()+'\n',
+  fdx:(ns)=>'<?xml version="1.0" encoding="UTF-8" standalone="no" ?>\n<FinalDraft DocumentType="Script" Template="No" Version="5">\n<Content>\n'+ns.map(([t,x])=>'<Paragraph Type="'+FDX_TYPE[t]+'"><Text>'+xesc(x)+'</Text></Paragraph>').join('\n')+'\n</Content>\n</FinalDraft>\n',
+  doc:(ns)=>'<html><head><meta charset="utf-8"><style>body{font-family:"Courier New",FangSong,STFangsong,serif;font-size:12pt;line-height:1.5}p{margin:0 0 6pt}.h{font-weight:bold;margin-top:14pt}.c{margin-left:2.2in;margin-top:10pt}.p{margin-left:1.6in}.d{margin-left:1.1in;margin-right:1.2in}.t{text-align:right}</style></head><body>'+
+    ns.map(([t,x])=>'<p class="'+({heading:'h',char:'c',paren:'p',dial:'d',trans:'t'}[t]||'')+'">'+xesc(x)+'</p>').join('')+'</body></html>',
+};
+function doExport(){ const fmt=(document.querySelector('input[name="ff"]:checked')||{}).value||'pdf', what=(document.querySelector('input[name="ec"]:checked')||{}).value||'剧本';
+  if(what!=='剧本'){ toast('演示里只实现了导出剧本；'+what+'在桌面版里提供'); return; }
+  const ns=collect(); if(!ns.length){ toast('剧本还是空的，先让 AI 写几场'); return; }
+  const base=($('proj').textContent||'剧本')+'-第1集'; closeModal('export');
+  if(fmt==='pdf'){ view('script'); setTimeout(()=>window.print(),120); toast('在打印对话框里选"存储为 PDF"'); return; }
+  const meta={fdx:['.fdx','application/xml'],fountain:['.fountain','text/plain'],doc:['.doc','application/msword'],txt:['.txt','text/plain']}[fmt];
+  download(base+meta[0], meta[1], EXPORTERS[fmt](ns)); toast('已导出 '+base+meta[0]+' · '+ns.length+' 段'); }
+
 const add=h=>{const d=document.createElement('div');d.className='enter';d.innerHTML=h;feed.appendChild(d);feed.scrollTop=feed.scrollHeight;return d;};
 async function tool(name,obj,ms){const t=add('<div class="tool"><span class="spin"></span><span><b>'+name+'</b>'+(obj?'：'+obj:'')+' — <span class="st">进行中</span></span></div>');await wait(ms||420);t.querySelector('.spin').outerHTML='<span class="ok">✓</span>';t.querySelector('.st').textContent='完成';}
 function view(v){$('page').hidden=v!=='script';$('outline').hidden=v!=='outline';$('tb').hidden=v!=='script';$('hd-seg').hidden=v!=='script';$('hd-title').textContent=v==='script'?'剧本':'大纲';$('nv-script').classList.toggle('on',v==='script');$('nv-outline').classList.toggle('on',v==='outline');}
@@ -252,9 +298,10 @@ function step(i){ if(done.has(i)) return; done.add(i); const n=done.size; $('rin
 function gs(){ $('gs').hidden=!$('gs').hidden; }
 function stat(id,v){ $(id).textContent=v; }
 async function insertNodes(list){ const s=$('empty'); if(s){s.remove();$('ph').remove();}
-  for(const [ty,x] of list){ const p=document.createElement('p'); p.className='sc-node writing '+CLS[ty]; p.textContent=x; page.appendChild(p); inserted.push(p); p.scrollIntoView({block:'nearest'});
+  for(const [ty,x] of list){ const p=document.createElement('p'); p.className='sc-node writing '+CLS[ty]; page.appendChild(p); inserted.push(p); p.scrollIntoView({block:'nearest'});
+    await typeInto(p, x);
     if(ty==='heading'){ sceneN++; const [loc,tod]=x.split(' — '); $('scenes-h').hidden=false; $('scenes').insertAdjacentHTML('beforeend','<div class="item enter"><span class="tnum muted">'+sceneN+'.</span>'+loc+'<small>'+tod+'</small></div>'); stat('s-scenes',sceneN); }
-    words+=x.length; stat('s-words',words.toLocaleString()); await wait(110); setTimeout(()=>p.classList.remove('writing'),700); } }
+    words+=x.length; stat('s-words',words.toLocaleString()); setTimeout(()=>p.classList.remove('writing'),700); } }
 function userSay(t){ add('<div class="msg-user">'+t+'</div>'); }
 function actions(){ return '<div style="display:flex;gap:4px;color:var(--ink-3)"><button class="btn btn-quiet" style="width:24px;height:24px;padding:0" aria-label="复制">'+ICON.copy+'</button><button class="btn btn-quiet" style="width:24px;height:24px;padding:0" aria-label="好的回答">'+ICON.up+'</button><button class="btn btn-quiet" style="width:24px;height:24px;padding:0" aria-label="不好的回答">'+ICON.down+'</button></div>'; }
 function lock(on){ busy=on; $('send').innerHTML=on?ICON.stop:ICON.send; $('send').setAttribute('aria-label',on?'停止':'发送'); }
@@ -275,14 +322,14 @@ async function turn1(){ if(busy) return; lock(true); $('welcome')&&$('welcome').
   for(const [l] of DATA.LOCS){ await tool('创建地点',l,300); $('c-locs').textContent=+$('c-locs').textContent+1; stat('s-locs',$('c-locs').textContent); } step(4);
   add('<div class="narr">现在写前三场。第一场：</div>'); view('script');
   const t=add('<div class="tool"><span class="spin"></span><span><b>插入剧本节点</b> — <span class="st">进行中</span></span></div>');
-  await insertNodes(DATA.SCRIPT1); t.querySelector('.spin').outerHTML='<span class="ok">✓</span>'; t.querySelector('.st').textContent='完成 × '+DATA.SCRIPT1.length; step(2); stat('s-rel',2);
+  await insertNodes(DATA.SCRIPT1); t.querySelector('.spin').outerHTML='<span class="ok">✓</span>'; t.querySelector('.st').textContent='完成 × '+DATA.SCRIPT1.length; TW.ding(); step(2); stat('s-rel',2);
   add('<div class="narr">《门墩儿》前三场落好了。<br><br>项目改名为《门墩儿》，第二集已经建好，暂定叫《借来的东西》。两集大纲都写了：第一集立住"只有豆豆看得见门墩儿"这条规矩，第二集往"借来的东西会想家"的方向走。<br><br>正文只写了第一集前三场：门墩儿开口、饭桌上的心不在焉、操场上的亮灯鞋。第三场书包里那块会动的石头碎屑，是我埋的线。<br><br>要不要往下想：豆豆第一次求门墩儿帮忙，会求什么？</div>'+actions());
   inserted=[]; lock(false); $('ask').value='他会求一双会亮灯的鞋。按大纲把第一集剩下的写完，结尾留个钩子接第二集。'; }
 
 async function turn2(text){ lock(true); turn=2; inserted=[]; userSay(text);
   await tool('读取剧本大纲'); await tool('查看地点'); await tool('创建地点','姥爷修车铺',300); $('c-locs').textContent=+$('c-locs').textContent+1; stat('s-locs',$('c-locs').textContent);
   const t=add('<div class="tool"><span class="spin"></span><span><b>插入剧本节点</b> — <span class="st">进行中</span></span></div>');
-  await insertNodes(DATA.SCRIPT2); t.querySelector('.spin').outerHTML='<span class="ok">✓</span>'; t.querySelector('.st').textContent='完成 × '+DATA.SCRIPT2.length;
+  await insertNodes(DATA.SCRIPT2); t.querySelector('.spin').outerHTML='<span class="ok">✓</span>'; t.querySelector('.st').textContent='完成 × '+DATA.SCRIPT2.length; TW.ding();
   add('<div class="narr">第一集写完了，五场。鞋底那个"建"字就是钩子——第二集一开场，姥爷就得回答"这鞋你从哪儿拿的"。<br><br>要不要想想：姥爷是会追问，还是假装没看见？</div>'+actions());
   const n=inserted.length+1;
   add('<div class="turn"><span class="tnum">本轮 '+n+' 处修改</span><button class="btn btn-ghost" style="height:26px;padding:0 10px" onclick="undo(this)">'+ICON.undo+' 撤销</button></div>');
@@ -340,9 +387,9 @@ function preview(title, note, ops){ const box=add('<div class="result"><div clas
   no.onclick=()=>{ box.querySelector('.row:last-child').innerHTML='<span class="muted">已拒绝，剧本没有改动</span>'; };
   ok.onclick=async()=>{ box.querySelector('.row:last-child').innerHTML='<span class="muted">正在写入…</span>'; view('script'); const removed=[], added=[];
     for(const o of ops){ const old=[...page.querySelectorAll('.sc-node')].find(n=>n.textContent===o.find); if(!old) continue; let anchor=old;
-      for(const [ty,x] of o.put){ const n=document.createElement('p'); n.className='sc-node writing '+CLS[ty]; n.textContent=x; anchor.after(n); anchor=n; added.push(n); n.scrollIntoView({block:'nearest'}); await wait(140); setTimeout(()=>n.classList.remove('writing'),700); }
+      for(const [ty,x] of o.put){ const n=document.createElement('p'); n.className='sc-node writing '+CLS[ty]; anchor.after(n); anchor=n; added.push(n); n.scrollIntoView({block:'nearest'}); await typeInto(n, x); setTimeout(()=>n.classList.remove('writing'),700); }
       removed.push(old); old.hidden=true; }
-    wfEdits={removed,added}; box.querySelector('.row:last-child').outerHTML='<div class="turn"><span class="tnum">本轮 '+(removed.length+added.length)+' 处修改</span><button class="btn btn-ghost" style="height:26px;padding:0 10px" onclick="wfUndo(this)">'+ICON.undo+' 撤销</button></div>'; };
+    TW.ding(); wfEdits={removed,added}; box.querySelector('.row:last-child').outerHTML='<div class="turn"><span class="tnum">本轮 '+(removed.length+added.length)+' 处修改</span><button class="btn btn-ghost" style="height:26px;padding:0 10px" onclick="wfUndo(this)">'+ICON.undo+' 撤销</button></div>'; };
 }
 function wfUndo(b){ if(!wfEdits) return; wfEdits.added.forEach(n=>n.remove()); wfEdits.removed.forEach(n=>n.hidden=false); const n=wfEdits.added.length+wfEdits.removed.length; wfEdits=null; b.closest('.turn').innerHTML='<span class="muted">已撤销本轮 '+n+' 处修改</span>'; toast('已撤销 '+n+' 处修改'); }
 function resRewrite(){
@@ -365,7 +412,7 @@ document.addEventListener('click',e=>{ if(!e.target.closest('#wf-wrap')) $('wf-m
 renderModelMenu();
 function sendTyped(){ if(busy){ toast('已停止'); return; } const v=$('ask').value.trim(); if(!v) return; $('ask').value=''; if(turn===0) return turn1(); if(turn===1) return turn2(v); userSay(v); add('<div class="narr">（演示里只预置了前两轮）</div>'); }
 document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey&&document.activeElement===$('ask')){ e.preventDefault(); sendTyped(); } });
-setTimeout(turn1, 700);
+TW.ui(); setTimeout(turn1, 700);
 `;
 const ICONS_JS = `<script>window.ICON=${JSON.stringify({ copy: icon('copy', 13), up: icon('up', 13), down: icon('down', 13), undo: icon('undo', 13), send: icon('send', 15), stop: icon('stop', 13), video: icon('video', 12) })};</script>`;
 
@@ -431,7 +478,7 @@ const setRow = (k, v) => `<div style="display:flex;padding:9px 0;border-top:1px 
 const p8 = () => chrome('AIScript — 设置', `
   <nav class="col2" style="width:220px;padding-top:14px">
     <div class="hd">设置</div>
-    ${['激活与授权', '模型与密钥', '项目数据'].map((t, i) => `<a class="item${i === 0 ? ' on' : ''}" href="#s${i}" style="text-decoration:none">${t}</a>`).join('')}
+    ${['激活与授权', '模型与密钥', '编辑器', '项目数据'].map((t, i) => `<a class="item${i === 0 ? ' on' : ''}" href="#s${i}" style="text-decoration:none">${t}</a>`).join('')}
   </nav>
   <main style="flex:1;overflow:auto;padding:28px 36px;max-width:860px;display:flex;flex-direction:column;gap:16px">
     <h1 class="display" style="font-size:30px;margin:0">设置</h1>
@@ -445,7 +492,12 @@ const p8 = () => chrome('AIScript — 设置', `
       <div style="padding:12px 0;border-top:1px solid var(--line)"><b style="font-weight:600">Gemini</b> <span class="chip" style="height:20px">可选 · 用你自己的 key</span><div class="muted" style="font-size:12px;margin:2px 0 8px">用于视频 / 音频转写。添加后，对话框里的模型标识会变成下拉菜单。</div>
         <div style="display:flex;gap:8px"><input class="input" type="password" placeholder="粘贴 Gemini API key" autocomplete="off"><button class="btn btn-ghost" style="height:40px" onclick="toast('Gemini key 验证通过，已存进钥匙串')">验证并保存</button></div></div>
       <div class="muted" style="font-size:12px">所有 key 只存在本机钥匙串，应用不经过任何中间服务器。</div></section>
-    <section class="card" id="s2" style="padding:18px"><b>项目数据</b><div class="muted" style="font-size:12.5px;margin:4px 0 10px">剧本、规则库、逐字稿都保存在本机 <code>~/AIScript</code>。换电脑时导出再导入。</div>
+    <section class="card" id="s2" style="padding:18px"><b>编辑器</b>
+      ${setRow('剧本字体', '<div class="seg"><button class="on">打字机（Courier + 仿宋）</button><button>宋体</button><button>系统字体</button></div>')}
+      ${setRow('生成方式', '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" checked style="accent-color:var(--primary)"> AI 写作时逐字打出（系统开启"减少动态效果"时整段出现）</label>')}
+      ${setRow('打字机音效', '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" checked style="accent-color:var(--primary)"> 生成时播放按键声、换行声，写完"叮"一下</label><input type="range" min="0" max="100" value="32" aria-label="音量" style="width:160px;margin-top:6px;accent-color:var(--primary)">')}
+      ${setRow('默认导出格式', '<div class="seg"><button class="on">PDF</button><button>Final Draft</button><button>Fountain</button><button>Word</button><button>TXT</button></div>')}</section>
+    <section class="card" id="s3" style="padding:18px"><b>项目数据</b><div class="muted" style="font-size:12.5px;margin:4px 0 10px">剧本、规则库、逐字稿都保存在本机 <code>~/AIScript</code>。换电脑时导出再导入。</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="toast('已导出 门墩儿.aiscript')">导出整个项目</button><button class="btn btn-ghost">导入项目</button><button class="btn btn-ghost" onclick="toast('已导出诊断包（不含 key 和剧本内容）')">导出诊断包</button></div></section>
   </main>`);
 
