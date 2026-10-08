@@ -1,4 +1,4 @@
-# 0002 · AIScript 桌面客户端（Windows + macOS）规格与上线路线图
+# 0002 · Ancher Scripter 桌面客户端（Windows + macOS）规格与上线路线图
 
 > 状态：草案 **v0.2** · 2026-10-08（v0.2：改为纯本地、无服务器、激活码，见 §0） · 作者：Claude Code（基于 [0001](./0001-aiscript-spec.md) 的原始需求）
 > 读法：§1–§3 是结论与决策；§4–§9 是设计；§10 是"对照陈天 SDD 还差什么"；§11–§13 是测试、上线与待决项。
@@ -34,7 +34,7 @@
 **复刻边界**：
 - 可以参考：laper.ai 的**交互流程与信息架构**，例如"一份可编辑剧本为中心 + 结构视图 + 限定范围的 AI 读写"。
 - 必须自有：品牌、文案、插画、图标、示例剧本。laper.ai 首页的 *Pulp Fiction* 示例本身就涉及第三方版权，绝不能复用。
-- 原型和产品都用自有品牌，暂名 **AIScript**。
+- 原型和产品都用自有品牌，暂名 **Ancher Scripter**。
 
 ### 1.1 首个客户与真实痛点（2026-09-17 访谈）
 
@@ -308,7 +308,7 @@ sequenceDiagram
   C->>C: 首次启动：计算机器码 AS-7K3F-9Q2M-4XHD
   C-->>Y: 客户通过微信把机器码发给你
   Y->>Y: issue --machine AS-… --customer 北京 --seat 1/3
-  Y-->>C: 激活码（或 .aiscript-license 文件）
+  Y-->>C: 激活码（或 .scripter-license 文件）
   C->>C: 内置公钥验签 → 比对机器码 → 激活完成
   C->>A: 用户填写 Ancher key，User.me() 验证
 ```
@@ -567,7 +567,7 @@ sequenceDiagram
 
 **F. 桌面端崩溃排查**：P-W3-06 至 P-W3-12（Tauri 应用 hotkey 闪退、录音、TLS 等，做法是贴完整日志和堆栈，让 Agent 定位）。
 
-### 12.2 套用到 AIScript 的测试提示词（演绎版）
+### 12.2 套用到 Ancher Scripter 的测试提示词（演绎版）
 
 ```
 # ① 测试计划（S06）
