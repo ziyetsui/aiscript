@@ -1,7 +1,7 @@
 // Export (spec 0002 §9.4): FDX / Fountain / TXT as real files; PDF via printToPDF with the typewriter stack.
 import { BrowserWindow, dialog } from 'electron';
 import { writeFileSync } from 'node:fs';
-import { toFdx, toFountain, toTxt, type ScriptNode } from '@scripter/core';
+import { toDocx, toFdx, toFountain, toTxt, type ScriptNode } from '@scripter/core';
 import type { ExportFormat } from '../shared/ipc.ts';
 import { get } from './projects.ts';
 
@@ -23,7 +23,7 @@ export async function save(win: BrowserWindow, id: string, format: ExportFormat)
   const p = get(id);
   const nodes = p.doc.nodes();
   const title = p.meta.title;
-  const ext = { pdf: 'pdf', fdx: 'fdx', fountain: 'fountain', txt: 'txt' }[format];
+  const ext = { pdf: 'pdf', docx: 'docx', fdx: 'fdx', fountain: 'fountain', txt: 'txt' }[format];
   const r = await dialog.showSaveDialog(win, { defaultPath: `${title}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
   if (r.canceled || !r.filePath) return { ok: false };
   if (format === 'pdf') {
@@ -34,6 +34,8 @@ export async function save(win: BrowserWindow, id: string, format: ExportFormat)
     } finally {
       w.destroy();
     }
+  } else if (format === 'docx') {
+    writeFileSync(r.filePath, await toDocx(title, nodes));
   } else {
     writeFileSync(r.filePath, format === 'fdx' ? toFdx(title, nodes) : format === 'fountain' ? toFountain(title, nodes) : toTxt(title, nodes), 'utf8');
   }

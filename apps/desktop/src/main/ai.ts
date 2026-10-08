@@ -8,6 +8,7 @@ import { buildMessage, checkAncherKey, createAncher, describeError, runChat } fr
 import type { AiWriteRequest, AiWriteResult, ChatMsg, TurnInfo } from '../shared/ipc.ts';
 import { get, pushChat, saveNow, state } from './projects.ts';
 import { getSecret } from './secrets.ts';
+import { log } from './archive.ts';
 
 const running = new Map<string, AbortController>();
 
@@ -62,6 +63,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
     return { ok: true, narration: parsed.narration, applied: parsed.ops.length, errors: parsed.errors, citations, turn: { id: turn.id, label: turn.label, undone: false } };
   } catch (e) {
     const message = describeError(e);
+    log('warn', `ai.write failed: ${message}`);
     reply({ text: '', error: message });
     return { ok: false, narration: '', applied: 0, errors: [], citations: [], message };
   } finally {

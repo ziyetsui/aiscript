@@ -132,3 +132,20 @@ describe('modification preview', () => {
     expect(d.nodes()[1]!.text).toBe('豆豆蹲在门墩儿旁边。'); // previewing changes nothing
   });
 });
+
+describe('docx export', () => {
+  it('writes a real .docx (zip with document.xml carrying the text)', async () => {
+    const { toDocx } = await import('../src/index.ts');
+    const { unzipSync, strFromU8 } = await import('fflate');
+    const bytes = await toDocx('门墩儿', [
+      { id: '1', type: 'heading', text: '外景 胡同口 — 傍晚' },
+      { id: '2', type: 'character', text: '门墩儿' },
+      { id: '3', type: 'dialogue', text: '别捏了 & 放手' },
+    ]);
+    expect(String.fromCharCode(bytes[0]!, bytes[1]!)).toBe('PK');
+    const xml = strFromU8(unzipSync(bytes)['word/document.xml']!);
+    expect(xml).toContain('外景 胡同口 — 傍晚');
+    expect(xml).toContain('别捏了 &amp; 放手');
+    expect(xml).toContain('w:eastAsia="FangSong"');
+  });
+});

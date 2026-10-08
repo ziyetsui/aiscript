@@ -195,9 +195,12 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
           <button className="btn btn-ghost" aria-haspopup="menu" aria-expanded={exportOpen} onClick={() => setExportOpen((o) => !o)}><Icon name="export" size={14} />导出</button>
           {exportOpen && (
             <div className="card menu" role="menu" style={{ right: 0, top: 'calc(100% + 6px)', transformOrigin: 'top right' }} onMouseLeave={() => setExportOpen(false)}>
-              {([['pdf', 'PDF', '发给导演、打印'], ['fdx', 'Final Draft（.fdx）', '行业标准格式'], ['fountain', 'Fountain', '纯文本剧本标准'], ['txt', 'TXT', '纯文本']] as const).map(([f, t, d]) => (
+              {([['pdf', 'PDF', '发给导演、打印'], ['docx', 'Word（.docx）', '继续编辑、走审批'], ['fdx', 'Final Draft（.fdx）', '行业标准格式'], ['fountain', 'Fountain', '纯文本剧本标准'], ['txt', 'TXT', '纯文本']] as const).map(([f, t, d]) => (
                 <button key={f} role="menuitem" onClick={() => void doExport(f)}><span><b>{t}</b><br /><span className="muted" style={{ fontSize: 12 }}>{d}</span></span></button>
               ))}
+              <div style={{ height: 1, background: 'var(--line)', margin: '4px 6px' }} />
+              <button role="menuitem" onClick={async () => { setExportOpen(false); const r = await window.api.projects.exportArchive(id); if (r.ok) toast(`已导出整个项目到 ${r.path}`); }}>
+                <span><b>整个项目（.scripter）</b><br /><span className="muted" style={{ fontSize: 12 }}>含设定、规则库、知识库和对话，换电脑时用</span></span></button>
             </div>
           )}
         </span>
