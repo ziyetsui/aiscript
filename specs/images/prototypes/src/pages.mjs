@@ -20,6 +20,7 @@ const I = {
   gift: 'M20 12v9H4v-9M2 7h20v5H2ZM12 21V7M12 7H7.5a2.5 2.5 0 1 1 0-5C11 2 12 7 12 7ZM12 7h4.5a2.5 2.5 0 1 0 0-5C13 2 12 7 12 7Z',
   bulb: 'M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2Z', indent: 'M3 8l4 4-4 4M11 6h10M11 12h10M11 18h10',
 };
+import { symbolSvg, ART } from './brand.mjs';
 const icon = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${I[n]}"/></svg>`;
 const chrome = (title, inner, extra = '') => `
 <div class="win"><div class="titlebar"><div class="lights"><i></i><i></i><i></i></div><div class="title">${title}</div><div class="wincaps"><span>—</span><span>☐</span><span>✕</span></div></div>
@@ -59,21 +60,22 @@ const LOCS = [['胡同口', '傍晚'], ['豆豆家', '夜'], ['学校操场', '�
 const p1 = () => chrome('AIScript · 激活', `
   <div class="act-layout" style="flex:1;display:grid;grid-template-columns:minmax(400px,0.95fr) 1.05fr;gap:16px;padding:16px">
     <div class="act-form" style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px">
-      <div style="text-align:center"><div class="logo" style="margin:0 auto 14px;width:40px;height:40px;font-size:18px">剧</div><h1 class="display" style="font-size:36px;line-height:1.1;margin:0 0 8px">激活 AIScript</h1><p class="muted" style="margin:0">输入你收到的激活码。不需要注册，也不需要登录。</p></div>
-      <div class="card" style="width:min(400px,100%);padding:18px;display:flex;flex-direction:column;gap:12px" id="act-card">
+      <div class="fade-up" style="--i:0;text-align:center"><div class="logo" id="brand-logo" style="margin:0 auto 14px;width:44px;height:44px" aria-label="Ancher" role="img">${symbolSvg(44)}</div><h1 class="display" style="font-size:36px;line-height:1.1;margin:0 0 8px">激活 AIScript</h1><p class="muted" style="margin:0">输入你收到的激活码。不需要注册，也不需要登录。</p></div>
+      <div class="card fade-up" style="--i:1;width:min(400px,100%);padding:18px;display:flex;flex-direction:column;gap:12px" id="act-card">
         <label style="font-size:12.5px;font-weight:600" for="code">激活码</label>
         <input class="input" id="code" value="AIS-7K3F-9Q2M-4XHD-B8NC" spellcheck="false" autocomplete="off" style="font-family:var(--font-family-mono);letter-spacing:.04em">
         <button class="btn btn-primary" style="height:40px" id="act-btn" onclick="activate('ok')">激活</button>
         <div id="act-steps" style="display:flex;flex-direction:column;gap:6px"></div>
         <div class="muted" style="font-size:12px;line-height:1.6">首次激活需要联网一次，之后可以离线使用。<br>每个激活码只能激活一台电脑。</div>
       </div>
-      <div style="display:flex;gap:14px;font-size:12px" class="muted">
+      <div style="--i:2;display:flex;gap:14px;font-size:12px" class="muted fade-up">
         <button style="text-decoration:underline;text-underline-offset:3px" onclick="activate('used')">演示：激活码已被别的电脑使用</button>
         <button style="text-decoration:underline;text-underline-offset:3px" onclick="activate('offline')">演示：没有网络</button>
       </div>
     </div>
-    <div class="act-art" style="border-radius:var(--r-xl);overflow:hidden;background:radial-gradient(80% 70% at 30% 30%, var(--primary-soft), transparent 70%),radial-gradient(60% 60% at 80% 80%, var(--hl), transparent 70%),var(--muted);display:grid;place-items:center">
-      <div class="page" style="min-height:0;width:380px;padding:36px 40px;transform:rotate(-2deg);box-shadow:var(--shadow-pop)">${nodes(SCRIPT1.slice(0, 11))}</div></div>
+    <figure class="act-art reveal" id="reveal" role="img" aria-label="ancher 品牌画作：窗边读书的女子（斯卡恩画派风格）" style="--art:url(${ART})">
+      <div class="rv-base" aria-hidden="true"></div><div class="rv-paint" id="rv-paint" aria-hidden="true"></div><div class="rv-grain" aria-hidden="true"></div>
+      <figcaption class="rv-cap">ancher 品牌画作 · 斯卡恩画派风格</figcaption></figure>
   </div>`, `
   <div class="scrim" id="manual"><div class="modal" role="dialog" aria-labelledby="mt" style="padding:22px">
     <div class="display" id="mt" style="font-size:20px;margin-bottom:4px">手动激活（无法联网时）</div>
@@ -95,7 +97,25 @@ const p1 = () => chrome('AIScript · 激活', `
       '<div class="result enter" id="key-step"><b>最后一步：填写你的 Ancher API key</b><div class="muted" style="font-size:12.5px">在 ancher.ai → 设置 → API 密钥 里创建，以 ak_live_ 开头。key 只存在本机钥匙串。</div>'+
       '<input class="input" id="akey" type="password" value="ak_live_demo_key" autocomplete="off" spellcheck="false" style="font-family:var(--font-family-mono)">'+
       '<div class="row"><button class="btn btn-primary" style="height:32px" onclick="checkKey(true)">验证并保存</button><button class="btn btn-ghost" style="height:32px" onclick="checkKey(false)">演示：key 无效</button></div><div id="key-out"></div></div>');
-    b.textContent='已激活'; }
+    b.textContent='已激活'; const lg=document.getElementById('brand-logo'); lg.classList.remove('spin'); void lg.offsetWidth; lg.classList.add('spin'); }
+  // ancher CTA reveal (ancher-website webgl-reveal-effect spec), done with clip-path: a spring-following circular window
+  // onto the painting. Entrance: the window shrinks from full cover to its resting size (easeInOutExpo, ancher's choice).
+  (function(){ const fig=document.getElementById('reveal'), paint=document.getElementById('rv-paint'); if(!fig) return;
+    if(matchMedia('(prefers-reduced-motion: reduce)').matches){ paint.style.clipPath='none'; return; }
+    const REST={x:.68,y:.5}, STIFF=.08, DAMP=.85, ENTER=1400; let pos={...REST}, vel={x:0,y:0}, target={...REST}, t0=null, raf=0;
+    const expo=t=>t<=0?0:t>=1?1:t<.5?Math.pow(2,20*t-10)/2:(2-Math.pow(2,-20*t+10))/2;
+    let ticked=false;
+    function frame(now){ ticked=true; t0??=now; const e=expo((now-t0)/ENTER); const w=fig.clientWidth, h=fig.clientHeight, rest=Math.min(w,h)*.36, full=Math.hypot(w,h);
+      vel.x=vel.x*DAMP+(target.x-pos.x)*STIFF; vel.y=vel.y*DAMP+(target.y-pos.y)*STIFF; pos.x+=vel.x; pos.y+=vel.y;
+      const r=full+(rest-full)*e; paint.style.clipPath='circle('+r.toFixed(1)+'px at '+(pos.x*100).toFixed(2)+'% '+(pos.y*100).toFixed(2)+'%)';
+      const settled=e>=1&&Math.abs(target.x-pos.x)<.0005&&Math.abs(target.y-pos.y)<.0005&&Math.abs(vel.x)+Math.abs(vel.y)<.0002;
+      raf=settled?0:requestAnimationFrame(frame); }   // rAF already pauses in hidden tabs
+    const wake=()=>{ if(!raf) raf=requestAnimationFrame(frame); };
+    fig.addEventListener('pointermove',ev=>{ const r=fig.getBoundingClientRect(); target={x:(ev.clientX-r.left)/r.width,y:(ev.clientY-r.top)/r.height}; wake(); });
+    fig.addEventListener('pointerleave',()=>{ target={...REST}; wake(); });
+    addEventListener('resize',wake); wake();
+    // Watchdog: if the first frame never arrives (e.g. the document was loaded while invisible), restart the loop.
+    setTimeout(()=>{ if(!ticked){ raf=0; wake(); } },200); })();
   async function checkKey(good){ const o=document.getElementById('key-out'); o.innerHTML='<div class="tool"><span class="spin"></span><span><b>连接 Ancher</b> · User.me()</span></div>'; await wait(700);
     o.innerHTML=good ? '<div class="tool"><span class="ok">✓</span><span><b>Ancher 已连接</b> · key 已存进系统钥匙串</span></div><button class="btn btn-primary" style="height:32px;margin-top:8px;width:100%" onclick="toast(\\'进入应用 → 第 02 页\\')">开始使用</button>'
       : '<div class="tool"><span class="fail">✕</span><span><b>key 无效或已被删除</b> · 请在 ancher.ai 重新复制</span></div>'; }
@@ -127,7 +147,7 @@ const p3 = () => chrome('AIScript', `
   <div class="home" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 18px;position:relative">
     <div style="align-self:stretch;display:flex;justify-content:space-between;align-items:center"><button class="btn btn-quiet" style="width:34px;padding:0" aria-label="菜单">${icon('menu', 16)}</button><span class="chip" style="height:30px"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span> 已激活 · Ancher 已连接</span></div>
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;width:min(640px,100%)">
-      <div style="display:flex;align-items:center;gap:12px"><div class="logo" style="margin:0;width:36px;height:36px;font-size:16px">剧</div><h1 class="display" style="font-size:28px;margin:0">下午好，林</h1></div>
+      <div style="display:flex;align-items:center;gap:12px"><div class="logo" style="margin:0;width:36px;height:36px" aria-label="Ancher" role="img">${symbolSvg(36)}</div><h1 class="display" style="font-size:28px;margin:0">下午好，林</h1></div>
       <div class="card" style="padding:14px;box-shadow:var(--shadow-pop)"><textarea style="width:100%;min-height:70px;border:0;outline:none;resize:none;background:transparent;font-size:16px" placeholder="写点什么，或者说说你想写的故事……"></textarea>
         <div style="display:flex;gap:8px;align-items:center"><button class="btn btn-ghost" style="height:30px">${icon('plus', 13)} 添加文件</button><button class="btn btn-ghost" style="height:30px">${icon('doc', 13)} 剧本 ${icon('chev', 12)}</button><span style="flex:1"></span><button class="btn btn-primary" style="width:34px;height:34px;padding:0;border-radius:50%" aria-label="发送">${icon('send', 15)}</button></div></div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">${[['indent', '格式'], ['bulb', '灵感'], ['pen', '写作'], ['film', '情节'], ['user', '角色']].map(([ic, t]) => `<button class="btn btn-ghost" style="height:32px">${icon(ic, 14)} ${t}</button>`).join('')}</div>
@@ -141,7 +161,7 @@ function nodes(list) {
   return list.map(([t, x]) => `<p class="sc-node ${cls[t]}">${x}</p>`).join('');
 }
 const RAIL = [['pen', '写作'], ['film', '制作'], ['users', '角色', 'c-chars'], ['map', '地点', 'c-locs'], ['box', '道具'], ['globe', '世界观'], ['book', '知识库'], ['cap', '顾问'], ['flask', '实验场']];
-const rail = (on) => `<nav class="rail" aria-label="项目导航"><div class="logo">剧</div>
+const rail = (on) => `<nav class="rail" aria-label="项目导航"><div class="logo" aria-label="Ancher" role="img">${symbolSvg(24)}</div>
   ${RAIL.map(([ic, t, id]) => `<button class="${t === on ? 'on' : ''}" title="${t}" aria-label="${t}" style="position:relative">${icon(ic, 17)}${id ? `<i id="${id}" class="tnum" style="position:absolute;right:-2px;top:-2px;font-style:normal;font-size:9.5px;min-width:15px;height:15px;border-radius:8px;background:var(--ink);color:var(--bg);display:grid;place-items:center">${t === '角色' ? (on === '角色' ? 4 : 0) : (on === '角色' ? 3 : 0)}</i>` : ''}</button>`).join('')}
   <div class="grow"></div>
   <button title="新手任务" aria-label="新手任务" onclick="typeof gs==='function'&&gs()" style="position:relative"><svg width="22" height="22" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line-strong)" stroke-width="4"/><circle id="ring" cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" stroke-width="4" stroke-dasharray="94.2" stroke-dashoffset="${on === '角色' ? 0 : 94.2}" transform="rotate(-90 18 18)" style="transition:stroke-dashoffset var(--dur-modal) var(--ease-enter)"/></svg></button>
@@ -470,7 +490,7 @@ const p6 = () => chrome('AIScript — 制作', `${rail('制作')}
 /* ═════ P7 最近（laper /app/recents） ═════ */
 const p7 = () => chrome('AIScript', `
   <nav class="rec-nav" style="width:220px;flex:none;padding:14px 10px;display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line);background:var(--sidebar)" class="col2">
-    <div style="display:flex;align-items:center;gap:8px;font-weight:700;padding:0 6px 12px"><div class="logo" style="margin:0">剧</div>AIScript</div>
+    <div style="display:flex;align-items:center;gap:8px;font-weight:700;padding:0 6px 12px"><div class="logo" style="margin:0" aria-label="Ancher" role="img">${symbolSvg(24)}</div>AIScript</div>
     ${[['plus', '新建'], ['home', '最近', 1], ['doc', '剧本'], ['video', '快速视频 Beta'], ['users', '社区'], ['trash', '回收站']].map(([ic, t, on]) => `<div class="item${on ? ' on' : ''}" style="margin:0">${icon(ic, 15)} ${t}</div>`).join('')}
     <div style="flex:1"></div>
     <div class="card" style="padding:12px;margin:8px 0;background:linear-gradient(140deg, var(--primary-soft), var(--surface))"><div class="row" style="display:flex;align-items:center;gap:6px;font-weight:600"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span>已激活 · Ancher 已连接</div>
