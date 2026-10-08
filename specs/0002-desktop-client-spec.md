@@ -76,7 +76,7 @@
 | D4 | 托管 | API 放在 **Zeabur 或 Fly（Postgres）**，静态站和更新源放在 **Cloudflare R2 / Pages** | 成本与国内访问 |
 | D5 | 域名 | 待购，例如 `aiscript.app` | 阻塞签名、OAuth 回调、更新源 |
 | D6 | 代码签名 | macOS 用 **Apple Developer ID**（$99/年）+ 公证；Windows 用 **Azure Trusted Signing**（约 $10/月）或 EV 证书 | 不签名的话 Windows SmartScreen / macOS Gatekeeper 会拦截 |
-| D7 | 原型最终方向 | 从 v2 的 5 个 ancher token 方向（01 Ink Navy / 02 Ember Night / 03 Signal / 04 Garden / 05 Dusk Glass）里选一个；交互以 laper 为准 | 决定 design-tokens.css |
+| D7 | 原型最终方向 | 从 5 个 token 方向里选一个（01 Studio Rust / 02 App Navy / 03 App Ember / 04 Graphite Signal / 05 Lamplight），token 取自 app.ancher.ai 与 ancher 桌面 Agent；交互以 laper 为准 | 决定 design-tokens.css（含动效 token） |
 | D11 | 模型路由 | 对话输入框上提供模型选择；转写默认用本地 SenseVoice，可切换到 Gemini（自带 key）或 Ancher | 成本，见 §5.5 |
 | D8 | 账号模型 | **团队空间（按席位计费）+ 成员角色**；"3 台设备"限的是每个成员，不是整个团队 | 客户有 30+ 编剧，单账号模型不成立 |
 | D9 | AI 写入方式 | **剧本正文：先提案后写入（B）；大纲 / 分场：直接写入、按轮撤销（A）** | 导演审核文化要求"改动可见、可拒绝" |
@@ -315,7 +315,7 @@ sequenceDiagram
 
 - `prototypes/dist/index.html`：**8 页 × 5 个 token 方向 = 40 层**，单文件，离线可用
 - 页面按 laper 走查还原：登录（+ 我们的设备上限）/ 一句话 Onboarding / 创作首页 / **工作区（AI 自动开写：读取 → 改名 → 写大纲 → 建角色和地点 → 插入节点高亮 → 新手任务 toast → 收尾提问 → 第二轮"N 处修改 · 撤销"）** / 角色画布 / 制作设置与分镜 / 最近 / 设备与用量（新增）
-- token 来源：`streamify-one/ancher-website/src/styles/tokens/*`（n2 中性色 12 阶、b1–b5 品牌色、Manrope / Instrument Serif / Geist Mono、`--corner-radius` 10px × 倍率、阴影阶梯）。5 个方向的 DOM 完全相同，`check.mjs` 会机检"方向之间只有 token 不同"
+- token 来源：**app.ancher.ai** 线上 CSS 变量 + **ancher 仓库**桌面 Agent 的 `new-design/components/tokens.jsx`；用 emil-design-eng 发散，每个方向都带**动效 token**（缓动、按压缩放、各类时长、入场位移、spinner 速度、AI 落笔高亮时长）。5 个方向的 DOM 完全相同，`check.mjs` 会机检"方向之间只有 token 不同"
 - **客户痛点 → 对话快捷指令**（放在 laper 的「润色格式 / 总结大纲」旁边，`⌥1–⌥8`）：出 3 个不同走向 · 参考经典结构重写 · 笑点方案 · 检查是否写飘 · 记下导演意见 · 控字数 5000 字 / 10 分钟 · 转写本地视频 · 今日热点选题
 - 输入框里有**模型选择**：Ancher / Gemini（自带 key）/ 本地 SenseVoice（见 §5.5）
 
