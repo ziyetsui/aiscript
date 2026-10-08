@@ -1,0 +1,117 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Layout directions A–E. Same tokens; different layout, component details and motion.
+   Built with emil-design-eng: each direction picks how much motion it deserves by how
+   often the surface is used, and every moving part animates transform/opacity only.
+   A = laper as walked through (base.css). B–E override below.
+   ───────────────────────────────────────────────────────────────────────────── */
+.sheet-grip { display: none; }
+
+/* ═══ B · 专注稿纸 Focus — one sheet of paper, everything else gets out of the way ═══ */
+body[data-v="b"] .col2, body[data-v="b"] .info { display: none; }
+body[data-v="b"] .rail { width: 44px; background: transparent; border-right: 0; opacity: .55; transition: opacity var(--dur-pop) ease; }
+@media (hover: hover) and (pointer: fine) { body[data-v="b"] .rail:hover { opacity: 1; } }
+body[data-v="b"] .center-hd { border-bottom: 0; }
+body[data-v="b"] .page { width: min(720px, calc(100% - 48px)); padding: 80px 96px; background: var(--paper); box-shadow: none; border: 0; }
+body[data-v="b"] .scroll { padding-bottom: 220px; }
+/* Toolbar only appears while the pointer is on the paper (noise reduction), and never animates for keyboard users. */
+body[data-v="b"] .toolbar { opacity: 0; transform: translate(-50%, -4px); transition: opacity var(--dur-pop) var(--ease-enter), transform var(--dur-pop) var(--ease-enter); }
+@media (hover: hover) and (pointer: fine) { body[data-v="b"] .center:hover .toolbar { opacity: 1; transform: translate(-50%, 0); } }
+/* Agent becomes a command bar: shows only the latest line until hovered or focused. */
+body[data-v="b"] .agent { left: 50%; right: auto; bottom: 18px; width: min(640px, calc(100% - 48px)); height: auto; max-height: calc(100% - 120px); transform: translateX(-50%); transform-origin: bottom center; }
+body[data-v="b"] .agent.min { transform: translateX(-50%) scale(.96); }
+body[data-v="b"] .agent-hd { display: none; }
+body[data-v="b"] .agent-bd { max-height: 72px; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 60%); mask-image: linear-gradient(to bottom, transparent, #000 60%); justify-content: flex-end; }
+body[data-v="b"] .agent:hover .agent-bd, body[data-v="b"] .agent:focus-within .agent-bd { max-height: min(46vh, 520px); overflow: auto; -webkit-mask-image: none; mask-image: none; justify-content: flex-start; }
+body[data-v="b"] .agent-ft { border-top: 0; }
+body[data-v="b"] .toast { top: 18px; bottom: auto; transform: translate(-50%, -140%); }
+body[data-v="b"] .toast.show { transform: translate(-50%, 0); }
+body[data-v="b"] .act-layout { grid-template-columns: 1fr !important; }
+body[data-v="b"] .act-art { display: none !important; }
+body[data-v="b"] .rec-nav { width: 64px !important; overflow: hidden; }
+body[data-v="b"] .rec-nav > *:not(.item):not(div:first-child) { display: none !important; }
+body[data-v="b"] .rec-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; max-width: 900px; margin: 0 auto; }
+body[data-v="b"] .set-main { margin: 0 auto; }
+body[data-v="b"] .chars-row { justify-content: center; }
+
+/* ═══ C · 编辑部 Docked — dense, everything visible at once, fast and flat ═══ */
+body[data-v="c"] { --fs: calc(13px * var(--type-scale)); --dur-pop: 120ms; --dur-modal: 160ms; --enter-y: 0px; }
+body[data-v="c"] .info { display: none; }
+body[data-v="c"] .agent { top: 0; right: 0; bottom: 0; height: auto; width: 360px; border-radius: 0; box-shadow: none; border-left: 1px solid var(--line); backdrop-filter: none; }
+body[data-v="c"] .agent.min { transform: none; opacity: 1; pointer-events: auto; }
+body[data-v="c"] .fab { display: none; }
+body[data-v="c"] .center-hd, body[data-v="c"] .scroll { margin-right: 360px; }
+body[data-v="c"] .toolbar { left: calc(50% - 180px); }
+body[data-v="c"] .col2 .item { height: 26px; font-size: 12.5px; }
+body[data-v="c"] #scenes .item { border-left: 2px solid var(--line-strong); border-radius: 0 var(--r-sm) var(--r-sm) 0; margin-left: 10px; }
+body[data-v="c"] .tool { background: transparent; border-left: 2px solid var(--line-strong); border-radius: 0; padding: 3px 8px; }
+body[data-v="c"] .msg-user { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); }
+body[data-v="c"] .result, body[data-v="c"] .wf { border-radius: var(--r); }
+body[data-v="c"] .page { box-shadow: 0 0 0 1px var(--line); }
+body[data-v="c"] .toast { left: auto; right: 376px; transform: translate(0, 140%); }
+body[data-v="c"] .toast.show { transform: none; }
+body[data-v="c"] .act-layout { grid-template-columns: 420px 1fr !important; }
+body[data-v="c"] .act-form { align-items: flex-start !important; padding-left: 24px; }
+body[data-v="c"] .act-form > div:first-child { text-align: left !important; }
+body[data-v="c"] .act-form .logo { margin: 0 0 14px !important; }
+body[data-v="c"] .rec-grid { grid-template-columns: 1fr !important; gap: 0 !important; }
+body[data-v="c"] .rec-grid > * { aspect-ratio: auto !important; flex-direction: row !important; justify-content: flex-start !important; gap: 12px !important; padding: 10px 14px !important; border-radius: 0 !important; box-shadow: none !important; border-bottom: 1px solid var(--line); }
+body[data-v="c"] .chars-row { flex-wrap: wrap; align-content: flex-start; }
+
+/* ═══ D · 卡片桌面 Canvas — tactile: index cards, a draggable sheet, gentle springs ═══ */
+body[data-v="d"] { --ease-enter: var(--ease-drawer); --dur-modal: 300ms; }
+body[data-v="d"] .center { background-image: radial-gradient(var(--line-strong) 1px, transparent 1px); background-size: 18px 18px; }
+body[data-v="d"] .page { border-radius: var(--r-xl); box-shadow: var(--shadow-pop); }
+body[data-v="d"] .info { display: none; }
+body[data-v="d"] #scenes .item { height: auto; min-height: 48px; margin: 6px 10px; padding: 8px 10px; flex-wrap: wrap; border-radius: var(--r); background: var(--surface); box-shadow: var(--shadow-card); transition: transform var(--dur-press) var(--ease-enter); }
+@media (hover: hover) and (pointer: fine) { body[data-v="d"] #scenes .item:hover { transform: translateY(-2px); } }
+body[data-v="d"] #scenes .item small { flex-basis: 100%; margin: 0; }
+/* The agent is a side sheet you can fling away: pointer capture, velocity > 0.11 dismisses, rubber-band to the left. */
+body[data-v="d"] .agent { top: 10px; right: 10px; bottom: 10px; height: auto; width: 420px; border-radius: var(--r-xl); transform-origin: right center; touch-action: pan-y; }
+body[data-v="d"] .agent.min { transform: translateX(calc(100% + 24px)); opacity: 1; }
+body[data-v="d"] .agent.dragging { transition: none; }
+body[data-v="d"] .sheet-grip { display: block; position: absolute; left: 6px; top: 50%; width: 5px; height: 44px; margin-top: -22px; border-radius: 3px; background: var(--line-strong); cursor: grab; z-index: 2; }
+body[data-v="d"] .chip, body[data-v="d"] .btn { border-radius: 999px; }
+body[data-v="d"] .enter { transition-duration: 320ms; }
+body[data-v="d"] .toast { left: auto; right: 24px; transform: translate(0, 140%); }
+body[data-v="d"] .toast.show { transform: none; }
+body[data-v="d"] .act-art .page { transform: rotate(-4deg) !important; }
+body[data-v="d"] .rec-grid > * { transition: transform var(--dur-pop) var(--ease-enter), box-shadow var(--dur-pop) ease; }
+@media (hover: hover) and (pointer: fine) { body[data-v="d"] .rec-grid > *:hover, body[data-v="d"] .chars-row > div:hover { transform: translateY(-4px) rotate(-.4deg); } }
+body[data-v="d"] .chars-row > div { transition: transform var(--dur-pop) var(--ease-enter); }
+body[data-v="d"] .chars-row > div:nth-child(odd) { transform: rotate(-1deg); } body[data-v="d"] .chars-row > div:nth-child(even) { transform: rotate(.8deg); }
+
+/* ═══ E · 键盘优先 Keyboard — mono, square, no motion at all (used hundreds of times a day) ═══ */
+body[data-v="e"] { --font-ui: var(--font-family-mono); --font-display: var(--font-family-mono); --display-weight: 600; --display-style: normal; --radius-mult: .15; --shadow-card: 0 0 0 1px var(--line-strong); --shadow-pop: 0 0 0 1px var(--line-strong); }
+body[data-v="e"] *, body[data-v="e"] *::before, body[data-v="e"] *::after { transition: none !important; }
+body[data-v="e"] .enter { animation: none; }
+body[data-v="e"] .btn:active, body[data-v="e"] button.chip:active { transform: none; }
+body[data-v="e"] .info { display: none; }
+body[data-v="e"] .agent { left: 0; right: 0; bottom: 0; width: auto; height: 36%; border-radius: 0; box-shadow: none; border-top: 1px solid var(--line-strong); backdrop-filter: none; }
+body[data-v="e"] .scroll { padding-bottom: 40vh; }
+body[data-v="e"] .agent-bd { font-size: 12.5px; gap: 2px; }
+body[data-v="e"] .tool { background: transparent; padding: 0; border-radius: 0; }
+body[data-v="e"] .tool .ok, body[data-v="e"] .tool .spin { display: none; }
+body[data-v="e"] .tool::before { content: "✓"; color: var(--color-success-500); }
+body[data-v="e"] .msg-user { margin-left: 0; background: transparent; padding: 0; border-radius: 0; color: var(--primary); }
+body[data-v="e"] .msg-user::before { content: "> "; }
+body[data-v="e"] .narr { color: var(--ink-2); }
+body[data-v="e"] .result, body[data-v="e"] .wf { border-radius: 0; }
+body[data-v="e"] .toolbar { top: 50px; box-shadow: 0 0 0 1px var(--line-strong); border-radius: 0; }
+body[data-v="e"] .toolbar button { flex-direction: row; width: auto; padding: 4px 8px; font-size: 11px; }
+body[data-v="e"] .toolbar button svg { display: none; }
+body[data-v="e"] .toolbar::before { content: "[Tab]"; align-self: center; padding: 0 6px; color: var(--ink-3); font-size: 11px; }
+body[data-v="e"] .kbd { box-shadow: none; padding: 0; }
+body[data-v="e"] .toast { left: auto; right: 12px; top: 44px; bottom: auto; transform: none; opacity: 0; border-radius: 0; }
+body[data-v="e"] .toast.show { opacity: 1; }
+body[data-v="e"] .modal { transform: none; }
+body[data-v="e"] .act-art { display: none !important; }
+body[data-v="e"] .act-layout { grid-template-columns: 1fr !important; }
+body[data-v="e"] .act-form { align-items: flex-start !important; max-width: 520px; margin: 0 auto; }
+body[data-v="e"] .rec-grid { grid-template-columns: 1fr !important; gap: 0 !important; }
+body[data-v="e"] .rec-grid > * { aspect-ratio: auto !important; flex-direction: row !important; justify-content: flex-start !important; gap: 12px !important; padding: 8px 12px !important; border-bottom: 1px solid var(--line); }
+body[data-v="e"] .chars-row { flex-direction: column; }
+body[data-v="e"] .chars-row > div { width: 100% !important; }
+body[data-v="e"] .chars-row .card > div:first-child { display: none; }
+body[data-v="e"] .tool:has(.spin)::before { content: "…"; color: var(--ink-3); }
+body[data-v="d"] .center:has(.agent:not(.min)) .scroll, body[data-v="d"] .center:has(.agent:not(.min)) .center-hd { margin-right: 440px; }
+body[data-v="d"] .center:has(.agent:not(.min)) .toolbar { left: calc(50% - 220px); }

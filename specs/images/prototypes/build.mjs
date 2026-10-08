@@ -8,7 +8,7 @@ import { PRIMITIVES, DIRECTIONS } from './src/tokens.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(here, 'src', p), 'utf8');
-const base = read('base.css');
+const base = read('base.css') + '\n' + read('variants.css');
 const runtime = read('runtime.js');
 
 const layerDoc = (page, key) => {

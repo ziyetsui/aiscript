@@ -57,8 +57,8 @@ const LOCS = [['胡同口', '傍晚'], ['豆豆家', '夜'], ['学校操场', '�
 
 /* ═════ P1 激活（v0.2：不登录。激活码由托管 license 服务一次性绑定本机，见 spec §6） ═════ */
 const p1 = () => chrome('AIScript · 激活', `
-  <div style="flex:1;display:grid;grid-template-columns:minmax(400px,0.95fr) 1.05fr;gap:16px;padding:16px">
-    <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px">
+  <div class="act-layout" style="flex:1;display:grid;grid-template-columns:minmax(400px,0.95fr) 1.05fr;gap:16px;padding:16px">
+    <div class="act-form" style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px">
       <div style="text-align:center"><div class="logo" style="margin:0 auto 14px;width:40px;height:40px;font-size:18px">剧</div><h1 class="display" style="font-size:36px;line-height:1.1;margin:0 0 8px">激活 AIScript</h1><p class="muted" style="margin:0">输入你收到的激活码。不需要注册，也不需要登录。</p></div>
       <div class="card" style="width:min(400px,100%);padding:18px;display:flex;flex-direction:column;gap:12px" id="act-card">
         <label style="font-size:12.5px;font-weight:600" for="code">激活码</label>
@@ -72,7 +72,7 @@ const p1 = () => chrome('AIScript · 激活', `
         <button style="text-decoration:underline;text-underline-offset:3px" onclick="activate('offline')">演示：没有网络</button>
       </div>
     </div>
-    <div style="border-radius:var(--r-xl);overflow:hidden;background:radial-gradient(80% 70% at 30% 30%, var(--primary-soft), transparent 70%),radial-gradient(60% 60% at 80% 80%, var(--hl), transparent 70%),var(--muted);display:grid;place-items:center">
+    <div class="act-art" style="border-radius:var(--r-xl);overflow:hidden;background:radial-gradient(80% 70% at 30% 30%, var(--primary-soft), transparent 70%),radial-gradient(60% 60% at 80% 80%, var(--hl), transparent 70%),var(--muted);display:grid;place-items:center">
       <div class="page" style="min-height:0;width:380px;padding:36px 40px;transform:rotate(-2deg);box-shadow:var(--shadow-pop)">${nodes(SCRIPT1.slice(0, 11))}</div></div>
   </div>`, `
   <div class="scrim" id="manual"><div class="modal" role="dialog" aria-labelledby="mt" style="padding:22px">
@@ -103,7 +103,7 @@ const p1 = () => chrome('AIScript · 激活', `
 
 /* ═════ P2 Onboarding（laper：一句话 + 添加文件 + 类型） ═════ */
 const p2 = () => chrome('AIScript', `
-  <div style="flex:1;position:relative;display:grid;place-items:center;overflow:hidden">
+  <div class="ob" style="flex:1;position:relative;display:grid;place-items:center;overflow:hidden">
     <div aria-hidden="true" style="position:absolute;inset:-20%;background:radial-gradient(22% 30% at 25% 70%, var(--primary-soft), transparent 70%),radial-gradient(18% 26% at 75% 25%, var(--hl), transparent 70%),radial-gradient(20% 22% at 60% 85%, var(--primary-soft), transparent 70%);filter:blur(40px)"></div>
     <button class="chip" style="position:absolute;top:14px;right:16px">中 / EN</button>
     <div style="position:relative;width:min(620px,calc(100% - 48px));display:flex;flex-direction:column;gap:24px;align-items:center">
@@ -124,7 +124,7 @@ const p2 = () => chrome('AIScript', `
 
 /* ═════ P3 创作首页（laper /app/new） ═════ */
 const p3 = () => chrome('AIScript', `
-  <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 18px;position:relative">
+  <div class="home" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 18px;position:relative">
     <div style="align-self:stretch;display:flex;justify-content:space-between;align-items:center"><button class="btn btn-quiet" style="width:34px;padding:0" aria-label="菜单">${icon('menu', 16)}</button><span class="chip" style="height:30px"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span> 已激活 · Ancher 已连接</span></div>
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;width:min(640px,100%)">
       <div style="display:flex;align-items:center;gap:12px"><div class="logo" style="margin:0;width:36px;height:36px;font-size:16px">剧</div><h1 class="display" style="font-size:28px;margin:0">下午好，林</h1></div>
@@ -202,6 +202,7 @@ const workspace = () => chrome('AIScript — <span id="t-proj">新剧本</span>'
         <p class="sc-heading" id="ph" style="color:var(--ink-3);margin-top:28px">内景/外景 地点 — 日/夜</p></article>
       <article class="page outline-doc" id="outline" hidden><div class="muted">还没有大纲。</div></article></div>
     <section class="agent" id="agent" aria-label="AI 编剧">
+      <div class="sheet-grip" id="grip" aria-hidden="true"></div>
       <div class="agent-hd"><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="会话列表">${icon('menu', 14)}</button><b style="flex:1" id="chat-title">新对话</b>
         <button class="btn btn-quiet" style="width:26px;padding:0" aria-label="新对话">${icon('chat', 14)}</button><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="展开到侧边">${icon('expand', 13)}</button><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="收起" onclick="agentOpen(false)">${icon('chev', 14)}</button></div>
       <div class="agent-bd" id="feed">${welcome}</div>
@@ -412,6 +413,14 @@ document.addEventListener('click',e=>{ if(!e.target.closest('#wf-wrap')) $('wf-m
 renderModelMenu();
 function sendTyped(){ if(busy){ toast('已停止'); return; } const v=$('ask').value.trim(); if(!v) return; $('ask').value=''; if(turn===0) return turn1(); if(turn===1) return turn2(v); userSay(v); add('<div class="narr">（演示里只预置了前两轮）</div>'); }
 document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey&&document.activeElement===$('ask')){ e.preventDefault(); sendTyped(); } });
+// Direction D: the agent is a side sheet you can fling away (pointer capture, velocity threshold, rubber-band).
+(function(){ const ag=$('agent'); let st=null;
+  ag.addEventListener('pointerdown',e=>{ if(document.body.dataset.v!=='d'||st) return; if(!e.target.closest('#grip,.agent-hd')||e.target.closest('button')) return;
+    st={x:e.clientX,t:performance.now(),id:e.pointerId,dx:0}; try{ ag.setPointerCapture(e.pointerId); }catch(_){} ag.classList.add('dragging'); });
+  ag.addEventListener('pointermove',e=>{ if(!st||e.pointerId!==st.id) return; let dx=e.clientX-st.x; if(dx<0) dx*=.25; st.dx=dx; ag.style.transform='translateX('+dx+'px)'; });
+  const end=e=>{ if(!st||e.pointerId!==st.id) return; try{ ag.releasePointerCapture(e.pointerId); }catch(_){} ag.classList.remove('dragging'); const v=st.dx/Math.max(1,performance.now()-st.t);
+    ag.style.transform=''; if(st.dx>140||v>.11) agentOpen(false); st=null; };
+  ag.addEventListener('pointerup',end); ag.addEventListener('pointercancel',end); })();
 TW.ui(); setTimeout(turn1, 700);
 `;
 const ICONS_JS = `<script>window.ICON=${JSON.stringify({ copy: icon('copy', 13), up: icon('up', 13), down: icon('down', 13), undo: icon('undo', 13), send: icon('send', 15), stop: icon('stop', 13), video: icon('video', 12) })};</script>`;
@@ -422,7 +431,7 @@ const p5 = () => chrome('AIScript — 角色', `${rail('角色')}
     <div class="center-hd" style="background:var(--bg)"><b>角色</b><span class="chip tnum" style="height:20px">4</span><span style="flex:1"></span><div class="seg"><button class="on">概览</button><button>关系</button><button>选角</button></div><span style="flex:1"></span>
       <button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出">${icon('export', 14)}</button><button class="btn btn-primary" style="height:28px">${icon('plus', 13)} 新角色</button></div>
     <div class="card" style="position:absolute;right:16px;top:58px;display:flex;gap:2px;padding:4px;z-index:2">${['chat', 'trash', 'expand', 'zoom', 'zoom'].map((ic) => `<button class="btn btn-quiet" style="width:26px;height:26px;padding:0">${icon(ic, 13)}</button>`).join('')}</div>
-    <div style="flex:1;overflow:auto;padding:40px 32px;display:flex;gap:20px;align-items:flex-start">
+    <div class="chars-row" style="flex:1;overflow:auto;padding:40px 32px;display:flex;gap:20px;align-items:flex-start">
       ${CHARS.map(([n, m, d, c, sc, ln]) => `<div style="width:230px;flex:none"><div class="seg" style="margin-bottom:6px"><button class="on">肖像</button><button>高级</button></div>
         <div class="card enter" style="overflow:hidden"><div style="height:150px;background:linear-gradient(160deg, ${c}, color-mix(in srgb, ${c}, black 35%));display:flex;flex-direction:column;justify-content:flex-end;padding:12px;color:#fff">
           <div style="flex:1;display:grid;place-items:center;opacity:.7">${icon('user', 40)}</div><b style="font-size:17px">${n}</b><span style="font-size:11.5px;opacity:.9">${m}</span></div>
@@ -460,15 +469,15 @@ const p6 = () => chrome('AIScript — 制作', `${rail('制作')}
 
 /* ═════ P7 最近（laper /app/recents） ═════ */
 const p7 = () => chrome('AIScript', `
-  <nav style="width:220px;flex:none;padding:14px 10px;display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line);background:var(--sidebar)" class="col2">
+  <nav class="rec-nav" style="width:220px;flex:none;padding:14px 10px;display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line);background:var(--sidebar)" class="col2">
     <div style="display:flex;align-items:center;gap:8px;font-weight:700;padding:0 6px 12px"><div class="logo" style="margin:0">剧</div>AIScript</div>
     ${[['plus', '新建'], ['home', '最近', 1], ['doc', '剧本'], ['video', '快速视频 Beta'], ['users', '社区'], ['trash', '回收站']].map(([ic, t, on]) => `<div class="item${on ? ' on' : ''}" style="margin:0">${icon(ic, 15)} ${t}</div>`).join('')}
     <div style="flex:1"></div>
     <div class="card" style="padding:12px;margin:8px 0;background:linear-gradient(140deg, var(--primary-soft), var(--surface))"><div class="row" style="display:flex;align-items:center;gap:6px;font-weight:600"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span>已激活 · Ancher 已连接</div>
       <div class="muted" style="font-size:11.5px;margin-top:4px">北京 · 1 / 3<br>项目保存在本机 ~/AIScript</div></div>
     <button class="btn btn-primary" style="height:32px">新功能</button></nav>
-  <main style="flex:1;overflow:auto;padding:24px 32px"><div class="muted" style="margin-bottom:16px">最近</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+  <main class="rec-main" style="flex:1;overflow:auto;padding:24px 32px"><div class="muted" style="margin-bottom:16px">最近</div>
+    <div class="rec-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
       ${[['plus', '新建剧本', '写出专业、结构清晰的剧本'], ['plus', '新建快速视频', '为 AI 视频创作而生']].map(([ic, t, d]) => `<button class="card" style="aspect-ratio:3/4;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--ink-2);box-shadow:inset 0 0 0 1px var(--line-strong)">${icon(ic, 20)}<b style="color:var(--ink)">${t}</b><span class="muted" style="font-size:12px;padding:0 16px;text-align:center">${d}</span></button>`).join('')}
       <div class="card enter" style="aspect-ratio:3/4;padding:16px;display:flex;flex-direction:column"><b class="display" style="font-size:18px">门墩儿</b><span class="muted" style="font-size:12px">开始你的创作之旅……</span><span style="flex:1"></span><span class="muted" style="font-size:11.5px">编辑于 6 秒前</span></div>
     </div></main>`);
@@ -480,7 +489,7 @@ const p8 = () => chrome('AIScript — 设置', `
     <div class="hd">设置</div>
     ${['激活与授权', '模型与密钥', '编辑器', '项目数据'].map((t, i) => `<a class="item${i === 0 ? ' on' : ''}" href="#s${i}" style="text-decoration:none">${t}</a>`).join('')}
   </nav>
-  <main style="flex:1;overflow:auto;padding:28px 36px;max-width:860px;display:flex;flex-direction:column;gap:16px">
+  <main class="set-main" style="flex:1;overflow:auto;padding:28px 36px;max-width:860px;display:flex;flex-direction:column;gap:16px">
     <h1 class="display" style="font-size:30px;margin:0">设置</h1>
     <section class="card" id="s0" style="padding:18px"><div style="display:flex;align-items:center;margin-bottom:6px"><b style="flex:1">激活与授权</b><span class="chip" style="height:22px;color:var(--color-success-500)">● 已激活</span></div>
       ${setRow('激活码', '<code>AIS-7K3F-••••-••••-B8NC</code>')}${setRow('授权给', '北京 · 第 1 台 / 共 3 台')}${setRow('本机标识', '<code>AS-7K3F-9Q2M</code>（自动生成）')}${setRow('激活时间', '2026-10-08 · 授权文件已缓存，离线可用')}

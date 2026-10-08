@@ -146,7 +146,10 @@
 /*__META__*/
 const PAGES = META.pages, DIRS = Object.keys(META.directions);
 const KINDS = ['Dock 形变', '命令面板', '底部胶片条', '可拖拽圆钮', '侧边刻度尺'];
-const state = { page: PAGES[0].id, dir: DIRS[0], os: 'mac', kind: 1 };
+const VARS = { a: 'Laper 原样', b: '专注稿纸', c: '编辑部', d: '卡片桌面', e: '键盘优先' };
+const VAR_NOTE = { a: '三栏 + 浮动 AI 面板（laper 走查原样）', b: '只留一张稿纸；AI 收成底部指令条，悬停才展开；工具栏只在指向稿纸时出现', c: 'AI 固定停靠右侧整列，信息更密；动效 120ms、无错开', d: '点阵桌面 + 索引卡；AI 是可拖拽甩开的侧边面板；柔和的抽屉曲线', e: '全等宽、直角、无阴影；AI 是底部控制台；完全没有动画' };
+const VK = Object.keys(VARS);
+const state = { page: PAGES[0].id, dir: DIRS[0], os: 'mac', kind: 1, v: 'a' };
 let open = true, loaded = '', viaKeyboard = false;
 const $ = (id) => document.getElementById(id);
 const store = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} } };
@@ -157,7 +160,7 @@ const swatch = (d) => `<span class="sw" style="background:${META.directions[d].s
 /* ── Stages ── */
 let front = $('sa'), back = $('sb');
 window.stage = front;
-function postOS(f) { try { f.contentWindow.postMessage({ type: 'proto:os', os: state.os }, '*'); } catch (_) {} }
+function postOS(f) { try { f.contentWindow.postMessage({ type: 'proto:os', os: state.os }, '*'); f.contentWindow.postMessage({ type: 'proto:variant', v: state.v }, '*'); } catch (_) {} }
 function showLayer() {
   const key = state.page + '-' + state.dir;
   if (key === loaded) { postOS(front); return; }
@@ -176,7 +179,7 @@ function showLayer() {
     front = next; back = prev; window.stage = front;
     try { front.contentDocument.addEventListener('keydown', onKey); } catch (_) {}
   };
-  next.srcdoc = LAYERS[key].replace('<body', '<body data-os="' + state.os + '"');
+  next.srcdoc = LAYERS[key].replace('<body', '<body data-os="' + state.os + '" data-v="' + state.v + '"');
 }
 
 /* ── Tooltip: first hover waits, the next one within 600ms shows instantly ── */
@@ -207,6 +210,9 @@ function syncSeg2(id, values, cur) {
   el.querySelector('.hi').style.clipPath = `inset(0 ${((n - 1 - i) / n * 100).toFixed(3)}% 0 ${(i / n * 100).toFixed(3)}% round 7px)`;
   el.querySelectorAll('.base button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === cur));
 }
+function varSeg(id) { return seg2(id, VK.map((k) => [k, k.toUpperCase()])); }
+function bindVar(id) { const el = $(id); if (!el) return; el.querySelectorAll('.base button').forEach((b) => { b.onclick = () => set({ v: b.dataset.v }); b.dataset.tip = b.dataset.v.toUpperCase() + ' · ' + VARS[b.dataset.v]; }); }
+function syncVar(id) { syncSeg2(id, VK, state.v); }
 function styleSwitch() { return `<div class="k-style" aria-label="picker 样式">Picker${KINDS.map((n, i) => `<button class="press ${state.kind === i + 1 ? 'on' : ''}" data-kind="${i + 1}" data-tip="${i + 1} · ${n}">${i + 1}</button>`).join('')}</div>`; }
 function bindStyle(scope) { scope.querySelectorAll('[data-kind]').forEach((b) => (b.onclick = () => setKind(+b.dataset.kind))); }
 function dirButtons(cls = '') { return DIRS.map((d) => `<button class="sw-btn ${cls}" data-d="${d}" data-tip="${META.directions[d].name} · ${META.directions[d].zh}" aria-label="${META.directions[d].name}">${swatch(d)}</button>`).join(''); }
@@ -222,22 +228,23 @@ const K1 = {
       <div class="list" id="k1-list" role="listbox" aria-label="页面"><div class="hl" aria-hidden="true"></div>
         ${PAGES.map((p, i) => `<button class="pg press" role="option" data-p="${p.id}"><i class="tnum">${pad(i + 1)}</i>${p.name}</button>`).join('')}</div>
       <div class="row" style="justify-content:space-between">${dirButtons()}</div>
+      <div class="row" style="padding-top:12px"><span style="font-size:11px;color:var(--fg-3);width:30px">版式</span>${varSeg('k1-v')}</div>
       <div class="row">${seg2('k1-os', [['mac', 'macOS'], ['win', 'Windows']])}</div>
       <div class="note" id="k1-note"></div>
-      <footer><span><kbd>↑</kbd><kbd>↓</kbd> 页面</span><span><kbd>1</kbd>–<kbd>5</kbd> 方向</span><span><kbd>M</kbd><kbd>W</kbd></span><span><kbd>H</kbd> 收起</span><span><kbd>P</kbd> 换 picker</span></footer></div></section>`;
+      <footer><span><kbd>↑</kbd><kbd>↓</kbd> 页面</span><span><kbd>A</kbd>–<kbd>E</kbd> 版式</span><span><kbd>1</kbd>–<kbd>5</kbd> 配色</span><span><kbd>M</kbd><kbd>W</kbd></span><span><kbd>H</kbd> 收起</span><span><kbd>P</kbd> 换 picker</span></footer></div></section>`;
     const r = $('k1');
     r.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => set({ page: b.dataset.p })));
     r.querySelector('#k1-os').querySelectorAll('.base button').forEach((b) => (b.onclick = () => set({ os: b.dataset.v })));
     $('k1-x').onclick = () => toggle(false); $('k1-pill').onclick = () => toggle(true);
-    bindDirs(r); bindStyle(r); bindTips(r, 'below');
+    bindVar('k1-v'); bindDirs(r); bindStyle(r); bindTips(r, 'below');
   },
   update() {
     const r = $('k1'); if (!r) return; const i = pageIdx();
     r.querySelector('.hl').style.transform = `translateY(${i * 30}px)`;
     r.querySelectorAll('[data-p]').forEach((b) => { const on = b.dataset.p === state.page; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
     syncDirs(r); syncSeg2('k1-os', ['mac', 'win'], state.os);
-    $('k1-note').textContent = META.directions[state.dir].note;
-    $('k1-pill-t').innerHTML = `${swatch(state.dir)}&nbsp; ${pad(i + 1)} · ${PAGES[i].name.split(' ')[0]}`;
+    syncVar('k1-v'); $('k1-note').textContent = `版式 ${state.v.toUpperCase()} · ${VAR_NOTE[state.v]}。配色：${META.directions[state.dir].zh}`;
+    $('k1-pill-t').innerHTML = `${swatch(state.dir)}&nbsp; ${pad(i + 1)} · ${state.v.toUpperCase()} · ${PAGES[i].name.split(' ')[0]}`;
   },
   toggle(o) { $('k1').classList.toggle('closed', !o); },
 };
@@ -265,7 +272,8 @@ const K2 = {
   items(q) {
     const all = [];
     PAGES.forEach((p, i) => all.push({ g: '页面', label: `${pad(i + 1)} ${p.name}`, patch: { page: p.id }, on: p.id === state.page }));
-    DIRS.forEach((d) => all.push({ g: '方向（只换 token）', label: `${META.directions[d].name} · ${META.directions[d].zh}`, sw: d, patch: { dir: d }, on: d === state.dir }));
+    VK.forEach((k) => all.push({ g: '版式（布局与交互细节）', label: `${k.toUpperCase()} · ${VARS[k]} — ${VAR_NOTE[k]}`, patch: { v: k }, on: k === state.v }));
+    DIRS.forEach((d) => all.push({ g: '配色（只换 token）', label: `${META.directions[d].name} · ${META.directions[d].zh}`, sw: d, patch: { dir: d }, on: d === state.dir }));
     [['mac', 'macOS 窗口外框'], ['win', 'Windows 窗口外框']].forEach(([o, t]) => all.push({ g: '系统', label: t, patch: { os: o }, on: o === state.os }));
     PAGES.forEach((p) => DIRS.forEach((d) => all.push({ g: '组合', label: `${p.name} × ${META.directions[d].zh}`, sw: d, patch: { page: p.id, dir: d }, combo: true })));
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -288,7 +296,7 @@ const K2 = {
     $('k2-q').value = ''; k2Sel = 0; K2.render(); p.classList.add('open'); $('k2-scrim').classList.add('open'); setTimeout(() => $('k2-q').focus(), 0);
   },
   close() { $('k2').classList.remove('open', 'instant'); $('k2-scrim').classList.remove('open'); },
-  update() { const i = pageIdx(); if ($('k2-hint-t')) $('k2-hint-t').innerHTML = `${swatch(state.dir)}&nbsp; ${pad(i + 1)} · ${PAGES[i].name.split(' ')[0]} · ${state.os === 'mac' ? 'macOS' : 'Win'}`; if ($('k2').classList.contains('open')) K2.render(); },
+  update() { const i = pageIdx(); if ($('k2-hint-t')) $('k2-hint-t').innerHTML = `${swatch(state.dir)}&nbsp; ${pad(i + 1)} · 版式 ${state.v.toUpperCase()} · ${PAGES[i].name.split(' ')[0]}`; if ($('k2').classList.contains('open')) K2.render(); },
   toggle(o) { $('k2-hint').hidden = !o; if (!o) K2.close(); },
 };
 
@@ -298,19 +306,19 @@ const K3 = {
     root.innerHTML = `<button class="k3-handle press" id="k3-handle" aria-label="展开胶片条" hidden></button>
       <section class="k3 glass ${open ? '' : 'closed'}" id="k3" aria-label="原型层级切换器">
         ${PAGES.map((p, i) => `<button class="tile enter" style="animation-delay:${i * 30}ms" data-p="${p.id}" aria-label="${p.name}"><div class="thumb"><i></i><i></i><i></i></div><b class="tnum">${pad(i + 1)}</b><span>${p.name}</span></button>`).join('')}
-        <div class="side"><div style="display:flex;gap:2px">${dirButtons()}</div>${seg2('k3-os', [['mac', 'macOS'], ['win', 'Win']])}
+        <div class="side">${varSeg('k3-v')}<div style="display:flex;gap:2px">${dirButtons()}</div>${seg2('k3-os', [['mac', 'macOS'], ['win', 'Win']])}
           <div style="display:flex;align-items:center;justify-content:space-between">${styleSwitch()}<button class="press" id="k3-x" aria-label="收起" style="width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08)">⌄</button></div></div></section>`;
     const r = $('k3');
     r.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => set({ page: b.dataset.p })));
     r.querySelector('#k3-os').querySelectorAll('.base button').forEach((b) => (b.onclick = () => set({ os: b.dataset.v })));
     $('k3-x').onclick = () => toggle(false); $('k3-handle').onclick = () => toggle(true);
-    bindDirs(r); bindStyle(r); bindTips(r, 'above');
+    bindVar('k3-v'); bindDirs(r); bindStyle(r); bindTips(r, 'above');
     setTimeout(() => r.querySelectorAll('.tile').forEach((t) => t.classList.remove('enter')), 600);
   },
   update() {
     const r = $('k3'); if (!r) return; const [bg, pr] = META.directions[state.dir].swatch; const dark = /#11/.test(bg);
     r.querySelectorAll('[data-p]').forEach((b) => { b.classList.toggle('on', b.dataset.p === state.page); b.style.cssText += `;--tb:${bg};--tp:${pr};--tf:${dark ? '#fff' : '#000'}`; });
-    syncDirs(r); syncSeg2('k3-os', ['mac', 'win'], state.os);
+    syncVar('k3-v'); syncDirs(r); syncSeg2('k3-os', ['mac', 'win'], state.os);
   },
   toggle(o) { $('k3').classList.toggle('closed', !o); $('k3-handle').hidden = o; },
 };
@@ -324,12 +332,12 @@ const K4 = {
       <section class="k4-menu glass" id="k4-menu" aria-label="切换层级">
         <div class="grid" id="k4-grid">${PAGES.map((p, i) => `<button class="g press" data-p="${p.id}" data-tip="${p.name}"><span class="tnum" style="color:var(--fg-3)">${pad(i + 1)}</span> ${p.name.split(' ')[0]}</button>`).join('')}</div>
         <div style="display:flex;justify-content:space-between;margin:10px 0 8px">${dirButtons()}</div>
-        ${seg2('k4-os', [['mac', 'macOS'], ['win', 'Windows']])}
+        ${varSeg('k4-v')}<div style="height:6px"></div>${seg2('k4-os', [['mac', 'macOS'], ['win', 'Windows']])}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">${styleSwitch()}<span style="color:var(--fg-3);font-size:11px">拖动圆钮换位置</span></div></section>`;
     const el = $('k4'), menu = $('k4-menu');
     menu.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => set({ page: b.dataset.p })));
     menu.querySelector('#k4-os').querySelectorAll('.base button').forEach((b) => (b.onclick = () => set({ os: b.dataset.v })));
-    bindDirs(menu); bindStyle(menu); bindTips(menu, 'below');
+    bindVar('k4-v'); bindDirs(menu); bindStyle(menu); bindTips(menu, 'below');
     K4.corner = store.get('k4-corner') || 'br'; K4.place(K4.corners()[K4.corner]);
     let start = null, dragging = false, last = null;
     el.addEventListener('pointerdown', (e) => {
@@ -374,7 +382,7 @@ const K4 = {
       const p = (a) => `${26 + r * Math.cos(a)} ${26 + r * Math.sin(a)}`;
       return `<path d="M ${p(a0)} A ${r} ${r} 0 0 1 ${p(a1)}" fill="none" stroke="${META.directions[d].swatch[1]}" stroke-width="${d === state.dir ? 4 : 2}" stroke-linecap="round" opacity="${d === state.dir ? 1 : .45}"/>`; }).join('');
     $('k4-ring').innerHTML = segs;
-    const m = $('k4-menu'); m.querySelectorAll('[data-p]').forEach((b) => b.classList.toggle('on', b.dataset.p === state.page)); syncDirs(m); syncSeg2('k4-os', ['mac', 'win'], state.os);
+    const m = $('k4-menu'); m.querySelectorAll('[data-p]').forEach((b) => b.classList.toggle('on', b.dataset.p === state.page)); syncDirs(m); syncVar('k4-v'); syncSeg2('k4-os', ['mac', 'win'], state.os);
   },
   toggle(o) { $('k4').hidden = !o; if (!o) K4.menuOpen(false); },
 };
@@ -386,17 +394,18 @@ const K5 = {
       <nav class="k5 glass ${open ? '' : 'closed'}" id="k5" aria-label="原型层级切换器">
         <div class="ticks" id="k5-ticks"><div class="tick-hl" aria-hidden="true"></div>${PAGES.map((p, i) => `<button class="tick press tnum" data-p="${p.id}" data-tip="${pad(i + 1)} · ${p.name}" aria-label="${p.name}">${pad(i + 1)}</button>`).join('')}</div>
         <div class="sep"></div>${DIRS.map((d) => `<button class="sw-btn" data-d="${d}" data-tip="${META.directions[d].name} · ${META.directions[d].zh}" aria-label="${META.directions[d].name}">${swatch(d)}</button>`).join('')}
-        <div class="sep"></div><button class="tick press" id="k5-os" data-tip="切换系统外框">⌘</button>
+        <div class="sep"></div>${VK.map((k) => `<button class="tick press" data-vv="${k}" data-tip="版式 ${k.toUpperCase()} · ${VARS[k]}">${k.toUpperCase()}</button>`).join('')}<div class="sep"></div><button class="tick press" id="k5-os" data-tip="切换系统外框">⌘</button>
         <button class="tick press" id="k5-kind" data-tip="换 picker 样式（P）">P</button><button class="tick press" id="k5-x" data-tip="收起（H）">›</button></nav>`;
     const r = $('k5');
     r.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => set({ page: b.dataset.p })));
+    r.querySelectorAll('[data-vv]').forEach((b) => (b.onclick = () => set({ v: b.dataset.vv })));
     $('k5-os').onclick = () => set({ os: state.os === 'mac' ? 'win' : 'mac' }); $('k5-kind').onclick = () => setKind((state.kind % KINDS.length) + 1);
     $('k5-x').onclick = () => toggle(false); $('k5-tab').onclick = () => toggle(true);
     let wheelAt = 0; $('k5-ticks').addEventListener('wheel', (e) => { e.preventDefault(); const now = Date.now(); if (now - wheelAt < 140) return; wheelAt = now;
       const i = pageIdx() + (e.deltaY > 0 ? 1 : -1); if (PAGES[i]) set({ page: PAGES[i].id }); }, { passive: false });
     bindDirs(r); bindTips(r, 'left');
   },
-  update() { const r = $('k5'); if (!r) return; r.querySelector('.tick-hl').style.transform = `translateY(${pageIdx() * 26}px)`; r.querySelectorAll('[data-p]').forEach((b) => b.classList.toggle('on', b.dataset.p === state.page)); syncDirs(r); $('k5-os').textContent = state.os === 'mac' ? '⌘' : '⊞'; },
+  update() { const r = $('k5'); if (!r) return; r.querySelector('.tick-hl').style.transform = `translateY(${pageIdx() * 26}px)`; r.querySelectorAll('[data-p]').forEach((b) => b.classList.toggle('on', b.dataset.p === state.page)); r.querySelectorAll('[data-vv]').forEach((b) => b.classList.toggle('on', b.dataset.vv === state.v)); syncDirs(r); $('k5-os').textContent = state.os === 'mac' ? '⌘' : '⊞'; },
   toggle(o) { $('k5').classList.toggle('closed', !o); $('k5-tab').hidden = o; },
 };
 
@@ -407,13 +416,14 @@ function toggle(o) { open = o; KS[state.kind].toggle(o); }
 window.toggle = toggle;
 
 function readHash() {
-  const [page, dir, os, kind] = location.hash.slice(1).split('-');
+  const [page, dir, os, kind, v] = location.hash.slice(1).split('-');
+  if (v in VARS) state.v = v;
   if (PAGES.some((p) => p.id === page)) state.page = page;
   if (dir in META.directions) state.dir = dir;
   if (os === 'mac' || os === 'win') state.os = os;
   const k = +(kind || '').replace('k', '') || +store.get('picker-kind') || 1; if (k >= 1 && k <= 5) state.kind = k;
 }
-function writeHash() { history.replaceState(null, '', `#${state.page}-${state.dir}-${state.os}-k${state.kind}`); }
+function writeHash() { history.replaceState(null, '', `#${state.page}-${state.dir}-${state.os}-k${state.kind}-${state.v}`); }
 function set(patch) {
   Object.assign(state, patch); showLayer();
   const r = $('root'); if (viaKeyboard) r.classList.add('kbd-move');
@@ -431,6 +441,7 @@ function onKey(e) {
   if (k === 'arrowdown' || k === 'arrowright') { set({ page: PAGES[Math.min(i + 1, PAGES.length - 1)].id }); e.preventDefault(); }
   else if (k === 'arrowup' || k === 'arrowleft') { set({ page: PAGES[Math.max(i - 1, 0)].id }); e.preventDefault(); }
   else if (/^[1-9]$/.test(k) && ('d' + k) in META.directions) set({ dir: 'd' + k });
+  else if (k in VARS) set({ v: k });
   else if (k === 'm') set({ os: 'mac' });
   else if (k === 'w') set({ os: 'win' });
   else if (k === 'h') toggle(!open);
