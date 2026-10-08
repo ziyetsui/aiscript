@@ -1,0 +1,54 @@
+# Spec 0002 §13.3: tag → matrix build (mac arm64/x64 + win x64) → sign / notarize when secrets exist
+# → draft release in the public releases repo → promote after smoke testing.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: --mac
+          - os: windows-latest
+            target: --win
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck && pnpm test
+      - name: Offline-activation public key
+        shell: bash
+        env:
+          LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
+        run: |
+          test -n "$LICENSE_PUBLIC_KEY" || { echo "::error::Set repository variable LICENSE_PUBLIC_KEY (pnpm license keypair → public.pem)"; exit 1; }
+          printf '%s\n' "$LICENSE_PUBLIC_KEY" > apps/desktop/resources/license-public.pem
+      - name: Build and publish (draft)
+        working-directory: apps/desktop
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }} # write access to ziyetsui/aiscript-releases
+          KEYGEN_ACCOUNT_ID: ${{ vars.KEYGEN_ACCOUNT_ID }}
+          KEYGEN_VERIFY_KEY: ${{ vars.KEYGEN_VERIFY_KEY }}
+          # macOS signing + notarization (Apple Developer ID). Unsigned when absent.
+          CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ secrets.MAC_CERT_P12_BASE64 != '' }}
+          # Windows: Azure Trusted Signing. Unsigned when absent.
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.target }} --publish always

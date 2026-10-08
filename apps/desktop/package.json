@@ -9,22 +9,23 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
-    "dist:mac": "electron-vite build && electron-builder --mac",
-    "dist:win": "electron-vite build && electron-builder --win",
-    "e2e": "electron-vite build && node e2e/app.e2e.ts"
+    "dist:mac": "electron-vite build && electron-builder --mac --publish never",
+    "dist:win": "electron-vite build && electron-builder --win --publish never",
+    "e2e": "electron-vite build && node e2e/app.e2e.ts",
+    "icon": "electron scripts/make-icon.cjs",
+    "package:dir": "electron-vite build && electron-builder --dir"
   },
   "dependencies": {
     "@ancher-ai/sdk": "0.4.0",
+    "electron-updater": "6.8.9",
+    "fflate": "0.8.3",
+    "loro-crdt": "1.16.4",
+    "node-machine-id": "1.1.12"
+  },
+  "devDependencies": {
     "@scripter/agent": "workspace:*",
     "@scripter/core": "workspace:*",
     "@scripter/license": "workspace:*",
-    "fflate": "0.8.3",
-    "loro-crdt": "1.16.4",
-    "node-machine-id": "1.1.12",
-    "react": "19.3.0",
-    "react-dom": "19.3.0"
-  },
-  "devDependencies": {
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "5.2.0",
@@ -32,6 +33,10 @@
     "electron-builder": "26.15.3",
     "electron-vite": "5.0.0",
     "playwright-core": "1.64.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "vite": "7.3.7"
-  }
+  },
+  "description": "Ancher Scripter — AI 编剧桌面客户端",
+  "author": "Ancher"
 }

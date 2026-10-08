@@ -1,10 +1,18 @@
 // Settings (prototype P8): activation, keys, data. No usage anywhere (spec 0002 §7).
-import type { KeyStatus, LicenseStatus } from '../../../shared/ipc.ts';
+import { useEffect, useState } from 'react';
+import type { KeyStatus, LicenseStatus, UpdateStatus } from '../../../shared/ipc.ts';
 import { KeyForm } from './Keys.tsx';
 import { useToast } from '../lib/ui.tsx';
 
 export function Settings({ license, keys, onChange }: { license: Extract<LicenseStatus, { state: 'active' }>; keys: KeyStatus; onChange: () => void }) {
   const toast = useToast();
+  const [ver, setVer] = useState('');
+  const [up, setUp] = useState<UpdateStatus>({ state: 'idle' });
+  useEffect(() => {
+    void window.api.app.info().then((i) => setVer(i.version));
+    void window.api.update.status().then(setUp);
+    return window.api.update.onStatus(setUp);
+  }, []);
   async function clear(which: 'ancher' | 'gemini') {
     await window.api.keys.clear(which);
     toast(which === 'ancher' ? '已移除 Ancher key' : '已移除 Gemini key');
@@ -43,6 +51,17 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
           </div>
           <KeyForm which="gemini" onSaved={onChange} compact />
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>密钥只保存在这台电脑的系统钥匙串里，不会上传到任何服务器。用量请在各自的服务商账户里查看。</p>
+        </section>
+        <section className="card">
+          <h2 style={{ fontSize: 15 }}>版本与更新</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="tnum" style={{ flex: 1 }}>Ancher Scripter {ver}<span className="muted" style={{ marginLeft: 8, fontSize: 12.5 }}>{
+              { idle: '', checking: '正在检查更新…', none: up.message ?? '已是最新版本', downloading: `正在下载 ${up.version ?? ''}（${up.percent ?? 0}%）`, ready: `新版本 ${up.version ?? ''} 已下载`, error: up.message ?? '检查更新失败' }[up.state]
+            }</span></span>
+            {up.state === 'ready'
+              ? <button className="btn btn-primary" onClick={() => void window.api.update.install()}>重启并安装</button>
+              : <button className="btn btn-ghost" disabled={up.state === 'checking' || up.state === 'downloading'} onClick={() => void window.api.update.check()}>检查更新</button>}
+          </div>
         </section>
         <section className="card">
           <h2 style={{ fontSize: 15 }}>项目数据</h2>
