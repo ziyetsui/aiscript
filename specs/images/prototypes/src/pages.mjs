@@ -269,7 +269,7 @@ function nodes(list) {
   const cls = { heading: 'sc-heading', action: 'sc-action', char: 'sc-char', paren: 'sc-paren', dial: 'sc-dial', trans: 'sc-trans' };
   return list.map(([t, x]) => `<p class="sc-node ${cls[t]}">${x}</p>`).join('');
 }
-const RAIL = [['pen', '写作', '', 'p4'], ['film', '制作', '', 'p6'], ['users', '角色', 'c-chars', 'p5'], ['map', '地点', 'c-locs', '-'], ['box', '道具', '', 'p9'], ['globe', '世界观', '', 'p10'], ['book', '知识库', '', 'p11'], ['cap', '顾问', '', '-'], ['flask', '实验场', '', '-']];
+const RAIL = [['pen', '写作', '', 'p4'], ['film', '制作', '', 'p6'], ['users', '角色', 'c-chars', 'p5'], ['map', '地点', 'c-locs', 'p12'], ['box', '道具', '', 'p9'], ['globe', '世界观', '', 'p10'], ['book', '知识库', '', 'p11']];
 const rail = (on) => `<nav class="rail" aria-label="项目导航"><div class="logo" aria-label="Ancher" role="img">${symbolSvg(24)}</div>
   ${RAIL.map(([ic, t, id, go]) => `<button data-go="${go}" class="${t === on ? 'on' : ''}" title="${t}" aria-label="${t}" style="position:relative">${icon(ic, 17)}${id ? `<i id="${id}" class="tnum" style="position:absolute;right:-2px;top:-2px;font-style:normal;font-size:9.5px;min-width:15px;height:15px;border-radius:8px;background:var(--ink);color:var(--bg);display:grid;place-items:center">${t === '角色' ? (on === '角色' ? 4 : 0) : (on === '角色' ? 3 : 0)}</i>` : ''}</button>`).join('')}
   <div class="grow"></div>
@@ -859,6 +859,58 @@ const p11 = () => chrome('Ancher Scripter — 知识库', `${rail('知识库')}
   window.__kbAdd=add; render();
   </script>`);
 
+
+/* ═════ P12 地点（laper /locations）：地点卡 + 清单，新建地点抽屉 ═════ */
+const LOC_DATA = [['胡同口', '外景', ['傍晚', '日'], '青砖灰瓦的老胡同入口，门墩儿就在豆豆家门口。', [1, 4], 'var(--color-b1-500)'],
+  ['豆豆家', '内景', ['夜'], '两间小平房，饭桌挨着窗，窗外能看见门墩儿。', [2], 'var(--color-b2-500)'],
+  ['学校操场', '外景', ['日'], '水泥地，旗杆，一圈杨树。课间最热闹的地方。', [3], 'var(--color-b5-500)'],
+  ['姥爷修车铺', '内景', ['夜'], '胡同里的修车铺，墙上挂满旧零件和工具。', [5], 'var(--color-b4-600)']];
+const p12 = () => chrome('Ancher Scripter — 地点', `${rail('地点')}
+  <section class="center">
+    ${pageHd('地点管理', LOC_DATA.length, `<div class="seg" role="tablist" id="lc-tabs"><button class="on" data-v="0">${icon('map', 12)} 地点总览</button><button data-v="1">${icon('panel', 12)} 地点清单</button></div>`,
+      `<button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出勘景本" onclick="toast('已导出勘景本 地点.pdf')">${icon('export', 14)}</button><button class="btn btn-primary" style="height:28px" id="lc-new" onclick="dwOpen('lc-dw')">${icon('plus', 13)} 新建地点</button>`)}
+    <div class="lc-v" data-v="0" style="flex:1;overflow:auto;padding:20px;background-image:radial-gradient(var(--line-strong) 1px, transparent 1px);background-size:20px 20px"><div class="lc-grid" id="lc-grid"></div></div>
+    <div class="lc-v" data-v="1" hidden style="flex:1;overflow:auto;padding:16px 20px"><table class="pr-tb"><thead><tr><th>地点</th><th>内/外景</th><th>时间</th><th>场次</th><th>描述</th><th></th></tr></thead><tbody id="lc-rows"></tbody></table></div>
+  </section>
+  ${drawer('lc-dw', '新建地点', '为剧本添加一个拍摄地点', `
+    <div class="fs"><b>基本信息</b><div class="in"><label class="fl" for="ln">名称</label><input class="fi" id="ln" placeholder="例如：胡同里的小卖部" autocomplete="off" required>
+      <span class="fl" style="margin-top:6px">内景 / 外景</span><div class="seg" id="lie" role="radiogroup">${['内景', '外景'].map((t, i) => `<button type="button" role="radio" aria-checked="${!i}" class="${i ? '' : 'on'}">${t}</button>`).join('')}</div>
+      <span class="fl" style="margin-top:6px">时间（可多选）</span><div style="display:flex;gap:6px;flex-wrap:wrap" id="ltm">${['日', '夜', '清晨', '傍晚', '黄昏'].map((t, i) => `<button type="button" class="chip lc-t" aria-pressed="${!i}">${t}</button>`).join('')}</div></div></div>
+    <div class="fs"><b>描述</b><div class="in"><textarea class="fi" id="ld" aria-label="描述" placeholder="空间结构 / 陈设 / 氛围 / 在故事里的作用…"></textarea></div></div>
+    <div class="fs"><b>视觉备注<br><span class="muted" style="font-weight:400;font-size:11.5px">AI 生图参考 · 光线 / 色调 / 年代 / 镜头角度</span></b><div class="in"><textarea class="fi" id="lv" aria-label="视觉备注" placeholder="例如：傍晚逆光，暖橙色，九十年代北京"></textarea></div></div>`, '创建')}`, `
+  <style>${DRAWER_CSS}
+  .lc-v[hidden]{display:none}
+  .lc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .lc-c{overflow:hidden;display:flex;flex-direction:column}.lc-c.new{animation:prIn 220ms var(--ease-enter) both}@keyframes prIn{from{opacity:0;transform:scale(.97)}}
+  .lc-img{height:120px;position:relative;display:grid;place-items:center;color:#fff}.lc-img .chip{position:absolute;left:10px;top:10px;height:20px;font-size:11px;background:color-mix(in srgb,#000 30%,transparent);color:#fff;box-shadow:none}
+  .lc-img.gen::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);background-size:220% 100%;animation:lcShim 1s linear infinite}
+  @keyframes lcShim{from{background-position:120% 0}to{background-position:-120% 0}}
+  .lc-t[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+  .pr-tb{width:100%;border-collapse:collapse;font-size:13px}.pr-tb th{text-align:left;font-weight:600;color:var(--ink-3);font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line)}.pr-tb td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  @media (prefers-reduced-motion:reduce){.lc-img.gen::after{animation:none}}
+  </style>
+  <script>${DRAWER_JS}
+  let locs=${JSON.stringify(LOC_DATA)}.map(l=>({n:l[0],ie:l[1],tm:l[2],d:l[3],sc:l[4],c:l[5],img:false}));
+  const PAL=['var(--color-b1-500)','var(--color-b2-500)','var(--color-b4-600)','var(--color-b5-500)'];
+  function render(){ document.querySelector('[data-count]').textContent=locs.length;
+    document.getElementById('lc-grid').innerHTML=locs.map((l,i)=>'<div class="card lc-c'+(l.fresh?' new':'')+'"><div class="lc-img" id="li'+i+'" style="background:'+(l.img?'linear-gradient(180deg,color-mix(in oklch,'+l.c+',white 25%),color-mix(in oklch,'+l.c+',black 45%))':'linear-gradient(160deg,'+l.c+',color-mix(in oklch,'+l.c+',black 35%))')+'"><span class="chip">'+l.ie+'</span>${icon('map', 30)}</div>'+
+      '<div style="padding:12px;display:flex;flex-direction:column;gap:8px;flex:1"><b style="font-size:15px">'+l.n+'</b><div style="display:flex;gap:6px;flex-wrap:wrap">'+l.tm.map(t=>'<span class="chip" style="height:20px;font-size:11px">'+t+'</span>').join('')+'<span class="chip tnum" style="height:20px;font-size:11px">${icon('film', 11)} '+l.sc.length+' 场</span></div>'+
+      '<p class="muted" style="margin:0;font-size:12.5px;flex:1">'+(l.d||'暂无描述')+'</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px"><button class="btn btn-ghost" style="height:30px" data-gen="'+i+'">${icon('spark', 12)} '+(l.img?'重新生成':'生成场景图')+'</button><button class="btn btn-ghost" style="height:30px" data-del="'+i+'">${icon('trash', 12)} 删除</button></div></div></div>').join('');
+    locs.forEach(l=>l.fresh=false);
+    document.getElementById('lc-rows').innerHTML=locs.map((l,i)=>'<tr><td><b>'+l.n+'</b></td><td>'+l.ie+'</td><td>'+l.tm.join(' / ')+'</td><td class="tnum">'+(l.sc.length?l.sc.map(x=>'第 '+x+' 场').join('、'):'—')+'</td><td class="muted">'+(l.d||'—')+'</td><td><button class="btn btn-quiet" style="width:28px;height:28px;padding:0" aria-label="删除 '+l.n+'" data-del="'+i+'">${icon('trash', 13)}</button></td></tr>').join('');
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const [x]=locs.splice(+b.dataset.del,1); render(); toast('已删除地点 '+x.n); });
+    document.querySelectorAll('[data-gen]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.gen, im=document.getElementById('li'+i); im.classList.add('gen'); b.disabled=true; b.lastChild.textContent=' 生成中…';
+      setTimeout(()=>{ locs[i].img=true; render(); toast('已生成「'+locs[i].n+'」场景图'); },1400); }); }
+  render();
+  document.querySelectorAll('#lc-tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#lc-tabs button').forEach(x=>x.classList.toggle('on',x===b)); document.querySelectorAll('.lc-v').forEach(v=>v.hidden=v.dataset.v!==b.dataset.v); });
+  document.querySelectorAll('#lie button').forEach(b=>b.onclick=()=>document.querySelectorAll('#lie button').forEach(x=>{ x.classList.toggle('on',x===b); x.setAttribute('aria-checked',x===b); }));
+  document.querySelectorAll('.lc-t').forEach(b=>b.onclick=()=>b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true'));
+  document.getElementById('lc-dw').onsubmit=e=>{ e.preventDefault(); const n=document.getElementById('ln'); if(!n.value.trim()){ n.focus(); return; }
+    const tm=[...document.querySelectorAll('.lc-t[aria-pressed=true]')].map(b=>b.textContent);
+    locs.push({n:n.value.trim(),ie:document.querySelector('#lie .on').textContent,tm:tm.length?tm:['日'],d:document.getElementById('ld').value.trim(),sc:[],c:PAL[locs.length%4],img:false,fresh:true});
+    e.target.reset(); document.querySelectorAll('.lc-t').forEach((b,i)=>b.setAttribute('aria-pressed',i===0)); dwClose('lc-dw'); render(); toast('已创建地点：'+locs.at(-1).n); };
+  </script>`);
+
 /* ═════ P6 制作设置 + 分镜（laper /production） ═════ */
 const p6 = () => chrome('Ancher Scripter — 制作', `${rail('制作')}
   <section class="center">
@@ -933,6 +985,7 @@ export const PAGES = [
   { id: 'p3', name: '创作首页', render: p3 },
   { id: 'p4', name: '工作区 · AI 自动开写', render: () => ICONS_JS + workspace() },
   { id: 'p5', name: '角色画布', render: p5 },
+  { id: 'p12', name: '地点', render: p12 },
   { id: 'p9', name: '道具', render: p9 },
   { id: 'p10', name: '世界观', render: p10 },
   { id: 'p11', name: '知识库', render: p11 },
