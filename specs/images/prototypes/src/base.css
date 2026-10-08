@@ -5,7 +5,9 @@
   --r-xl: calc((var(--corner-radius) + 4px) * var(--radius-mult));
   /* Motion tokens (Emil): every direction sets --ease-enter, --dur-press/pop/modal, --press-scale, --enter-y, --spin. */
   --fs: calc(14px * var(--type-scale));
-  --font-script: var(--font-script-dir, "Courier Prime", "Courier New", "Songti SC", "STSong", "SimSun", monospace);
+  /* Typewriter script face: Courier for Latin, 仿宋 for Chinese (the traditional face of typed Chinese scripts).
+     The desktop app bundles Courier Prime + 朱雀仿宋 (both OFL) so PDFs look the same on every machine. */
+  --font-script: var(--font-script-dir, "Courier Prime", "Courier New", Courier, "Zhuque Fangsong (technical preview)", "Zhuque Fangsong", "STFangsong", "FangSong", "FangSong_GB2312", "Songti SC", "SimSun", monospace);
 }
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; }
@@ -140,3 +142,20 @@ body[data-dark] .pop { background: var(--color-n2-dark-3); }
 .diff-del, .diff-add { padding: 4px 8px; border-radius: var(--r-sm); font-family: var(--font-script); font-size: 12.5px; }
 .diff-del { background: color-mix(in srgb, var(--color-danger-500), transparent 88%); text-decoration: line-through; color: var(--ink-2); }
 .diff-add { background: color-mix(in srgb, var(--color-success-500), transparent 86%); }
+
+/* Typewriter: text is typed in character by character with a block caret */
+.page { letter-spacing: .01em; -webkit-font-smoothing: auto; }
+.sc-node.typing::after { content: ""; display: inline-block; width: .55em; height: 1.05em; margin-left: 1px; vertical-align: -.16em; background: var(--ink); animation: caret 1s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .sc-node.typing::after { animation: none; } }
+.sound-off { color: var(--ink-3); }
+
+/* Print = "导出 PDF": only the script page, A4, typewriter metrics */
+@media print {
+  @page { size: A4; margin: 25mm 22mm 25mm 32mm; }
+  html, body { background: #fff !important; overflow: visible !important; height: auto; }
+  .win { position: static; } body * { visibility: hidden; }
+  #page, #page * { visibility: visible; }
+  #page { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; background: #fff; color: #000; min-height: 0; font-size: 12pt; line-height: 1.5; }
+  .sc-node.writing { background: none; } .sc-node.typing::after { display: none; } .sc-node[hidden] { display: none; }
+}
