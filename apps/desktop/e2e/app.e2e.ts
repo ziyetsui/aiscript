@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { strFromU8, unzipSync } from 'fflate';
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
 import { generateKeypair, issueOfflineCode } from '../../../packages/license/src/offline.ts';
 import { GOOD_KEY, startFakeAncher } from './fake-ancher.ts';
@@ -127,7 +128,7 @@ try {
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
 
   step('export FDX and PDF (save dialog stubbed)');
-  for (const [fmt, label] of [['fdx', 'Final Draft'], ['pdf', 'PDF']] as const) {
+  for (const [fmt, label] of [['fdx', 'Final Draft'], ['pdf', 'PDF'], ['docx', 'Word']] as const) {
     const out = join(tmp, `out.${fmt}`);
     await app.evaluate(({ dialog }, p) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath: p })) as typeof dialog.showSaveDialog; }, out);
     await page.getByRole('button', { name: '导出' }).click();
@@ -137,6 +138,7 @@ try {
   }
   assert.match(readFileSync(join(tmp, 'out.fdx'), 'utf8'), /<Paragraph Type="Character"><Text>豆豆<\/Text>/);
   assert.equal(readFileSync(join(tmp, 'out.pdf')).subarray(0, 4).toString(), '%PDF');
+  assert.match(strFromU8(unzipSync(new Uint8Array(readFileSync(join(tmp, 'out.docx'))))['word/document.xml']!), /石头……石头说话了？/);
   await shot(page, '04-after-undo');
 
   step('restart: project and text survive');
@@ -294,6 +296,38 @@ try {
   await page.getByText('测试工作室 · 第 1/3 台').waitFor();
   assert.ok(!(await page.locator('body').textContent())!.match(/积分余额|用量统计|credits/i));
   await shot(page, '05-settings');
+  const diag = join(tmp, 'diag.zip');
+  await app.evaluate(({ dialog }, p) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath: p })) as typeof dialog.showSaveDialog; }, diag);
+  await page.getByRole('button', { name: '导出诊断包' }).click();
+  await page.getByText(`已导出诊断包到 ${diag}`).waitFor();
+  const dz = unzipSync(new Uint8Array(readFileSync(diag)));
+  assert.match(strFromU8(dz['info.json']!), /"ancher": true/);
+  assert.ok(!Object.values(dz).some((b) => strFromU8(b).includes(GOOD_KEY)), 'diagnostics never contain the key');
+
+  step('export the whole project as .scripter and import it back as a copy');
+  const arc = join(tmp, '门墩儿.scripter');
+  await app.evaluate(({ dialog }, p) => {
+    dialog.showSaveDialog = (async () => ({ canceled: false, filePath: p })) as typeof dialog.showSaveDialog;
+    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [p] })) as typeof dialog.showOpenDialog;
+  }, arc);
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await page.getByRole('tab', { name: '剧本' }).click();
+  await page.locator('.paper .node').first().waitFor();
+  const original = await page.locator('.paper .node').allTextContents();
+  assert.ok(original.length >= 2);
+  await page.getByRole('button', { name: '导出' }).click();
+  await page.getByRole('menuitem', { name: /整个项目/ }).click();
+  await page.getByText(`已导出整个项目到 ${arc}`).waitFor();
+  assert.ok(!readFileSync(arc).toString('latin1').includes('conversationId":"c1'), 'the Ancher conversation id is not exported');
+  await page.getByRole('button', { name: '返回首页' }).last().click();
+  await page.getByRole('button', { name: '导入项目' }).click();
+  await page.locator('.recent', { hasText: '（导入）' }).click();
+  await page.locator('.paper .node').first().waitFor();
+  assert.deepEqual(await page.locator('.paper .node').allTextContents(), original);
+  await page.getByRole('button', { name: '知识库', exact: true }).click();
+  await page.getByText('导演意见.txt').waitFor(); // files travel with the project
+  await page.getByRole('button', { name: '世界观', exact: true }).click();
+  await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
   console.log('\nE2E passed');
 } catch (e) {
   await shot(page, 'failure').catch(() => {});

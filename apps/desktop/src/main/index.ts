@@ -6,6 +6,7 @@ import type { AiWriteRequest, Edit, ExportFormat, KeyResult, ProjectMeta, Workfl
 import * as ai from './ai.ts';
 import { save as exportSave } from './exporter.ts';
 import { activateKeygen, activateOffline, deactivateLocal, licenseStatus } from './license.ts';
+import * as archive from './archive.ts';
 import * as files from './files.ts';
 import * as wf from './workflows.ts';
 import * as projects from './projects.ts';
@@ -45,8 +46,11 @@ function gated<A extends unknown[], R>(fn: (...a: A) => R) {
   };
 }
 
+const active = () => { if (licenseStatus().state !== 'active') throw new Error('未激活'); };
+
 function registerIpc(): void {
   ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform }));
+  ipcMain.handle('app:diagnostics', (e) => { const w = BrowserWindow.fromWebContents(e.sender); return w ? archive.exportDiagnostics(w) : { ok: false }; });
   ipcMain.handle('license:status', () => licenseStatus());
   ipcMain.handle('license:activateKeygen', (_e, key: string) => activateKeygen(key));
   ipcMain.handle('license:activateOffline', (_e, code: string) => activateOffline(code));
@@ -78,9 +82,15 @@ function registerIpc(): void {
   ipcMain.handle('projects:remove', gated((id: string) => projects.remove(id)));
   ipcMain.handle('projects:edit', gated((id: string, edits: Edit[]) => projects.edit(id, edits)));
   ipcMain.handle('projects:undoTurn', gated((id: string, turnId: string) => projects.undoTurn(id, turnId)));
+  ipcMain.handle('projects:exportArchive', (e, id: string) => { active(); const w = BrowserWindow.fromWebContents(e.sender); return w ? archive.exportProject(w, id) : { ok: false }; });
+  ipcMain.handle('projects:importArchive', async (e) => {
+    active();
+    const w = BrowserWindow.fromWebContents(e.sender);
+    if (!w) return null;
+    try { return await archive.importProject(w); } catch (err) { archive.log('warn', `import failed: ${(err as Error).message}`); throw err; }
+  });
   ipcMain.handle('projects:setOutline', gated((id: string, text: string) => projects.setOutline(id, text)));
 
-  const active = () => { if (licenseStatus().state !== 'active') throw new Error('未激活'); };
   ipcMain.handle('wf:start', (e, projectId: string, id: WorkflowId, input: WorkflowInput) => { active(); return wf.start(projectId, id, input, e.sender); });
   ipcMain.handle('wf:cancel', (_e, runId: string) => wf.cancel(runId));
   ipcMain.handle('wf:retry', (e, projectId: string, runId: string) => { active(); return wf.retry(projectId, runId, e.sender); });
@@ -119,6 +129,9 @@ function registerIpc(): void {
     return w ? exportSave(w, id, format) : { ok: false };
   });
 }
+
+process.on('uncaughtException', (e) => archive.log('error', `uncaught: ${e.message}`));
+process.on('unhandledRejection', (e) => archive.log('error', `unhandled: ${e instanceof Error ? e.message : String(e)}`));
 
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 app.whenReady().then(() => {

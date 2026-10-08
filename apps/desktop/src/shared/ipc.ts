@@ -57,10 +57,10 @@ export interface AiWriteResult {
   /** Set when the reply is a modification preview waiting for the writer. */
   previewId?: string;
 }
-export type ExportFormat = 'pdf' | 'fdx' | 'fountain' | 'txt';
+export type ExportFormat = 'pdf' | 'docx' | 'fdx' | 'fountain' | 'txt';
 
 export interface Api {
-  app: { info(): Promise<{ version: string; platform: string }> };
+  app: { info(): Promise<{ version: string; platform: string }>; diagnostics(): Promise<{ ok: boolean; path?: string }> };
   license: {
     status(): Promise<LicenseStatus>;
     activateKeygen(key: string): Promise<ActivateResult>;
@@ -82,6 +82,8 @@ export interface Api {
     edit(id: string, edits: Edit[]): Promise<ProjectState>;
     undoTurn(id: string, turnId: string): Promise<ProjectState>;
     setOutline(id: string, text: string): Promise<ProjectState>;
+    exportArchive(id: string): Promise<{ ok: boolean; path?: string }>;
+    importArchive(): Promise<ProjectMeta | null>;
   };
   workflows: {
     start(projectId: string, wf: WorkflowId, input: WorkflowInput): Promise<ProjectState>;

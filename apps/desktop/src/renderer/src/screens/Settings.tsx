@@ -44,6 +44,14 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
           <KeyForm which="gemini" onSaved={onChange} compact />
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>密钥只保存在这台电脑的系统钥匙串里，不会上传到任何服务器。用量请在各自的服务商账户里查看。</p>
         </section>
+        <section className="card">
+          <h2 style={{ fontSize: 15 }}>项目数据</h2>
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>所有项目都只保存在这台电脑上。换电脑时，在剧本的「导出 → 整个项目」导出 .scripter 文件，再到新电脑的首页「导入项目」。</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-ghost" onClick={async () => { const r = await window.api.app.diagnostics(); if (r.ok) toast(`已导出诊断包到 ${r.path}`); }}>导出诊断包</button>
+          </div>
+          <p className="muted" style={{ fontSize: 12, margin: 0 }}>诊断包只含版本信息和错误日志，不含密钥和剧本内容。遇到问题时发给提供者即可。</p>
+        </section>
       </div>
     </>
   );

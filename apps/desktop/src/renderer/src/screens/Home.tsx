@@ -121,7 +121,11 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
             </section>
           )}
           <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div className="muted" style={{ fontSize: 12.5 }}>最近</div>
+            <div style={{ display: 'flex', alignItems: 'center' }}><span className="muted" style={{ fontSize: 12.5, flex: 1 }}>最近</span>
+              <button className="btn btn-quiet" style={{ height: 28 }} onClick={async () => {
+                try { const m = await window.api.projects.importArchive(); if (m) { toast(`已导入：${m.title}`); setRecents(await window.api.projects.list()); } }
+                catch (e) { toast(String((e as Error).message).replace(/^Error invoking remote method '[^']+': Error: /, '')); }
+              }}><Icon name="upload" size={13} />导入项目</button></div>
             {recents === null ? null : recents.length === 0 ? (
               <div className="card empty">还没有项目。在上面写一句想法，或者新建一个空白剧本。</div>
             ) : (
