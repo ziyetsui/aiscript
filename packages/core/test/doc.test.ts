@@ -105,3 +105,30 @@ describe('export', () => {
     expect(toTxt('门墩儿', [...nodes])).toMatch(/\n {20}门墩儿\n/);
   });
 });
+
+describe('modification preview', () => {
+  it('only rewrites and deletions of existing text need review', async () => {
+    const { needsReview } = await import('../src/index.ts');
+    expect(needsReview([{ op: 'insertNode', after: 'end', type: 'action', text: 'x' }])).toBe(false);
+    expect(needsReview([{ op: 'insertNode', after: 'end', type: 'action', text: 'x' }, { op: 'updateNode', id: 'a', text: 'y' }])).toBe(true);
+    expect(needsReview([{ op: 'deleteNode', id: 'a' }])).toBe(true);
+  });
+
+  it('describes changes against the current text and flags vanished targets', async () => {
+    const { previewOps } = await import('../src/index.ts');
+    const { d, h, a } = seed();
+    const p = previewOps(d, [
+      { op: 'updateNode', id: a, text: '豆豆一屁股坐在地上。' },
+      { op: 'deleteNode', id: h },
+      { op: 'insertNode', after: '$1', type: 'dialogue', text: '哎哟。' },
+      { op: 'updateNode', id: 'gone', text: 'x' },
+    ]);
+    expect(p.items).toEqual([
+      { kind: 'update', id: a, type: 'action', before: '豆豆蹲在门墩儿旁边。', after: '豆豆一屁股坐在地上。' },
+      { kind: 'delete', id: h, type: 'heading', before: '外景 胡同口 — 傍晚' },
+      { kind: 'insert', type: 'dialogue', text: '哎哟。' },
+    ]);
+    expect(p.missing).toEqual(['gone']);
+    expect(d.nodes()[1]!.text).toBe('豆豆蹲在门墩儿旁边。'); // previewing changes nothing
+  });
+});

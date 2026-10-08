@@ -20,7 +20,7 @@ const fake = await startFakeAncher();
 async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [join(here, '..')],
-    env: { ...process.env, SCRIPTER_USER_DATA: userData, SCRIPTER_LICENSE_PUBKEY: join(tmp, 'pub.pem'), SCRIPTER_ANCHER_BASE_URL: fake.url },
+    env: { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: userData, SCRIPTER_LICENSE_PUBKEY: join(tmp, 'pub.pem'), SCRIPTER_ANCHER_BASE_URL: fake.url },
   });
   const page = await app.firstWindow();
   await page.waitForLoadState('domcontentloaded');
@@ -106,6 +106,26 @@ try {
   await page.getByRole('button', { name: '写作', exact: true }).click();
   await page.locator('.paper .node').first().waitFor();
 
+  step('a rewrite arrives as a modification preview: reject changes nothing, accept writes, undo restores');
+  await page.getByRole('button', { name: '润色对白' }).click();
+  const preview = page.locator('.preview').last();
+  await preview.getByText('修改预览 · 1 处').waitFor({ timeout: 20_000 });
+  await preview.locator('del', { hasText: '石头……石头说话了？' }).waitFor();
+  assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？'], 'nothing written before accepting');
+  await preview.getByRole('button', { name: '拒绝' }).click();
+  await preview.getByText('已拒绝，剧本没有改动').waitFor();
+  assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
+  await page.getByRole('button', { name: '润色对白' }).click();
+  const preview2 = page.locator('.preview').last();
+  await preview2.getByRole('button', { name: '接受' }).waitFor({ timeout: 20_000 });
+  await shot(page, '04a-preview');
+  await preview2.getByRole('button', { name: '接受' }).click();
+  await preview2.getByText('已接受并写入').waitFor();
+  await page.locator('.paper .node', { hasText: '石头……石头它会说话？！' }).waitFor();
+  await page.getByRole('button', { name: '撤销' }).last().click();
+  await page.locator('.paper .node', { hasText: '石头……石头说话了？' }).waitFor();
+  assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
+
   step('export FDX and PDF (save dialog stubbed)');
   for (const [fmt, label] of [['fdx', 'Final Draft'], ['pdf', 'PDF']] as const) {
     const out = join(tmp, `out.${fmt}`);
@@ -126,6 +146,8 @@ try {
   await page.locator('.recent').first().click();
   await page.locator('.paper .node').first().waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
+  await page.getByText('已拒绝，剧本没有改动').waitFor(); // the AI conversation is saved with the project
+  assert.equal(await page.locator('.preview').count(), 2);
 
   step('characters: register from script, create, relate, cast');
   await page.getByRole('button', { name: '角色', exact: true }).click();

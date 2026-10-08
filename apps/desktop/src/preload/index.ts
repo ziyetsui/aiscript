@@ -29,6 +29,7 @@ const api: Api = {
   ai: {
     write: call('ai:write') as Api['ai']['write'],
     cancel: call('ai:cancel') as Api['ai']['cancel'],
+    resolve: call('ai:resolve') as Api['ai']['resolve'],
     onDelta(cb) {
       const h = (_e: Electron.IpcRendererEvent, d: { reqId: string; text: string }) => cb(d);
       ipcRenderer.on('ai:delta', h);

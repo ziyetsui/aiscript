@@ -13,6 +13,9 @@ import { readJson, writeJson } from './store.ts';
 
 // Dev/test-only overrides (never honoured in a packaged build): isolated data dir for E2E runs.
 if (!app.isPackaged && process.env.SCRIPTER_USER_DATA) app.setPath('userData', process.env.SCRIPTER_USER_DATA);
+// E2E runs on a developer's desktop: never take keyboard focus, so their typing can't leak into the test window.
+const e2e = !app.isPackaged && process.env.SCRIPTER_E2E === '1';
+if (e2e && process.platform === 'darwin') app.setActivationPolicy('accessory');
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
@@ -25,7 +28,7 @@ function createWindow(): void {
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: { preload: join(import.meta.dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
-  win.once('ready-to-show', () => win?.show());
+  win.once('ready-to-show', () => (e2e ? win?.showInactive() : win?.show()));
   // Links open in the system browser; the app window never navigates away.
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) void shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('http://localhost') && !url.startsWith('file://')) e.preventDefault(); });
@@ -94,6 +97,7 @@ function registerIpc(): void {
     return ai.write(req, e.sender);
   });
   ipcMain.handle('ai:cancel', (_e, reqId: string) => ai.cancel(reqId));
+  ipcMain.handle('ai:resolve', gated((projectId: string, msgId: string, accept: boolean) => ai.resolve(projectId, msgId, accept)));
   ipcMain.handle('export:save', (e, id: string, format: ExportFormat) => {
     if (licenseStatus().state !== 'active') throw new Error('未激活');
     const w = BrowserWindow.fromWebContents(e.sender);

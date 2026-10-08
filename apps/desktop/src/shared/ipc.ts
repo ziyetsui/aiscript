@@ -1,4 +1,5 @@
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
+import type { PreviewItem } from '@scripter/core';
 import type { Bible, BibleItem, BibleKind, ElementType, ScriptNode, SceneSummary } from '@scripter/core/script';
 
 export type LicenseStatus =
@@ -11,7 +12,20 @@ export type KeyResult = { ok: true; account?: string } | { ok: false; message: s
 
 export interface ProjectMeta { id: string; title: string; kind: 'script' | 'video'; createdAt: number; updatedAt: number; words: number }
 export interface TurnInfo { id: string; label: string; undone: boolean }
-export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible }
+/** One entry in the project's AI conversation, persisted with the project. */
+export interface ChatMsg {
+  id: string;
+  role: 'user' | 'ai';
+  text: string;
+  at: number;
+  turnId?: string;
+  applied?: number;
+  error?: string;
+  citations?: { url: string; title: string }[];
+  /** A rewrite waiting for the writer's decision (modification preview). */
+  preview?: { items: PreviewItem[]; state: 'open' | 'accepted' | 'rejected' | 'stale' };
+}
+export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[] }
 export interface AddFilesResult { state: ProjectState; added: number; skipped: string[] }
 
 export type Edit =
@@ -30,6 +44,8 @@ export interface AiWriteResult {
   citations: { url: string; title: string }[];
   cancelled?: boolean;
   message?: string;
+  /** Set when the reply is a modification preview waiting for the writer. */
+  previewId?: string;
 }
 export type ExportFormat = 'pdf' | 'fdx' | 'fountain' | 'txt';
 
@@ -74,6 +90,8 @@ export interface Api {
   ai: {
     write(req: AiWriteRequest): Promise<AiWriteResult>;
     cancel(reqId: string): Promise<void>;
+    /** Accept or reject a pending modification preview. */
+    resolve(projectId: string, msgId: string, accept: boolean): Promise<{ ok: boolean; message?: string; turn?: TurnInfo; state: ProjectState }>;
     onDelta(cb: (e: { reqId: string; text: string }) => void): () => void;
   };
   exporter: { save(id: string, format: ExportFormat): Promise<{ ok: boolean; path?: string; message?: string }> };

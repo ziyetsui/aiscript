@@ -15,7 +15,7 @@ Spec: `specs/0002-desktop-client-spec.md` (v0.2). When code and spec disagree, t
 - AI never edits the document directly: it returns `<ops>`, which are validated, applied in one Loro turn, and undoable on their own. A failing turn leaves no partial writes.
 - Content from web pages / files is material, not instructions (prompt-injection rule in `prompt.ts`).
 - TypeScript strict everywhere; JSON over IPC uses camelCase; dependencies pinned to exact versions.
-- Dev/test overrides (`SCRIPTER_USER_DATA`, `SCRIPTER_LICENSE_PUBKEY`, `SCRIPTER_ANCHER_BASE_URL`) are honoured only when `!app.isPackaged`.
+- Dev/test overrides (`SCRIPTER_USER_DATA`, `SCRIPTER_LICENSE_PUBKEY`, `SCRIPTER_ANCHER_BASE_URL`, `SCRIPTER_E2E` = never take focus) are honoured only when `!app.isPackaged`.
 - UI follows the prototype (`specs/images/prototypes/`), direction 01 tokens; motion per emil-design-eng (ease-out, ≤300ms, no animation on keyboard actions, reduced-motion respected).
 
 ## Checks before a PR

@@ -4,6 +4,15 @@ import { createServer, type Server } from 'node:http';
 export const GOOD_KEY = 'test-ancher-key';
 export const REPLY = '好的，先写开场。<ops>[{"op":"insertNode","type":"heading","text":"外景 胡同口 — 傍晚"},{"op":"insertNode","type":"action","text":"豆豆蹲在自家门墩儿旁边，用手指头戳石狮子的鼻子。"},{"op":"insertNode","type":"character","text":"门墩儿"},{"op":"insertNode","type":"dialogue","text":"别捏了，它要说话的。"},{"op":"upsertCharacter","name":"门墩儿","role":"精灵 · 一百多岁","desc":"住在石门墩里，嘴硬心软"},{"op":"upsertLocation","name":"胡同口","ie":"外景","times":["傍晚"]}]</ops>';
 
+/** "润色对白" rewrites the first dialogue line it sees in the packed script — exercises the modification preview. */
+function replyFor(prompt: string): string {
+  if (prompt.includes('用户：润色对白')) {
+    const m = prompt.match(/\[([a-z0-9]+)\] dialogue: (.*)/);
+    if (m) return `把这句改得更像孩子说话。<ops>[{"op":"updateNode","id":"${m[1]}","text":"石头……石头它会说话？！"}]</ops>`;
+  }
+  return REPLY;
+}
+
 export function startFakeAncher(): Promise<{ url: string; server: Server; prompts: string[] }> {
   const prompts: string[] = [];
   const server = createServer((req, res) => {
@@ -22,7 +31,8 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
     }
     if (req.method === 'GET' && url.startsWith('/api/v1/conversations/c1/stream')) {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
-      const chunks = [REPLY.slice(0, 8), REPLY.slice(8, 120), REPLY.slice(120)];
+      const reply = replyFor(prompts.at(-1) ?? '');
+      const chunks = [reply.slice(0, 8), reply.slice(8, 120), reply.slice(120)].filter(Boolean);
       // Main-agent text arrives as `content` envelopes (what parseChatStream maps to ChatEvent 'text').
       const ev = (delta: string) => ({ type: 'content', conversation_id: 'c1', message_id: 'm1', delta, created_at: Date.now() / 1000 });
       let i = 0;
