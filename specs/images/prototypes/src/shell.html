@@ -416,6 +416,7 @@ function setKind(k) { state.kind = k; $('root').innerHTML = ''; KS[k].mount($('r
 function toggle(o) { open = o; KS[state.kind].toggle(o); }
 window.toggle = toggle;
 
+window.addEventListener('message', (e) => { if (e.data && e.data.type === 'proto:goto' && PAGES.some((p) => p.id === e.data.page)) set({ page: e.data.page }); });
 function readHash() {
   const [page, dir, os, kind, v] = location.hash.slice(1).split('-');
   if (v in VARS) state.v = v;
