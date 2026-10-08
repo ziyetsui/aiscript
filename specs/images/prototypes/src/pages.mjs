@@ -12,7 +12,7 @@ const I = {
   home: 'M3 10.5 12 3l9 7.5V21H3ZM9 21v-6h6v6', plus: 'M12 5v14M5 12h14', export: 'M12 3v12M7 8l5-5 5 5M5 21h14',
   chart: 'M3 3v18h18M7 15v3M12 10v8M17 6v12', panel: 'M3 3h18v18H3ZM15 3v18', laptop: 'M4 5h16v11H4ZM2 19h20',
   doc: 'M14 3H6v18h12V7ZM14 3v4h4', video: 'M3 6h13v12H3ZM16 10l5-3v10l-5-3', send: 'M12 19V5M5 12l7-7 7 7', stop: 'M7 7h10v10H7Z',
-  x: 'M18 6 6 18M6 6l12 12', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
+  x: 'M18 6 6 18M6 6l12 12', phone: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM11 18h2', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
   chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z', copy: 'M9 9h12v12H9ZM5 15H3V3h12v2', up: 'M7 10v11M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 18.4 21H7V10l4-8a3 3 0 0 1 4 3.9Z',
   down: 'M17 14V3M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 5.6 3H17v11l-4 8a3 3 0 0 1-4-3.9Z', undo: 'M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8',
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6', trash: 'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15', check: 'M20 6 9 17l-5-5',
@@ -269,12 +269,12 @@ function nodes(list) {
   const cls = { heading: 'sc-heading', action: 'sc-action', char: 'sc-char', paren: 'sc-paren', dial: 'sc-dial', trans: 'sc-trans' };
   return list.map(([t, x]) => `<p class="sc-node ${cls[t]}">${x}</p>`).join('');
 }
-const RAIL = [['pen', '写作'], ['film', '制作'], ['users', '角色', 'c-chars'], ['map', '地点', 'c-locs'], ['box', '道具'], ['globe', '世界观'], ['book', '知识库'], ['cap', '顾问'], ['flask', '实验场']];
+const RAIL = [['pen', '写作', '', 'p4'], ['film', '制作', '', 'p6'], ['users', '角色', 'c-chars', 'p5'], ['map', '地点', 'c-locs', '-'], ['box', '道具', '', 'p9'], ['globe', '世界观', '', 'p10'], ['book', '知识库', '', 'p11'], ['cap', '顾问', '', '-'], ['flask', '实验场', '', '-']];
 const rail = (on) => `<nav class="rail" aria-label="项目导航"><div class="logo" aria-label="Ancher" role="img">${symbolSvg(24)}</div>
-  ${RAIL.map(([ic, t, id]) => `<button class="${t === on ? 'on' : ''}" title="${t}" aria-label="${t}" style="position:relative">${icon(ic, 17)}${id ? `<i id="${id}" class="tnum" style="position:absolute;right:-2px;top:-2px;font-style:normal;font-size:9.5px;min-width:15px;height:15px;border-radius:8px;background:var(--ink);color:var(--bg);display:grid;place-items:center">${t === '角色' ? (on === '角色' ? 4 : 0) : (on === '角色' ? 3 : 0)}</i>` : ''}</button>`).join('')}
+  ${RAIL.map(([ic, t, id, go]) => `<button data-go="${go}" class="${t === on ? 'on' : ''}" title="${t}" aria-label="${t}" style="position:relative">${icon(ic, 17)}${id ? `<i id="${id}" class="tnum" style="position:absolute;right:-2px;top:-2px;font-style:normal;font-size:9.5px;min-width:15px;height:15px;border-radius:8px;background:var(--ink);color:var(--bg);display:grid;place-items:center">${t === '角色' ? (on === '角色' ? 4 : 0) : (on === '角色' ? 3 : 0)}</i>` : ''}</button>`).join('')}
   <div class="grow"></div>
   <button title="新手任务" aria-label="新手任务" onclick="typeof gs==='function'&&gs()" style="position:relative"><svg width="22" height="22" viewBox="0 0 36 36" aria-hidden="true"><circle cx="18" cy="18" r="15" fill="none" stroke="var(--line-strong)" stroke-width="4"/><circle id="ring" cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" stroke-width="4" stroke-dasharray="94.2" stroke-dashoffset="${on === '角色' ? 0 : 94.2}" transform="rotate(-90 18 18)" style="transition:stroke-dashoffset var(--dur-modal) var(--ease-enter)"/></svg></button>
-  <button title="项目设置" aria-label="项目设置">${icon('gear', 17)}</button><button title="返回首页" aria-label="返回首页">${icon('home', 17)}</button>
+  <button title="项目设置" aria-label="项目设置">${icon('gear', 17)}</button><button title="返回首页" aria-label="返回首页" data-go="p3">${icon('home', 17)}</button>
   <div style="width:26px;height:26px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-size:11px;font-weight:700;margin-top:4px">林</div></nav>`;
 const gsPopover = `<div id="gs" class="card" hidden style="position:fixed;left:62px;bottom:120px;width:260px;padding:14px;z-index:20;box-shadow:var(--shadow-pop);transform-origin:bottom left">
   <div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:8px">新手任务 <span class="tnum muted" id="gs-n">0 / 6</span></div>
@@ -315,7 +315,7 @@ const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本<
     <div class="item">${icon('film', 14)} 分集看板<small class="tnum" id="ep-count" style="background:var(--ink);color:var(--bg);border-radius:8px;padding:0 6px;font-weight:700">1</small></div>
     <div id="eps"><div class="item on" id="ep1">第 1 集</div></div>
     <div style="height:8px"></div>
-    <div class="item on" id="nv-script" onclick="view('script')">${icon('doc', 14)} 剧本</div><div class="item" id="nv-outline" onclick="view('outline')">${icon('book', 14)} 大纲</div><div class="item">${icon('film', 14)} 分镜</div><div class="item">${icon('map', 14)} 场景</div>
+    <div class="item on" id="nv-script" onclick="view('script')">${icon('doc', 14)} 剧本</div><div class="item" id="nv-outline" onclick="view('outline')">${icon('book', 14)} 大纲</div><div class="item" id="nv-shots" onclick="view('shots')">${icon('film', 14)} 分镜</div><div class="item" id="nv-scn" onclick="view('scn')">${icon('map', 14)} 场景</div>
     <div class="sec eyebrow" id="scenes-h" hidden>场景</div><div id="scenes"></div>
     <div class="sec eyebrow" id="wv-h" hidden>总体世界观</div><div id="wv"></div>
   </aside>
@@ -329,7 +329,7 @@ const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本<
       <article class="page" id="page"><div id="empty" style="font-family:var(--font-family-mono);font-size:12px;color:var(--ink-3);display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:center">
         <span class="kbd">Tab</span><span>反复按 Tab 切换格式</span><span class="kbd">Enter</span><span>在选择器里新建角色、地点等实体</span><span class="kbd">@</span><span>用 @ 提及角色，让剧本更好读</span></div>
         <p class="sc-heading" id="ph" style="color:var(--ink-3);margin-top:28px">内景/外景 地点 — 日/夜</p></article>
-      <article class="page outline-doc" id="outline" hidden><div class="muted">还没有大纲。</div></article></div>
+      <article class="page outline-doc" id="outline" hidden><div class="muted">还没有大纲。</div></article><article class="page" id="shots" hidden></article><article class="page" id="scn" hidden></article></div>
     <section class="agent" id="agent" aria-label="AI 编剧">
       <div class="sheet-grip" id="grip" aria-hidden="true"></div>
       <div class="agent-hd"><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="会话列表">${icon('menu', 14)}</button><b style="flex:1" id="chat-title">新对话</b>
@@ -419,7 +419,29 @@ function doExport(){ const fmt=(document.querySelector('input[name="ff"]:checked
 
 const add=h=>{const d=document.createElement('div');d.className='enter';d.innerHTML=h;feed.appendChild(d);feed.scrollTop=feed.scrollHeight;return d;};
 async function tool(name,obj,ms){const t=add('<div class="tool"><span class="spin"></span><span><b>'+name+'</b>'+(obj?'：'+obj:'')+' — <span class="st">进行中</span></span></div>');await wait(ms||420);t.querySelector('.spin').outerHTML='<span class="ok">✓</span>';t.querySelector('.st').textContent='完成';}
-function view(v){$('page').hidden=v!=='script';$('outline').hidden=v!=='outline';$('tb').hidden=v!=='script';$('hd-seg').hidden=v!=='script';$('hd-title').textContent=v==='script'?'剧本':'大纲';$('nv-script').classList.toggle('on',v==='script');$('nv-outline').classList.toggle('on',v==='outline');}
+const VT={script:'剧本',outline:'大纲',shots:'分镜',scn:'场景'};
+function view(v){ ['page','outline','shots','scn'].forEach(id=>$(id).hidden=(id==='page'?'script':id)!==v); $('tb').hidden=v!=='script';$('hd-seg').hidden=v!=='script';$('hd-title').textContent=VT[v];
+  ['script','outline','shots','scn'].forEach(k=>$('nv-'+k).classList.toggle('on',k===v)); if(v==='shots') renderShots(); if(v==='scn') renderScn(); }
+// Scenes are read live from the script page, so they always match what's written.
+function readScenes(){ const out=[]; let cur=null; document.querySelectorAll('#page .sc-node').forEach(n=>{ const t=n.textContent.trim();
+  if(n.classList.contains('sc-heading')){ cur={el:n,h:t,chars:new Set(),lines:[],dl:0}; out.push(cur); return; } if(!cur) return;
+  if(n.classList.contains('sc-char')){ cur.chars.add(t); cur.who=t; } else if(n.classList.contains('sc-dial')){ cur.lines.push(['dial',t,cur.who]); cur.dl++; } else if(n.classList.contains('sc-action')) cur.lines.push(['action',t]); }); return out; }
+const EMPTY_V=(what)=>'<div class="muted" style="text-align:center;padding:60px 0;font-family:var(--font-family-sans)">剧本里还没有场景，'+what+'会在 AI 写完剧本后自动出现。<br><button class="btn btn-ghost" style="height:30px;margin-top:12px" onclick="view(\'script\')">回到剧本</button></div>';
+function renderScn(){ const sc=readScenes(); $('scn').innerHTML=sc.length?'<div style="display:flex;flex-direction:column;gap:10px;font-family:var(--font-family-sans)">'+sc.map((s,i)=>{ const [ie,...rest]=s.h.split(' '); const tm=s.h.split('—')[1]||'';
+  return '<button class="card scn-c" data-i="'+i+'"><span class="tnum scn-n">'+(i+1)+'</span><span style="flex:1;min-width:0"><b class="sc-heading" style="margin:0;font-size:13px">'+s.h+'</b><span class="muted" style="display:block;font-size:12px;margin-top:4px">'+((s.lines.find(l=>l[0]==='action')||['',''])[1]).slice(0,60)+'</span><span style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'+[...s.chars].map(c=>'<span class="chip" style="height:20px;font-size:11px">'+c+'</span>').join('')+'<span class="chip tnum" style="height:20px;font-size:11px">'+s.dl+' 句对白</span>'+(tm?'<span class="chip" style="height:20px;font-size:11px">'+tm.trim()+'</span>':'')+'</span></span><span class="muted" style="font-size:11.5px;white-space:nowrap">跳到剧本 →</span></button>'; }).join('')+'</div>':EMPTY_V('场景');
+  $('scn').querySelectorAll('.scn-c').forEach(b=>b.onclick=()=>{ const s=sc[+b.dataset.i]; view('script'); s.el.scrollIntoView({block:'center'}); s.el.classList.add('flash'); setTimeout(()=>s.el.classList.remove('flash'),900); }); }
+const SHOTS={}; const SIZE=['全景','中景','近景','特写'];
+function cut(s){ const out=[]; s.lines.forEach((l,k)=>{ if(l[0]==='action') out.push([k===0?'全景':'中景', l[1], 4]); else out.push([l[1].length>14?'近景':'特写', l[2]+'：'+l[1], Math.max(2,Math.round(l[1].length/5))]); }); return out; }
+function renderShots(){ const sc=readScenes(); if(!sc.length){ $('shots').innerHTML=EMPTY_V('分镜'); return; }
+  $('shots').innerHTML='<div style="font-family:var(--font-family-sans);display:flex;flex-direction:column;gap:18px"><div style="display:flex;align-items:center;gap:8px"><span class="muted" style="font-size:12.5px;flex:1">按场拆镜头。点格子直接改；景别点一下切换。</span><button class="btn btn-primary" style="height:30px" id="shots-all">${icon('spark', 13)} AI 拆全部分镜</button></div>'+
+    sc.map((s,i)=>{ const list=SHOTS[i]; return '<section><div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><b class="sc-heading" style="margin:0;flex:1;font-size:13px">'+(i+1)+'. '+s.h+'</b>'+(list?'<span class="muted tnum" style="font-size:11.5px">'+list.length+' 镜 · '+list.reduce((a,x)=>a+x[2],0)+' 秒</span>':'')+'<button class="btn btn-ghost" style="height:26px" data-cut="'+i+'">'+(list?'重新拆':'拆分镜')+'</button></div>'+
+      (list?'<table class="shot-tb"><thead><tr><th>镜号</th><th>景别</th><th>画面 / 台词</th><th>时长</th></tr></thead><tbody>'+list.map((x,k)=>'<tr'+(x.fresh?' class="new" style="animation-delay:'+(k*40)+'ms"':'')+'><td class="tnum">'+(i+1)+'-'+(k+1)+'</td><td><button class="chip shot-sz" data-s="'+i+'" data-k="'+k+'">'+x[0]+'</button></td><td contenteditable="true" data-s="'+i+'" data-k="'+k+'">'+x[1]+'</td><td class="tnum">'+x[2]+'s</td></tr>').join('')+'</tbody></table>':'<div class="muted" style="font-size:12px;padding:10px;border:1px dashed var(--line-strong);border-radius:var(--r)">还没拆镜头</div>')+'</section>'; }).join('')+'</div>';
+  Object.values(SHOTS).forEach(l=>l.forEach(x=>x.fresh=false));
+  const go=(i)=>{ SHOTS[i]=cut(sc[i]).map(x=>Object.assign(x,{fresh:true})); };
+  $('shots').querySelectorAll('[data-cut]').forEach(b=>b.onclick=()=>{ go(+b.dataset.cut); renderShots(); stat('s-shots',Object.values(SHOTS).reduce((a,l)=>a+l.length,0)); step(5); });
+  $('shots-all').onclick=()=>{ sc.forEach((_,i)=>go(i)); renderShots(); stat('s-shots',Object.values(SHOTS).reduce((a,l)=>a+l.length,0)); step(5); toast('已为 '+sc.length+' 场拆出分镜'); };
+  $('shots').querySelectorAll('.shot-sz').forEach(b=>b.onclick=()=>{ const x=SHOTS[+b.dataset.s][+b.dataset.k]; x[0]=SIZE[(SIZE.indexOf(x[0])+1)%4]; b.textContent=x[0]; });
+  $('shots').querySelectorAll('[contenteditable]').forEach(c=>c.oninput=()=>{ SHOTS[+c.dataset.s][+c.dataset.k][1]=c.textContent; }); }
 function agentOpen(o){$('agent').classList.toggle('min',!o);$('fab').hidden=o;}
 const STEPS=['和 AI 聊聊','写一份大纲','写一些剧本','添加一个角色','添加一个地点','添加一个镜头'];
 function step(i){ if(done.has(i)) return; done.add(i); const n=done.size; $('ring').style.strokeDashoffset=94.2*(1-n/6); $('gs-n').textContent=n+' / 6'; $('gs-bar').style.width=(n/6*100)+'%';
@@ -667,6 +689,176 @@ const p5 = () => chrome('Ancher Scripter — 角色', `${rail('角色')}
       c.classList.add('done'); st.textContent='已定角'; ok.textContent='改选'; toast(CH[+c.dataset.c]+' 已定角：'+v.closest('label').querySelector('b').textContent); }; });
   </script>`);
 
+
+/* ═════ 共享：右侧抽屉（laper 新建道具） ═════ */
+const DRAWER_CSS = `
+  .dw-scrim{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 55%,transparent);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:40;opacity:0;pointer-events:none;transition:opacity 220ms var(--ease-enter)}
+  .dw-scrim.open{opacity:1;pointer-events:auto}
+  .dw{position:fixed;top:12px;right:12px;bottom:12px;width:min(460px,calc(100vw - 24px));z-index:41;display:flex;flex-direction:column;background:var(--surface);border-radius:var(--r-xl);box-shadow:var(--shadow-pop);transform:translateX(calc(100% + 24px));transition:transform 260ms cubic-bezier(.32,.72,0,1);visibility:hidden}
+  .dw.open{transform:none;visibility:visible}.dw.closing{transition-duration:180ms}
+  .dw-hd{display:flex;align-items:flex-start;padding:20px 20px 12px}.dw-hd h2{margin:0;font-size:20px}.dw-body{flex:1;overflow:auto;padding:4px 20px 16px;display:flex;flex-direction:column;gap:14px}
+  .dw-ft{padding:12px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end}
+  .fs{border-radius:var(--r-lg);background:var(--muted);padding:4px}.fs>b{display:block;font-size:12.5px;padding:10px 12px 8px}.fs>.in{background:var(--surface);border-radius:calc(var(--r-lg) - 4px);padding:12px;display:flex;flex-direction:column;gap:6px}
+  .fl{font-size:12px;color:var(--ink-2)}.fi{height:36px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:0 10px;font-size:16px;width:100%}
+  textarea.fi{height:auto;min-height:96px;padding:8px 10px;resize:vertical}.fi:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+  .round-x{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--line);margin-left:auto;flex:none;transition:transform 140ms var(--ease-enter)}.round-x:active{transform:scale(.95)}
+  @media (prefers-reduced-motion:reduce){.dw,.dw-scrim{transition:none}}`;
+const DRAWER_JS = `
+  function dwOpen(id){ const d=document.getElementById(id), s=document.getElementById(id+'-s'); d.classList.remove('closing'); d.classList.add('open'); s.classList.add('open'); d.dataset.ret=document.activeElement&&document.activeElement.id||''; setTimeout(()=>{ const f=d.querySelector('input,textarea'); f&&!('ontouchstart' in window)&&f.focus(); },60); }
+  function dwClose(id){ const d=document.getElementById(id), s=document.getElementById(id+'-s'); d.classList.add('closing'); d.classList.remove('open'); s.classList.remove('open'); const r=d.dataset.ret&&document.getElementById(d.dataset.ret); r&&r.focus(); }
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') document.querySelectorAll('.dw.open').forEach(d=>dwClose(d.id)); });`;
+const drawer = (id, title, sub, body, cta) => `<div class="dw-scrim" id="${id}-s" onclick="dwClose('${id}')"></div>
+  <form class="dw" id="${id}" role="dialog" aria-modal="true" aria-labelledby="${id}-t"><div class="dw-hd"><div><h2 id="${id}-t">${title}</h2><div class="muted" style="font-size:12.5px;margin-top:4px">${sub}</div></div>
+  <button type="button" class="round-x" onclick="dwClose('${id}')" aria-label="关闭">${icon('x', 16)}</button></div><div class="dw-body">${body}</div><div class="dw-ft"><button class="btn btn-primary" style="height:36px;padding:0 18px">${cta}</button></div></form>`;
+const pageHd = (title, n, mid, right) => `<div class="center-hd" style="background:var(--bg)"><b>${title}</b><span class="chip tnum" style="height:20px" data-count>${n}</span><span style="flex:1"></span>${mid}<span style="flex:1"></span>${right}</div>`;
+
+/* ═════ P9 道具（laper /props）：总览画布 + 清单，新建道具抽屉 ═════ */
+const PROP_COLORS = [['赛车绿', 'oklch(.36 .07 160)'], ['砖红', 'oklch(.55 .15 35)'], ['琥珀', 'oklch(.75 .14 75)'], ['靛蓝', 'oklch(.42 .12 265)'], ['石灰', 'oklch(.62 .02 90)'], ['藕粉', 'oklch(.76 .07 10)']];
+const PROPS = [['白球鞋', '服装', '琥珀', '一双落满灰的白球鞋，鞋底刻着一个"林"字——姥爷小时候的鞋。', '旧帆布，泛黄，鞋带自己会系'], ['石门墩', '装饰', '石灰', '豆豆家门口的抱鼓石，门墩儿住在里面。', '青石，一侧磨得发亮']];
+const p9 = () => chrome('Ancher Scripter — 道具', `${rail('道具')}
+  <section class="center" id="pr-center">
+    ${pageHd('道具管理', PROPS.length, `<div class="seg" role="tablist" id="pr-tabs"><button class="on" data-v="0">${icon('pen', 12)} 道具总览</button><button data-v="1">${icon('panel', 12)} 道具清单</button></div>`,
+      `<button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出" onclick="toast('已导出道具清单 道具.csv')">${icon('export', 14)}</button><button class="btn btn-primary" style="height:28px" id="pr-new" onclick="dwOpen('pr-dw')">${icon('plus', 13)} 新建道具</button>`)}
+    <div class="pr-v" data-v="0" id="pr-board" style="flex:1;position:relative;overflow:hidden;background-image:radial-gradient(var(--line-strong) 1px, transparent 1px);background-size:20px 20px;touch-action:none"></div>
+    <div class="pr-v" data-v="1" hidden style="flex:1;overflow:auto;padding:16px 20px"><table class="pr-tb"><thead><tr><th>名称</th><th>分类</th><th>主题色</th><th>描述</th><th>出场</th><th></th></tr></thead><tbody id="pr-rows"></tbody></table></div>
+  </section>
+  ${drawer('pr-dw', '新建道具', '为剧本创建一件新的道具', `
+    <div class="fs"><b>基本信息</b><div class="in"><label class="fl" for="pn">名称</label><input class="fi" id="pn" placeholder="例如：姥爷的修车扳手" autocomplete="off" required>
+      <span class="fl" style="margin-top:6px">主题色</span><div style="position:relative"><button type="button" class="chip pr-color" id="pc-btn" aria-haspopup="listbox" aria-expanded="false"><i class="pr-sw" id="pc-sw" style="background:${PROP_COLORS[0][1]}"></i><span id="pc-t">${PROP_COLORS[0][0]}</span></button>
+        <div class="card pr-pal" id="pc-pal" role="listbox">${PROP_COLORS.map(([t, c]) => `<button type="button" role="option" data-t="${t}" data-c="${c}"><i class="pr-sw" style="background:${c}"></i>${t}</button>`).join('')}</div></div>
+      <label class="fl" for="pk" style="margin-top:6px">分类</label><input class="fi" id="pk" placeholder="道具 / 服装 / 车辆 / 武器 / 食物 / 装饰…" list="pk-l" autocomplete="off"><datalist id="pk-l">${['道具', '服装', '车辆', '武器', '食物', '装饰'].map((t) => `<option value="${t}">`).join('')}</datalist></div></div>
+    <div class="fs"><b>描述</b><div class="in"><textarea class="fi" id="pd" aria-label="描述" placeholder="形态 / 材质 / 用途 / 状态 / 故事意义…"></textarea></div></div>
+    <div class="fs"><b>形象备注<br><span class="muted" style="font-weight:400;font-size:11.5px">AI 生图参考 · 质感 / 色调 / 光线 / 镜头语言</span></b><div class="in"><textarea class="fi" id="pv" aria-label="形象备注" placeholder="例如：暖黄台灯下的特写，金属反光，略带锈迹"></textarea></div></div>`, '创建')}`, `
+  <style>${DRAWER_CSS}
+  .pr-v[hidden]{display:none}
+  .pr-card{position:absolute;width:220px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-card),inset 0 0 0 1px var(--line);overflow:hidden;cursor:grab;user-select:none;text-align:left}
+  .pr-card.drag{cursor:grabbing;box-shadow:var(--shadow-pop),inset 0 0 0 1px var(--line)}
+  .pr-card.new{animation:prIn 220ms var(--ease-enter) both}@keyframes prIn{from{opacity:0;transform:scale(.96)}}
+  .pr-top{height:84px;display:grid;place-items:center;color:#fff}
+  .pr-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink-3);font-size:13px}
+  .pr-tb{width:100%;border-collapse:collapse;font-size:13px}.pr-tb th{text-align:left;font-weight:600;color:var(--ink-3);font-size:12px;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .pr-tb td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}.pr-tb td:nth-child(4){color:var(--ink-2);max-width:360px}
+  .pr-sw{display:inline-block;width:18px;height:18px;border-radius:50%;flex:none}
+  .pr-color{height:40px;padding:0 14px 0 8px;gap:8px;font-weight:600;box-shadow:var(--shadow-card),inset 0 0 0 1px var(--line)}
+  .pr-pal{position:absolute;top:calc(100% + 6px);left:0;z-index:5;padding:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px;width:220px;transform-origin:top left;opacity:0;transform:scale(.97);pointer-events:none;transition:opacity 150ms var(--ease-enter),transform 150ms var(--ease-enter)}
+  .pr-pal.open{opacity:1;transform:none;pointer-events:auto}.pr-pal button{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:var(--r-sm);font-size:13px}
+  @media (hover:hover) and (pointer:fine){.pr-pal button:hover{background:var(--hover)}}
+  </style>
+  <script>${DRAWER_JS}
+  const COLORS=Object.fromEntries(${JSON.stringify(PROP_COLORS)}); let props=${JSON.stringify(PROPS)}.map((p,i)=>({n:p[0],k:p[1],c:p[2],d:p[3],v:p[4],x:60+i*260,y:50+i*40,sc:i?3:2}));
+  const board=document.getElementById('pr-board');
+  function render(){ document.querySelector('[data-count]').textContent=props.length;
+    board.innerHTML=props.length?'':'<div class="pr-empty"><div>${icon('box', 34)}<br>还没有道具<br><button class="btn btn-ghost" style="height:30px;margin-top:10px" onclick="dwOpen(\\'pr-dw\\')">新建第一件道具</button></div></div>';
+    props.forEach((p,i)=>{ const el=document.createElement('div'); el.className='pr-card'+(p.fresh?' new':''); p.fresh=false; el.style.left=p.x+'px'; el.style.top=p.y+'px';
+      el.innerHTML='<div class="pr-top" style="background:linear-gradient(160deg,'+COLORS[p.c]+',color-mix(in oklch,'+COLORS[p.c]+',black 30%))">${icon('box', 30)}</div><div style="padding:10px 12px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center;gap:6px"><b style="font-size:14px;flex:1">'+p.n+'</b><span class="chip" style="height:20px;font-size:11px">'+(p.k||'未分类')+'</span></div><div class="muted" style="font-size:12px">'+(p.d||'暂无描述')+'</div><div class="muted tnum" style="font-size:11px">出场 '+p.sc+' 场</div></div>';
+      let sx,sy,ox,oy,mv; el.onpointerdown=e=>{ el.setPointerCapture(e.pointerId); sx=e.clientX; sy=e.clientY; ox=p.x; oy=p.y; mv=false; };
+      el.onpointermove=e=>{ if(!el.hasPointerCapture(e.pointerId)) return; const dx=e.clientX-sx, dy=e.clientY-sy; if(!mv&&Math.hypot(dx,dy)<4) return; mv=true; el.classList.add('drag'); p.x=Math.max(0,ox+dx); p.y=Math.max(0,oy+dy); el.style.left=p.x+'px'; el.style.top=p.y+'px'; };
+      el.onpointerup=()=>el.classList.remove('drag'); board.appendChild(el); });
+    document.getElementById('pr-rows').innerHTML=props.map((p,i)=>'<tr><td><b>'+p.n+'</b></td><td>'+(p.k||'—')+'</td><td><span style="display:inline-flex;gap:6px;align-items:center"><i class="pr-sw" style="width:12px;height:12px;background:'+COLORS[p.c]+'"></i>'+p.c+'</span></td><td>'+(p.d||'—')+'</td><td class="tnum">'+p.sc+'</td><td><button class="btn btn-quiet" style="width:28px;height:28px;padding:0" aria-label="删除 '+p.n+'" data-del="'+i+'">${icon('trash', 13)}</button></td></tr>').join('')||'<tr><td colspan="6" class="muted">还没有道具</td></tr>';
+    document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const [x]=props.splice(+b.dataset.del,1); render(); toast('已删除 '+x.n); }); }
+  render();
+  document.querySelectorAll('#pr-tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('#pr-tabs button').forEach(x=>x.classList.toggle('on',x===b)); document.querySelectorAll('.pr-v').forEach(v=>v.hidden=v.dataset.v!==b.dataset.v); });
+  const pal=document.getElementById('pc-pal'), pcb=document.getElementById('pc-btn'); let color='${PROP_COLORS[0][0]}';
+  pcb.onclick=()=>{ const o=!pal.classList.contains('open'); pal.classList.toggle('open',o); pcb.setAttribute('aria-expanded',o); };
+  pal.querySelectorAll('button').forEach(b=>b.onclick=()=>{ color=b.dataset.t; document.getElementById('pc-sw').style.background=b.dataset.c; document.getElementById('pc-t').textContent=color; pal.classList.remove('open'); pcb.focus(); });
+  document.addEventListener('pointerdown',e=>{ if(!e.target.closest('#pc-pal,#pc-btn')) pal.classList.remove('open'); });
+  document.getElementById('pr-dw').onsubmit=e=>{ e.preventDefault(); const n=document.getElementById('pn'); if(!n.value.trim()){ n.focus(); return; }
+    props.push({n:n.value.trim(),k:document.getElementById('pk').value.trim(),c:color,d:document.getElementById('pd').value.trim(),v:document.getElementById('pv').value.trim(),x:60+(props.length%3)*260,y:60+Math.floor(props.length/3)*200+(props.length%2)*30,sc:0,fresh:true});
+    e.target.reset(); dwClose('pr-dw'); render(); toast('已创建道具：'+props.at(-1).n); };
+  </script>`);
+
+/* ═════ P10 世界观（laper /world）：左侧设定目录 + 官方模版 + 设定卡 ═════ */
+const WORLD_TPL = [['竖屏短剧设定合同——主题、钩子、付费点', '短剧', 'phone', ['一句话故事', '核心议题', '开场钩子', '付费卡点', '人设反差']],
+  ['院线/长片故事合同——logline、主题、三幕', '故事片', 'film', ['Logline', '主题', '世界规则', '三幕结构', '结局意象']],
+  ['系列动画设定合同——世界规则、单集公式', '系列动画', 'spark', ['世界规则', '能力边界', '单集公式', '固定场景', '不能写的']]];
+const p10 = () => chrome('Ancher Scripter — 世界观', `${rail('世界观')}
+  <aside class="wd-side"><div style="display:flex;align-items:center;padding:4px 4px 10px"><b style="flex:1">世界观</b><button class="btn btn-quiet" style="width:28px;height:28px;padding:0" aria-label="添加设定" onclick="addSet()">${icon('plus', 15)}</button></div><ol id="wd-toc" class="wd-toc"></ol></aside>
+  <section class="center" style="overflow:auto">
+    ${pageHd('设定', 2, '', `<button class="btn btn-primary" style="height:28px" onclick="addSet()">${icon('plus', 13)} 添加设定</button>`)}
+    <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
+      <div class="muted" style="font-size:12.5px">官方模版</div>
+      <div class="wd-tpls">${WORLD_TPL.map(([sub, t, ic, f], i) => `<button class="card wd-tpl" data-i="${i}"><span class="muted" style="font-size:12px">${sub}</span><b class="display" style="font-size:24px">${t}</b>
+        <span class="wd-art" aria-hidden="true">${icon(ic, 64)}</span><span class="wd-meta"><span>选用量<br><b class="tnum" data-used>0</b></span><span>作者<br><b>Ancher</b></span><span>类型<br><b>官方</b></span><span>字段<br><b class="tnum">${f.length}</b></span></span></button>`).join('')}</div>
+      <div class="muted" style="font-size:12.5px;margin-top:8px">设定</div>
+      <div class="wd-grid" id="wd-grid"></div>
+    </div>
+  </section>`, `
+  <style>
+  .wd-side{width:240px;flex:none;border-right:1px solid var(--line);padding:14px 10px;background:var(--bg);overflow:auto}
+  .wd-toc{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:n}
+  .wd-toc li{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);background:var(--surface);box-shadow:inset 0 0 0 1px var(--line);font-size:13px;cursor:grab;counter-increment:n}
+  .wd-toc li::before{content:counter(n);color:var(--ink-3);font-size:12px;width:12px}.wd-toc li.drag{opacity:.4}.wd-toc li .h{color:var(--ink-3);letter-spacing:-2px}
+  .wd-tpls{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+  .wd-tpl{position:relative;height:190px;padding:16px;text-align:left;display:flex;flex-direction:column;gap:4px;overflow:hidden;transition:transform 150ms var(--ease-enter),box-shadow 150ms ease}
+  .wd-tpl:active{transform:scale(.98)}@media (hover:hover) and (pointer:fine){.wd-tpl:hover{box-shadow:var(--shadow-pop)}}
+  .wd-art{position:absolute;right:14px;bottom:14px;width:96px;height:96px;border-radius:var(--r-lg);display:grid;place-items:center;color:var(--primary);background:radial-gradient(circle at 30% 30%,var(--primary-soft),transparent 70%)}
+  .wd-meta{margin-top:auto;display:grid;grid-template-columns:auto auto;gap:6px 22px;width:max-content;font-size:11px;color:var(--ink-3)}.wd-meta b{color:var(--ink);font-size:12px}
+  .wd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+  .wd-set{padding:12px 14px;display:flex;flex-direction:column;gap:6px}.wd-set.new{animation:prIn 220ms var(--ease-enter) both}@keyframes prIn{from{opacity:0;transform:scale(.97)}}
+  .wd-set input{border:0;background:transparent;font-weight:700;font-size:14px;padding:0;outline:none}.wd-set textarea{border:0;background:transparent;resize:vertical;min-height:60px;font-size:14px;outline:none;color:var(--ink)}
+  .wd-set:focus-within{box-shadow:var(--shadow-card),inset 0 0 0 1.5px var(--ink)}
+  </style>
+  <script>
+  const TPL=${JSON.stringify(WORLD_TPL)}; let sets=[{t:'一句话故事',v:''},{t:'核心议题',v:''}];
+  function render(focusLast){ document.querySelector('[data-count]').textContent=sets.length;
+    const toc=document.getElementById('wd-toc'); toc.innerHTML=sets.map((s,i)=>'<li draggable="true" data-i="'+i+'"><span class="h" aria-hidden="true">⋮⋮</span><span style="flex:1">'+(s.t||'未命名设定')+'</span></li>').join('');
+    const g=document.getElementById('wd-grid'); g.innerHTML=sets.map((s,i)=>'<div class="card wd-set'+(s.fresh?' new':'')+'" data-i="'+i+'"><div style="display:flex;gap:6px;align-items:center"><input aria-label="设定名" value="'+s.t.replace(/"/g,'&quot;')+'" placeholder="设定名" style="flex:1"><button class="btn btn-quiet" style="width:26px;height:26px;padding:0" aria-label="删除设定" data-del>${icon('trash', 12)}</button></div><textarea aria-label="'+s.t+'" placeholder="在此填写…">'+s.v+'</textarea></div>').join('');
+    sets.forEach(s=>s.fresh=false);
+    g.querySelectorAll('.wd-set').forEach(c=>{ const i=+c.dataset.i; c.querySelector('input').oninput=e=>{ sets[i].t=e.target.value; toc.children[i].lastChild.textContent=e.target.value||'未命名设定'; }; c.querySelector('textarea').oninput=e=>sets[i].v=e.target.value; c.querySelector('[data-del]').onclick=()=>{ sets.splice(i,1); render(); }; });
+    toc.querySelectorAll('li').forEach(li=>{ li.onclick=()=>{ const c=g.children[+li.dataset.i]; c.scrollIntoView({block:'nearest',behavior:'smooth'}); c.querySelector('textarea').focus({preventScroll:true}); };
+      li.ondragstart=e=>{ li.classList.add('drag'); e.dataTransfer.setData('text/plain',li.dataset.i); }; li.ondragend=()=>li.classList.remove('drag');
+      li.ondragover=e=>e.preventDefault(); li.ondrop=e=>{ e.preventDefault(); const from=+e.dataTransfer.getData('text/plain'), to=+li.dataset.i; if(from===to) return; const [m]=sets.splice(from,1); sets.splice(to,0,m); render(); }; });
+    if(focusLast){ const c=g.lastElementChild; c&&c.querySelector('input').focus(); } }
+  window.addSet=()=>{ sets.push({t:'',v:'',fresh:true}); render(true); };
+  document.querySelectorAll('.wd-tpl').forEach(b=>b.onclick=()=>{ const [,name,,fields]=TPL[+b.dataset.i]; let added=0; fields.forEach(f=>{ if(!sets.some(s=>s.t===f)){ sets.push({t:f,v:'',fresh:true}); added++; } });
+    const u=b.querySelector('[data-used]'); u.textContent=+u.textContent+1; render(); toast(added?'已套用「'+name+'」模版，新增 '+added+' 个设定':'「'+name+'」的设定都已在了'); });
+  render();
+  </script>`);
+
+/* ═════ P11 知识库（laper /knowledge）：本地文件，全部 / 聊天附件 / 直接上传 ═════ */
+const p11 = () => chrome('Ancher Scripter — 知识库', `${rail('知识库')}
+  <aside class="wd-side" style="width:240px;flex:none;border-right:1px solid var(--line);padding:14px 10px;background:var(--bg)"><b style="display:block;padding:4px 6px 10px">知识</b>
+    <div class="kb-nav" role="tablist">${[['all', '全部文件'], ['chat', '聊天附件'], ['up', '直接上传']].map(([k, t], i) => `<button role="tab" data-k="${k}" class="${i ? '' : 'on'}" aria-selected="${!i}">${t}<span class="tnum muted" data-n="${k}">0</span></button>`).join('')}</div>
+    <p class="muted" style="font-size:11.5px;margin:14px 6px 0;line-height:1.6">文件只保存在这台电脑上。Agent 写作时会按需引用，比如参考剧本、人物小传、客户意见。</p></aside>
+  <section class="center" id="kb-drop">
+    ${pageHd('文件', 0, '', `<label class="btn btn-primary" style="height:28px;cursor:pointer">${icon('plus', 13)} 添加文件<input type="file" id="kb-in" multiple hidden accept=".pdf,.docx,.txt,.md,.fdx,.fountain,.mp4,.mov,.png,.jpg"></label>`)}
+    <div id="kb-body" style="flex:1;overflow:auto;padding:16px 20px;position:relative"></div>
+    <div class="kb-over" aria-hidden="true">松开即可添加到知识库</div>
+  </section>`, `
+  <style>
+  .kb-nav{display:flex;flex-direction:column;gap:2px}.kb-nav button{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:var(--r);font-size:13px;text-align:left}
+  .kb-nav button.on{background:var(--surface);box-shadow:var(--shadow-card),inset 0 0 0 1px var(--line);font-weight:600}
+  @media (hover:hover) and (pointer:fine){.kb-nav button:not(.on):hover{background:var(--hover)}}
+  .kb-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink-3);font-size:13px}
+  .kb-stack{width:96px;height:96px;margin:0 auto 10px;position:relative}.kb-stack i{position:absolute;inset:10px 14px;border-radius:10px;background:var(--ink-2);transform:translateY(calc(var(--k) * 5px));opacity:calc(1 - var(--k) * .22)}
+  .kb-stack i:first-child{background:var(--ink);background-image:repeating-linear-gradient(transparent 0 12px,color-mix(in srgb,var(--bg) 40%,transparent) 12px 13.5px);background-size:60% 100%;background-position:70% 14px;background-repeat:no-repeat}
+  .kb-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+  .kb-f{display:flex;gap:10px;align-items:center;padding:10px 12px}.kb-f.new{animation:kbIn 200ms var(--ease-enter) both}@keyframes kbIn{from{opacity:0;transform:translateY(4px)}}
+  .kb-ic{width:36px;height:36px;border-radius:var(--r);display:grid;place-items:center;background:var(--muted);font-size:10px;font-weight:700;color:var(--ink-2);flex:none}
+  .kb-over{position:absolute;inset:8px;border-radius:var(--r-xl);border:2px dashed var(--ink-3);background:color-mix(in srgb,var(--bg) 85%,transparent);display:grid;place-items:center;font-weight:600;opacity:0;pointer-events:none;transition:opacity 150ms ease}
+  #kb-drop{position:relative}#kb-drop.over .kb-over{opacity:1}
+  </style>
+  <script>
+  let files=[], tab='all';
+  const kb=(n)=>n<1024?n+' B':n<1048576?(n/1024).toFixed(0)+' KB':(n/1048576).toFixed(1)+' MB';
+  function render(){ const list=files.filter(f=>tab==='all'||f.src===tab); document.querySelector('[data-count]').textContent=list.length;
+    ['all','chat','up'].forEach(k=>document.querySelector('[data-n="'+k+'"]').textContent=files.filter(f=>k==='all'||f.src===k).length);
+    const b=document.getElementById('kb-body');
+    b.innerHTML=list.length?'<div class="kb-list">'+list.map((f)=>'<div class="card kb-f'+(f.fresh?' new':'')+'"><span class="kb-ic">'+(f.name.split('.').pop()||'').slice(0,4).toUpperCase()+'</span><span style="flex:1;min-width:0"><b style="display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+f.name.replace(/</g,'&lt;')+'</b><span class="muted tnum" style="font-size:11.5px">'+kb(f.size)+' · '+(f.src==='chat'?'聊天附件':'直接上传')+'</span></span><button class="btn btn-quiet" style="width:28px;height:28px;padding:0" aria-label="移除 '+f.name.replace(/"/g,'')+'" data-id="'+f.id+'">${icon('trash', 13)}</button></div>').join('')+'</div>'
+      :'<div class="kb-empty"><div><div class="kb-stack" aria-hidden="true"><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i></div>'+(tab==='chat'?'在对话里发给 Agent 的文件会出现在这里':'暂无文件')+'<br><span style="font-size:12px">把文件拖进来，或点右上角「添加文件」</span></div></div>';
+    files.forEach(f=>f.fresh=false);
+    b.querySelectorAll('[data-id]').forEach(x=>x.onclick=()=>{ const f=files.find(f=>f.id==x.dataset.id); files=files.filter(g=>g!==f); render(); toast('已从知识库移除 '+f.name); }); }
+  let seq=0; function add(list){ [...list].forEach(f=>files.push({id:++seq,name:f.name,size:f.size,src:'up',fresh:true})); if(tab==='chat') setTab('up'); else render(); toast('已添加 '+list.length+' 个文件，仅保存在本机'); }
+  function setTab(k){ tab=k; document.querySelectorAll('.kb-nav button').forEach(b=>{ b.classList.toggle('on',b.dataset.k===k); b.setAttribute('aria-selected',b.dataset.k===k); }); render(); }
+  document.querySelectorAll('.kb-nav button').forEach(b=>b.onclick=()=>setTab(b.dataset.k));
+  document.getElementById('kb-in').onchange=e=>{ if(e.target.files.length) add(e.target.files); e.target.value=''; };
+  const dz=document.getElementById('kb-drop'); let depth=0;
+  dz.addEventListener('dragenter',e=>{ e.preventDefault(); depth++; dz.classList.add('over'); }); dz.addEventListener('dragover',e=>e.preventDefault());
+  dz.addEventListener('dragleave',()=>{ if(--depth<=0){ depth=0; dz.classList.remove('over'); } });
+  dz.addEventListener('drop',e=>{ e.preventDefault(); depth=0; dz.classList.remove('over'); if(e.dataTransfer.files.length) add(e.dataTransfer.files); });
+  window.__kbAdd=add; render();
+  </script>`);
+
 /* ═════ P6 制作设置 + 分镜（laper /production） ═════ */
 const p6 = () => chrome('Ancher Scripter — 制作', `${rail('制作')}
   <section class="center">
@@ -741,6 +933,9 @@ export const PAGES = [
   { id: 'p3', name: '创作首页', render: p3 },
   { id: 'p4', name: '工作区 · AI 自动开写', render: () => ICONS_JS + workspace() },
   { id: 'p5', name: '角色画布', render: p5 },
+  { id: 'p9', name: '道具', render: p9 },
+  { id: 'p10', name: '世界观', render: p10 },
+  { id: 'p11', name: '知识库', render: p11 },
   { id: 'p6', name: '制作设置 · 分镜', render: p6 },
   { id: 'p7', name: '最近', render: p7 },
   { id: 'p8', name: '设置 · 激活 / 密钥', render: p8 },

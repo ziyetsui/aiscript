@@ -21,6 +21,13 @@
   window.wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
   window.openModal = function (id) { document.getElementById(id).classList.add('open'); };
   window.closeModal = function (id) { document.getElementById(id).classList.remove('open'); };
+  // Rail / home buttons navigate between prototype pages via the shell.
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-go]');
+    if (!b) return;
+    if (b.dataset.go === '-') { window.toast('原型里还没做这一页'); return; }
+    try { parent.postMessage({ type: 'proto:goto', page: b.dataset.go }, '*'); } catch (_) {}
+  });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') document.querySelectorAll('.scrim.open').forEach(function (s) { s.classList.remove('open'); });
   });
