@@ -1,5 +1,7 @@
 // Settings (prototype P8): activation, keys, data. No usage anywhere (spec 0002 §7).
 import { useEffect, useState } from 'react';
+import { SCRIPT_FONTS, applyFont, currentFont, type ScriptFont } from '../lib/editor-font.ts';
+import { bell, setSound, setVolume, soundOn, soundVolume } from '../lib/typewriter.ts';
 import type { KeyStatus, LicenseStatus, UpdateStatus } from '../../../shared/ipc.ts';
 import { KeyForm } from './Keys.tsx';
 import { useToast } from '../lib/ui.tsx';
@@ -8,6 +10,9 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
   const toast = useToast();
   const [ver, setVer] = useState('');
   const [up, setUp] = useState<UpdateStatus>({ state: 'idle' });
+  const [font, setFont] = useState<ScriptFont>(currentFont());
+  const [sound, setSoundOn] = useState(soundOn());
+  const [vol, setVol] = useState(soundVolume());
   useEffect(() => {
     void window.api.app.info().then((i) => setVer(i.version));
     void window.api.update.status().then(setUp);
@@ -51,6 +56,21 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
           </div>
           <KeyForm which="gemini" onSaved={onChange} compact />
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>密钥只保存在这台电脑的系统钥匙串里，不会上传到任何服务器。用量请在各自的服务商账户里查看。</p>
+        </section>
+        <section className="card">
+          <h2 style={{ fontSize: 15 }}>编辑器</h2>
+          <div className="field">
+            <label htmlFor="sf">剧本字体</label>
+            <select id="sf" className="input" value={font} onChange={(e) => { const f = e.target.value as ScriptFont; setFont(f); applyFont(f); }}>
+              {(Object.keys(SCRIPT_FONTS) as ScriptFont[]).map((k) => <option key={k} value={k}>{SCRIPT_FONTS[k].label}</option>)}
+            </select>
+            <div className="quote" style={{ fontSize: 14 }}>外景 胡同口 — 傍晚　门墩儿：别捏了，它要说话的。</div>
+          </div>
+          <label className="toggle"><input type="checkbox" checked={sound} onChange={(e) => { setSound(e.target.checked); setSoundOn(e.target.checked); }} />AI 写作时播放打字机音效</label>
+          <label className="fl" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>音量
+            <input type="range" min={0} max={1} step={0.05} value={vol} disabled={!sound} aria-label="打字机音量" style={{ flex: 1, accentColor: 'var(--primary)' }}
+              onChange={(e) => { const v = +e.target.value; setVol(v); setVolume(v); }} onPointerUp={() => bell()} />
+            <span className="tnum muted" style={{ width: 36 }}>{Math.round(vol * 100)}%</span></label>
         </section>
         <section className="card">
           <h2 style={{ fontSize: 15 }}>版本与更新</h2>
