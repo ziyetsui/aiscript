@@ -76,7 +76,8 @@
 | D4 | 托管 | API 放在 **Zeabur 或 Fly（Postgres）**，静态站和更新源放在 **Cloudflare R2 / Pages** | 成本与国内访问 |
 | D5 | 域名 | 待购，例如 `aiscript.app` | 阻塞签名、OAuth 回调、更新源 |
 | D6 | 代码签名 | macOS 用 **Apple Developer ID**（$99/年）+ 公证；Windows 用 **Azure Trusted Signing**（约 $10/月）或 EV 证书 | 不签名的话 Windows SmartScreen / macOS Gatekeeper 会拦截 |
-| D7 | 原型最终方向 | 从 §9 的 A / B 两个方向里选一个（也可以混搭，比如 A 的版式 + B 的"提案后接受"写入方式） | 决定组件规范 |
+| D7 | 原型最终方向 | 从 v2 的 5 个 ancher token 方向（01 Ink Navy / 02 Ember Night / 03 Signal / 04 Garden / 05 Dusk Glass）里选一个；交互以 laper 为准 | 决定 design-tokens.css |
+| D11 | 模型路由 | 对话输入框上提供模型选择；转写默认用本地 SenseVoice，可切换到 Gemini（自带 key）或 Ancher | 成本，见 §5.5 |
 | D8 | 账号模型 | **团队空间（按席位计费）+ 成员角色**；"3 台设备"限的是每个成员，不是整个团队 | 客户有 30+ 编剧，单账号模型不成立 |
 | D9 | AI 写入方式 | **剧本正文：先提案后写入（B）；大纲 / 分场：直接写入、按轮撤销（A）** | 导演审核文化要求"改动可见、可拒绝" |
 | D10 | 原型托管 | 私有库在当前 GitHub 套餐下**不能开 Pages**（已实测 422）。可选：仓库改公开 / 升级 GitHub Pro / Cloudflare Pages / claude.ai 私有 Artifact | 本 PR 的"部署"步骤 |
@@ -195,6 +196,30 @@ flowchart TD
 3. 每一轮记录 `turnId → [commitIds]`，支撑 "Undo edit" 一键回滚
 4. 读类工具（大纲、全文、角色）由本地在发请求前把上下文打包，作为 `WebPageAttachment` 或正文传给 Ancher，限制在 8k token / 消息以内
 
+### 5.5 多模型路由与自带 key（BYOK）：以本地视频转逐字稿为例
+
+**问题**：Ancher（Vita）API 很贵。能不能像 Codex 那样，由用户自己选模型，比如 Gemini？
+
+**结论：可以。** 把"转写"做成**桌面端本地工具**，不交给 Ancher 的服务端 agent：
+
+```mermaid
+flowchart LR
+  U[对话：把 ~/Movies/a.mp4 转成逐字稿] --> T[本地工具 transcribe_local]
+  T --> F[ffmpeg 抽音轨<br/>本机，视频不上传]
+  F --> R{模型选择}
+  R -->|本地| S[SenseVoice / whisper.cpp<br/>离线 · ¥0]
+  R -->|Gemini| G[Gemini 音频转写<br/>用户自己的 key · 存钥匙串]
+  R -->|Ancher| A[/notes/files<br/>转写 + 关键帧/]
+  S & G & A --> O[逐字稿 txt / srt / json<br/>→ 存入知识库，可在对话中引用]
+  O --> L[(用量账本：provider / 时长 / 费用)]
+```
+
+- **模型选择器**放在对话输入框上（和 Codex 一样），作用于后面的对话和工具调用；也可以给每个工具单独设默认值（例如"转写默认用本地"）
+- **key 存放**：用户自带的 Gemini key 只存在本机钥匙串（Electron `safeStorage`），由主进程直连 Gemini，不经过我们的网关；团队统一的 key 则放在网关，计入账本
+- **什么时候仍然需要 Ancher**：拆节拍、抽关键帧、结构复刻这类 Ancher 独有的多模态解析；联网搜索（`enable_web_search`）
+- **账本**：每次调用都记 `provider`（ancher / gemini-byok / local），费用分开统计；用户自带 key 的调用只记次数和时长，不记费用
+- **本机已有可复用的实现**：`video-asr` skill（SenseVoice，本地、多平台、带 SRT / JSON 输出），可以直接作为离线转写的参考实现
+
 ---
 
 ## 6. 账号与三设备绑定
@@ -284,7 +309,17 @@ sequenceDiagram
 > - 新手清单 6 步和 toast 联动；导出分三栏（集 × 内容 × 格式）
 > - 页面集合按观察修正为：P1 登录 · P2 Onboarding · P3 首页 Recents · P4 剧本工作区（Script / Outline）· P5 AI 面板各状态 · P6 角色画布 · P7 制作设置与分镜 · P8 导出 · P9 定价升级
 
-### 9.2 原型（已交付）
+### 9.2 原型 v2（当前版本）
+
+用户 2026-10-08 的反馈：**交互先按 laper 一比一做**；很多操作可以交给对话窗口里的 agent，不必单独做页面；**视觉只取 ancher.ai 仓库的 design token**，发散出 5 个方向。
+
+- `prototypes/dist/index.html`：**8 页 × 5 个 token 方向 = 40 层**，单文件，离线可用
+- 页面按 laper 走查还原：登录（+ 我们的设备上限）/ 一句话 Onboarding / 创作首页 / **工作区（AI 自动开写：读取 → 改名 → 写大纲 → 建角色和地点 → 插入节点高亮 → 新手任务 toast → 收尾提问 → 第二轮"N 处修改 · 撤销"）** / 角色画布 / 制作设置与分镜 / 最近 / 设备与用量（新增）
+- token 来源：`streamify-one/ancher-website/src/styles/tokens/*`（n2 中性色 12 阶、b1–b5 品牌色、Manrope / Instrument Serif / Geist Mono、`--corner-radius` 10px × 倍率、阴影阶梯）。5 个方向的 DOM 完全相同，`check.mjs` 会机检"方向之间只有 token 不同"
+- **客户痛点 → 对话快捷指令**（放在 laper 的「润色格式 / 总结大纲」旁边，`⌥1–⌥8`）：出 3 个不同走向 · 参考经典结构重写 · 笑点方案 · 检查是否写飘 · 记下导演意见 · 控字数 5000 字 / 10 分钟 · 转写本地视频 · 今日热点选题
+- 输入框里有**模型选择**：Ancher / Gemini（自带 key）/ 本地 SenseVoice（见 §5.5）
+
+### 9.2.1 原型 v1（存档：`prototypes/v1/`，按客户痛点做的 10 个独立页面 × 2 个方向）
 
 `prototypes/dist/index.html`：**一个文件，20 层**（10 页 × 2 个方向），离线可以直接打开。源码在 `prototypes/src/`，用 `node prototypes/build.mjs` 构建。
 
