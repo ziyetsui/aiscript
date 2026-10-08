@@ -5,7 +5,7 @@ import type { WebContents } from 'electron';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdirSync, openAsBlob, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { execute, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
+import { confirm, execute, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
 import { ancher, propose } from './ai.ts';
 import { filePath, filesDir, get, pushChat, saveNow, state } from './projects.ts';
 import { getSecret } from './secrets.ts';
@@ -107,8 +107,44 @@ export function start(projectId: string, wf: WorkflowId, input: WorkflowInput, f
   return state(p);
 }
 
-export function cancel(runId: string): void {
-  live.get(runId)?.abort();
+export function cancel(runId: string, projectId?: string): void {
+  if (live.has(runId)) { live.get(runId)!.abort(); return; }
+  // A run paused for confirmation isn't executing; cancelling just closes it.
+  if (!projectId) return;
+  const p = get(projectId);
+  const run = runsOf(p).find((r) => r.id === runId);
+  if (run?.status === 'waiting') {
+    run.status = 'cancelled';
+    run.waiting = undefined;
+    for (const st of run.steps) if (st.status === 'waiting') st.status = 'pending';
+    run.endedAt = Date.now();
+    saveNow(p);
+    emit(projectId, run);
+  }
+}
+
+/** The writer confirmed (and maybe edited) a paused step. Confirming the episode story also lands it in the outline and world. */
+export function confirmStep(projectId: string, runId: string, text: string, from: WebContents): ProjectState {
+  sender = from;
+  const p = get(projectId);
+  const run = runsOf(p).find((r) => r.id === runId);
+  if (!run || run.status !== 'waiting' || !run.waiting) return state(p);
+  const stepId = run.waiting.stepId;
+  confirm(run, text);
+  if (run.wf === 'episode' && stepId === 'confirmStory') {
+    const [story = '', core = ''] = text.split('【锁定核心】');
+    const cur = p.doc.outline.trim();
+    p.doc.setOutline(cur ? `${cur}\n\n【故事】\n${story.trim()}` : `【故事】\n${story.trim()}`);
+    if (core.trim()) {
+      const w = p.doc.bible('world');
+      const hit = w.all().find((x) => x.title === '锁定核心');
+      if (hit) w.update(hit.id, { value: core.trim() }); else w.add({ title: '锁定核心', value: core.trim() });
+    }
+    p.doc.commit('episode: story confirmed');
+  }
+  saveNow(p);
+  launch(p, run);
+  return state(p);
 }
 
 export function retry(projectId: string, runId: string, from: WebContents): ProjectState {

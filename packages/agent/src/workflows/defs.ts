@@ -42,6 +42,141 @@ const IssuesSchema = z.object({ summary: z.string(), items: z.array(z.object({ n
 const RulesSchema = z.object({ items: z.array(z.object({ text: z.string(), scope: z.string().default('全剧'), level: z.enum(['hard', 'pref']).default('hard'), conflict: z.string().default('') })).min(1) });
 const TopicsSchema = z.object({ items: z.array(z.object({ title: z.string(), logline: z.string(), why: z.string() })).min(3).max(5) });
 
+const StorySchema = z.object({ story: z.string(), core: z.object({ theme: z.string(), keyScenes: z.array(z.string()).min(1).max(4), motives: z.array(z.string()).min(1) }) });
+const ScenesSchema = z.object({ scenes: z.array(z.object({ heading: z.string(), summary: z.string(), key: z.boolean().default(false) })) });
+const DoctorSchema = z.object({ issues: z.array(z.object({ problem: z.string(), suggestion: z.string() })) });
+type Scene = z.infer<typeof ScenesSchema>['scenes'][number];
+
+// Guardrails from spec §12.2: story ≤ 550 字, 13–17 scenes, script 4500–5500 字 for a 10-minute episode.
+export const EPISODE_LIMITS = { storyMax: 550, scenesMin: 13, scenesMax: 17, wordsPerMinute: 500, slack: 0.1 };
+const sceneLine = (x: Scene, i: number) => `${i + 1}. ${x.heading}｜${x.summary}${x.key ? '【重场戏】' : ''}`;
+function parseSceneLines(text: string): Scene[] {
+  return text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).map((l) => {
+    const m = /^\d+[.、]\s*(.+?)[｜|](.*)$/.exec(l);
+    const body = m ? m[2]! : l.replace(/^\d+[.、]\s*/, '');
+    return { heading: (m ? m[1]! : body).trim(), summary: body.replace('【重场戏】', '').trim(), key: body.includes('【重场戏】') };
+  });
+}
+
+const EPISODE: WorkflowDef = {
+  id: 'episode', key: 9, title: '一集剧本流水线', desc: '选题 → 故事和锁定核心（确认）→ 分场（确认）→ 逐场写作 → 规则检查',
+  input: 'text', inputHint: '这一集的选题或一句话创意（留空则用大纲）',
+  steps: [
+    { id: 'brief', label: '读选题和设定', async run(ctx, env, input) {
+      const picked = env.bible().topics.find((t) => t.status === 'picked');
+      ctx.idea = (input.text ?? '').trim() || env.outline().trim() || (picked ? `${picked.title}：${picked.logline}` : '');
+      need(ctx.idea, '先写一句选题，或在选题池里选一个');
+      ctx.minutes = input.minutes && input.minutes > 0 ? input.minutes : 10;
+      ctx.target = (ctx.minutes as number) * EPISODE_LIMITS.wordsPerMinute;
+      return { note: `${ctx.minutes} 分钟 · 约 ${ctx.target} 字` };
+    } },
+    { id: 'research', label: 'Ancher 联网调研', async run(ctx, env, _i, signal) {
+      const r = await ask(env, `为这一集少儿动画（5–10 岁）做简短调研：相关的真实生活细节、孩子的说话方式、要避开的老套路。列 5–8 条，每条一句。\n选题：${ctx.idea}`, signal, true);
+      ctx.research = r.text;
+      return { note: `${r.citations.length} 条来源` };
+    } },
+    { id: 'story', label: '写故事和锁定核心', async run(ctx, env, _i, signal) {
+      const ask1 = (extra = '') => ask(env, `写这一集的故事（${EPISODE_LIMITS.storyMax} 字以内，起承转合完整），并锁定故事核心：主题、重场戏（1–4 场）、主要人物的动机。后面的分场和剧本都不能偏离锁定核心。${extra}
+${RESULT_RULE}
+格式：{"story":"…","core":{"theme":"…","keyScenes":["…"],"motives":["豆豆：…"]}}
+
+选题：${ctx.idea}
+调研要点：${ctx.research}
+项目设定：${brief(env)}
+规则和反例：${negatives(env)}`, signal);
+      let out = parseResult((await ask1()).text, StorySchema);
+      const len = (t: string) => (t.match(/[\u3400-\u9fff]/g) ?? []).length;
+      if (len(out.story) > EPISODE_LIMITS.storyMax) out = parseResult((await ask1(`上一版有 ${len(out.story)} 字，太长了，压缩到 500 字左右。`)).text, StorySchema);
+      if (len(out.story) > EPISODE_LIMITS.storyMax * 1.1) throw new Error(`故事有 ${len(out.story)} 字，超过 ${EPISODE_LIMITS.storyMax} 字，请重试`);
+      ctx.storyDraft = `${out.story}\n\n【锁定核心】\n主题：${out.core.theme}\n重场戏：${out.core.keyScenes.join('；')}\n人物动机：${out.core.motives.join('；')}`;
+      return { note: `${len(out.story)} 字` };
+    } },
+    { id: 'confirmStory', label: '确认故事和锁定核心', async run(ctx) {
+      const ok = ctx['confirmed:confirmStory'];
+      if (typeof ok !== 'string') return { wait: { title: '确认故事和锁定核心', text: String(ctx.storyDraft), hint: '可以直接修改。确认后会写进大纲，锁定核心会写进世界观，后面的分场和剧本都按它来。' } };
+      ctx.story = ok;
+      return { note: '已确认' };
+    } },
+    { id: 'scenes', label: '写分场', async run(ctx, env, _i, signal) {
+      const r = await ask(env, `把故事拆成 ${EPISODE_LIMITS.scenesMin}–${EPISODE_LIMITS.scenesMax} 场。每场写场景标题（内景/外景 地点 — 时间）和一句话内容，标出重场戏（key=true）。锁定核心里的重场戏必须都在。
+${RESULT_RULE}
+格式：{"scenes":[{"heading":"外景 胡同口 — 傍晚","summary":"…","key":false}]}
+
+故事与锁定核心：
+${ctx.story}
+项目设定：${brief(env)}`, signal);
+      const out = parseResult(r.text, ScenesSchema);
+      const n = out.scenes.length;
+      if (n < EPISODE_LIMITS.scenesMin || n > EPISODE_LIMITS.scenesMax) throw new Error(`分场有 ${n} 场，不在 ${EPISODE_LIMITS.scenesMin}–${EPISODE_LIMITS.scenesMax} 场之间，请重试`);
+      ctx.scenesDraft = out.scenes.map(sceneLine).join('\n');
+      return { note: `${n} 场` };
+    } },
+    { id: 'confirmScenes', label: '确认分场', async run(ctx) {
+      const ok = ctx['confirmed:confirmScenes'];
+      if (typeof ok !== 'string') return { wait: { title: '确认分场', text: String(ctx.scenesDraft), hint: '一行一场：序号. 场景标题｜内容，【重场戏】标出重场戏。可以增删、调整顺序。' } };
+      const scenes = parseSceneLines(ok);
+      need(scenes.length, '分场是空的');
+      ctx.scenes = scenes;
+      return { note: `${scenes.length} 场` };
+    } },
+    { id: 'write', label: '逐场写作', async run(ctx, env, _i, signal) {
+      const scenes = ctx.scenes as Scene[];
+      const ops = (ctx.ops as Op[] | undefined) ?? [];
+      const per = Math.max(250, Math.round((ctx.target as number) / scenes.length));
+      // Three scenes per call; progress is kept in ctx so a retry continues where it stopped.
+      for (let i = (ctx.writtenUpTo as number | undefined) ?? 0; i < scenes.length; i += 3) {
+        const batch = scenes.slice(i, i + 3);
+        const before = ops.slice(-6).map((o) => ('text' in o ? o.text : '')).join('\n');
+        const r = await ask(env, `${WRITE_SYSTEM}
+
+任务：写第 ${i + 1}–${i + batch.length} 场（共 ${scenes.length} 场）。全部用 insertNode 追加到末尾（after 用 "end" 或 $n），每场以场景标题开头，每场约 ${per} 字。不要改已有内容。
+本次要写的分场：
+${batch.map((x, k) => sceneLine(x, i + k)).join('\n')}
+上一场结尾：${before || '（这是开头）'}
+故事与锁定核心：
+${ctx.story}
+项目设定：${brief(env)}
+规则和反例：${negatives(env)}`, signal);
+        const o = opsFrom(r.text);
+        ops.push(...o.ops.filter((x) => x.op === 'insertNode' || x.op === 'upsertCharacter' || x.op === 'upsertLocation').map((x) => (x.op === 'insertNode' ? { ...x, after: 'end' } : x)));
+        ctx.ops = ops;
+        ctx.writtenUpTo = i + batch.length;
+      }
+      return { note: `${scenes.length} 场` };
+    } },
+    { id: 'guard', label: '字数护栏', async run(ctx) {
+      const text = (ctx.ops as Op[]).flatMap((o) => (o.op === 'insertNode' ? [{ id: '', type: o.type, text: o.text }] : []));
+      const words = wordCount(text);
+      const t = ctx.target as number;
+      ctx.words = words;
+      const lo = Math.round(t * (1 - EPISODE_LIMITS.slack)), hi = Math.round(t * (1 + EPISODE_LIMITS.slack));
+      ctx.lengthNote = words < lo ? `比目标少 ${t - words} 字，可以让 AI 续写或扩写` : words > hi ? `比目标多 ${words - t} 字，可以用「⚡ 控字数」删减` : '';
+      return { note: `${words} 字（目标 ${lo}–${hi}）` };
+    } },
+    { id: 'doctor', label: '规则检查', async run(ctx, env, _i, signal) {
+      const draft = (ctx.ops as Op[]).flatMap((o) => (o.op === 'insertNode' ? [`${o.type}: ${o.text}`] : [])).join('\n').slice(0, 12000);
+      const r = await ask(env, `检查这一集剧本：是否违反规则和反例，是否偏离锁定核心（主题、重场戏、人物动机），重场戏是否都写到了。只列真正的问题，没有就返回空数组。
+${RESULT_RULE}
+格式：{"issues":[{"problem":"…","suggestion":"…"}]}
+
+锁定核心：
+${ctx.story}
+规则和反例：${negatives(env)}
+剧本：
+${draft}`, signal);
+      ctx.issues = parseResult(r.text, DoctorSchema).issues;
+      return { note: (ctx.issues as unknown[]).length ? `${(ctx.issues as unknown[]).length} 个问题` : '没有发现问题' };
+    } },
+  ],
+  finish: (ctx) => {
+    const issues = (ctx.issues as { problem: string; suggestion: string }[]) ?? [];
+    const lines = [`这一集写好了：${(ctx.scenes as Scene[]).length} 场，${ctx.words} 字。`];
+    if (ctx.lengthNote) lines.push(String(ctx.lengthNote));
+    if (issues.length) lines.push('规则检查发现：', ...issues.map((x, i) => `${i + 1}. ${x.problem}（建议：${x.suggestion}）`));
+    return { kind: 'ops', narration: lines.join('\n'), ops: ctx.ops as Op[] };
+  },
+};
+
 const VIDEO = ['mp4', 'mov', 'm4v', 'webm', 'mkv', 'mp3', 'wav', 'm4a', 'aac'];
 
 export const WORKFLOWS: WorkflowDef[] = [
@@ -317,6 +452,7 @@ ${RESULT_RULE}
     ],
     finish: (ctx) => ({ kind: 'topics', items: ctx.items as never, citations: (ctx.citations as never) ?? [] }),
   },
+  EPISODE,
 ];
 
 export const workflow = (id: WorkflowId) => {

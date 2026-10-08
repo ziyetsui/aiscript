@@ -14,7 +14,7 @@ import type { IconName } from './lib/icon-paths.ts';
 import { Icon, Logo } from './lib/ui.tsx';
 
 export type Tab = 'write' | 'characters' | 'locations' | 'props' | 'world' | 'knowledge';
-export type Route = { name: 'home' } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string };
+export type Route = { name: 'home' } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string; pendingEpisode?: string };
 
 // Same order as the prototype rail (laper): 写作 · 角色 · 地点 · 道具 · 世界观 · 知识库.
 const TABS: [Tab, IconName, string][] = [['write', 'pen', '写作'], ['characters', 'users', '角色'], ['locations', 'map', '地点'], ['props', 'box', '道具'], ['world', 'globe', '世界观'], ['knowledge', 'book', '知识库']];
@@ -60,7 +60,7 @@ export function App() {
         {/* The writing tab stays mounted while its project is open, so the AI conversation and its undo buttons survive tab switches. */}
         {project && (
           <div className="tab-pane" hidden={!(route.name === 'project' && route.tab === 'write')}>
-            <Workspace key={project.id} id={project.id} pending={project.pending} keys={keys} go={setRoute} />
+            <Workspace key={project.id} id={project.id} pending={project.pending} pendingEpisode={project.pendingEpisode} keys={keys} go={setRoute} />
           </div>
         )}
         {route.name === 'project' && route.tab === 'characters' && <Characters key={route.id} id={route.id} />}

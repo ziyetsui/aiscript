@@ -97,7 +97,8 @@ function registerIpc(): void {
   ipcMain.handle('projects:setOutline', gated((id: string, text: string) => projects.setOutline(id, text)));
 
   ipcMain.handle('wf:start', (e, projectId: string, id: WorkflowId, input: WorkflowInput) => { active(); return wf.start(projectId, id, input, e.sender); });
-  ipcMain.handle('wf:cancel', (_e, runId: string) => wf.cancel(runId));
+  ipcMain.handle('wf:cancel', (_e, runId: string, projectId?: string) => wf.cancel(runId, projectId));
+  ipcMain.handle('wf:confirm', (e, projectId: string, runId: string, text: string) => { active(); return wf.confirmStep(projectId, runId, text, e.sender); });
   ipcMain.handle('wf:retry', (e, projectId: string, runId: string) => { active(); return wf.retry(projectId, runId, e.sender); });
   ipcMain.handle('wf:apply', gated((projectId: string, runId: string, a: WorkflowAction) => wf.apply(projectId, runId, a)));
   ipcMain.handle('wf:pickFile', async (e, kind: 'media' | 'any') => {

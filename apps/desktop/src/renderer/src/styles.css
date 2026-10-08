@@ -266,3 +266,6 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .view-switch { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
 .view-switch button { display: flex; gap: 8px; align-items: center; padding: 7px 8px; border-radius: var(--r-sm); font-size: 13px; color: var(--ink-2); text-align: left; }
 .view-switch button[aria-current="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card); }
+.confirm { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: var(--r); background: var(--hl); }
+.confirm textarea { font-family: var(--font-script); font-size: 13px; line-height: 1.7; min-height: 120px; }
+.run-waiting { box-shadow: var(--shadow-card), inset 0 0 0 1.5px var(--studio-ochre, #d9a54a); }

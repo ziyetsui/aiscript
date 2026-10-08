@@ -11,6 +11,16 @@ function replyFor(prompt: string): string {
     if (m) return `把这句改得更像孩子说话。<ops>[{"op":"updateNode","id":"${m[1]}","text":"石头……石头它会说话？！"}]</ops>`;
   }
   const r = (o: unknown) => `好的。<result>${JSON.stringify(o)}</result>`;
+  if (prompt.includes('为这一集少儿动画')) return '1. 孩子之间比鞋子很常见。';
+  if (prompt.includes('写这一集的故事')) return r({ story: '豆豆想要一双会发光的鞋。门墩儿借来一双旧球鞋，鞋底刻着姥爷的名字。', core: { theme: '旧东西里有爱', keyScenes: ['鞋底刻字被发现'], motives: ['豆豆：不想输给大壮'] } });
+  if (prompt.includes('把故事拆成')) return r({ scenes: Array.from({ length: 13 }, (_, i) => ({ heading: `外景 胡同口 — 日 ${i + 1}`, summary: `第 ${i + 1} 场`, key: i === 9 })) });
+  const w = prompt.match(/任务：写第 (\d+)–(\d+) 场/);
+  if (w) {
+    const ops = [];
+    for (let n = +w[1]!; n <= +w[2]!; n++) ops.push({ op: 'insertNode', after: 'end', type: 'heading', text: `外景 胡同口 — 日 ${n}` }, { op: 'insertNode', after: 'end', type: 'action', text: `第 ${n} 场：${'豆豆在胡同里跑。'.repeat(40)}` });
+    return `<ops>${JSON.stringify(ops)}</ops>`;
+  }
+  if (prompt.includes('检查这一集剧本')) return r({ issues: [] });
   if (prompt.includes('做简短调研')) return '1. 胡同里的孩子放学后在门口玩。2. 避开"许愿成真"的老套路。';
   if (prompt.includes('写 3 个故事走向')) return r({ items: [1, 2, 3].map((i) => ({ title: `走向${i}：门墩儿的秘密${i}`, conflict: `冲突来源${i}`, resolution: `解决方式${i}`, beats: ['起', '承', '转', '合'], joke: `笑点${i}` })) });
   if (prompt.includes('整理成可以复用的写作规则')) return r({ items: [{ text: '笑点要来自孩子的视角', scope: '全剧', level: 'hard', conflict: '' }, { text: '不要出现手机', scope: '全剧', level: 'pref', conflict: '' }] });

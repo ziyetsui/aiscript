@@ -328,6 +328,31 @@ try {
   await page.getByText('导演意见.txt').waitFor(); // files travel with the project
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
+
+  step('⚡ 写一整集: confirm the story (edited), confirm the scenes, preview, accept — 13 scenes land in the script');
+  await page.getByRole('button', { name: '返回首页' }).last().click();
+  await page.locator('#ask').fill('豆豆想要一双会发光的鞋');
+  await page.getByRole('button', { name: '⚡ 写一整集' }).click();
+  const ep = page.locator('.run', { hasText: '一集剧本流水线' }).last();
+  const storyBox = ep.getByLabel('确认故事和锁定核心', { exact: true });
+  await storyBox.waitFor({ timeout: 20_000 });
+  await storyBox.fill(`${await storyBox.inputValue()}\n大壮最后也借到了鞋。`);
+  await shot(page, '12-episode-confirm');
+  await ep.getByRole('button', { name: '确认，继续' }).click();
+  const scenesBox = ep.getByLabel('确认分场', { exact: true });
+  await scenesBox.waitFor({ timeout: 20_000 });
+  assert.equal((await scenesBox.inputValue()).split('\n').length, 13);
+  await ep.getByRole('button', { name: '确认，继续' }).click();
+  await ep.getByRole('button', { name: '查看修改预览' }).waitFor({ timeout: 30_000 });
+  assert.equal(await ep.locator('li.st-done').count(), 9);
+  await ep.getByRole('button', { name: '查看修改预览' }).click();
+  await page.locator('.preview').last().getByRole('button', { name: '接受' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('.paper .node[data-type="heading"]').length === 13, null, { timeout: 30_000 });
+  await page.getByRole('tab', { name: '大纲' }).click();
+  assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /【故事】\n豆豆想要一双会发光的鞋/);
+  await page.getByRole('button', { name: '世界观', exact: true }).click();
+  // The writer's edit (appended under 锁定核心) is what got locked in.
+  assert.match(await page.getByLabel('锁定核心', { exact: true }).inputValue(), /旧东西里有爱[\s\S]*大壮最后也借到了鞋/);
   console.log('\nE2E passed');
 } catch (e) {
   await shot(page, 'failure').catch(() => {});

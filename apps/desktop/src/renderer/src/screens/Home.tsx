@@ -97,6 +97,15 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
                 )}
               </span>
               <span style={{ flex: 1 }} />
+              <button type="button" className="btn btn-ghost" title="故事和分场先给你确认，再逐场写完一整集" disabled={busy}
+                onClick={async () => {
+                  const t = text.trim();
+                  if (!t) { ask.current?.focus(); return; }
+                  if (!keys.ancher) { toast('写一整集需要 Ancher key，请到设置里填写'); return; }
+                  setBusy(true);
+                  const p = await window.api.projects.create(t.replace(/\s+/g, ' ').slice(0, 18) + (t.length > 18 ? '…' : ''), kind);
+                  go({ name: 'project', id: p.id, tab: 'write', pendingEpisode: t });
+                }}>⚡ 写一整集</button>
               <span className="muted" style={{ fontSize: 12 }}>⌘/Ctrl + Enter</span>
               <button className="btn btn-primary btn-icon" style={{ width: 38, height: 38, borderRadius: '50%' }} aria-label="开始" disabled={busy}><Icon name="send" size={16} /></button>
             </div>
