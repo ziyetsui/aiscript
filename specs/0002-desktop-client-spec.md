@@ -97,7 +97,7 @@
 | D4 | 托管 | **v0.2：只托管安装包和更新清单**，放在公开的 GitHub Releases 仓库（如 `aiscript-releases`）；国内下载慢时再加网盘或对象存储镜像 | 下载速度 |
 | D5 | 域名 | **v0.2：不需要**（以后做官网再买） | — |
 | D6 | 代码签名 | macOS 用 **Apple Developer ID**（$99/年）+ 公证；Windows 用 **Azure Trusted Signing**（约 $10/月）或 EV 证书 | 不签名的话 Windows SmartScreen / macOS Gatekeeper 会拦截 |
-| D7 | 原型最终方向 | 从 5 个 token 方向里选一个（01 Studio Rust / 02 App Navy / 03 App Ember / 04 Graphite Signal / 05 Lamplight），token 取自 app.ancher.ai 与 ancher 桌面 Agent；交互以 laper 为准 | 决定 design-tokens.css（含动效 token） |
+| D7 | 原型最终方向 | 选一个**版式（A–E）**和一套**配色**（两者独立）；配色从 5 个 token 方向里选一个（01 Studio Rust / 02 App Navy / 03 App Ember / 04 Graphite Signal / 05 Lamplight），token 取自 app.ancher.ai 与 ancher 桌面 Agent；交互以 laper 为准 | 决定 design-tokens.css（含动效 token） |
 | D11 | 模型路由 | Ancher key 必填、Gemini key 可选，都由用户填写；菜单**只列出已配置 key 的服务**：只有 Ancher 时显示固定标识，配置了 Gemini 后才变成下拉菜单。Mastra / Loro 不进菜单 | 成本，见 §5.5 |
 | D12 | 激活方案 | **Keygen 托管激活（推荐）**：预发 3 个码，用户只输入激活码；**离线备用**：机器绑定激活码 | Keygen 免费 Dev 档是否满足条款与访问速度 |
 | D8 | 授权模型 | **v0.2：激活码，一码一机**（§6）；客户要更多电脑就再发激活码 | 不做团队空间和多人协作 |
@@ -417,6 +417,7 @@ sequenceDiagram
 
 - 入口是 `prototypes/dist/index.html`，**单文件**，内联 CSS / JS，不依赖任何外部资源，离线可以打开
 - 每个"层"是一份完整的 HTML 文档（`<!doctype html>…</html>`），以 JSON 字符串的形式嵌入，`</` 已转义，防止提前截断 script；切换时注入 `iframe.srcdoc`，各层样式互相隔离
+- **版式 A–E（2026-10-08 补充）**：每个页面有 5 个布局与交互细节不同的方向（A Laper 原样 / B 专注稿纸 / C 编辑部 / D 卡片桌面 / E 键盘优先），和 5 套配色独立组合，详见原型 README。版式通过消息即时切换，不额外生成文件层
 - 层级切换器有 **5 种 picker 样式**（Dock 形变 / 命令面板 / 底部胶片条 / 可拖拽圆钮 / 侧边刻度尺，按 `P` 切换），都按 emil-design-eng 的细节规则实现：键盘切换无动画、鼠标切换带 2px 模糊交叉淡入淡出、clip-path 颜色过渡、提示首次延迟后续立即、拖拽有指针捕获 / 边缘阻尼 / 速度甩动吸附、弹层从触发点展开。快捷键：`↑/↓` 页面，`1–5` 方向，`M/W` 系统，`H` 收起，`⌘K` 命令面板；URL hash 记住位置（如 `#p4-d3-win-k2`）
 - 两个方向：
   - **A · Studio Paper（纸感专业）**：暖白纸面、衬线标题、Courier Prime 剧本正文，克制低饱和，接近传统编剧软件，AI 退到侧栏

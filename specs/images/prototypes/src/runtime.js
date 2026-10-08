@@ -3,9 +3,11 @@
   // The parent switcher tells each layer which OS chrome to draw.
   window.addEventListener('message', function (e) {
     if (e.data && e.data.type === 'proto:os') document.body.dataset.os = e.data.os;
+    // Layout direction A–E: same tokens, different layout, components and motion (variants.css).
+    if (e.data && e.data.type === 'proto:variant') { document.body.dataset.v = e.data.v; document.dispatchEvent(new CustomEvent('proto:variant', { detail: e.data.v })); }
   });
-  var os = new URLSearchParams(location.hash.slice(1)).get('os');
-  document.body.dataset.os = os || 'mac';
+  if (!document.body.dataset.os) document.body.dataset.os = 'mac';
+  if (!document.body.dataset.v) document.body.dataset.v = 'a';
 
   var toastTimer;
   window.toast = function (text) {
