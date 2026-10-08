@@ -356,8 +356,6 @@ const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本<
   </section>
   <aside class="info">
     <div style="display:flex;align-items:center;gap:6px"><b style="flex:1">写作</b><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="导出" onclick="openModal('export')">${icon('export', 14)}</button><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="写作进度">${icon('chart', 14)}</button><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="收起工具栏">${icon('panel', 14)}</button></div>
-    <div class="seg"><button class="on" style="flex:1">信息</button><button style="flex:1">协作</button></div>
-    <div><div class="muted" style="font-size:12px;margin-bottom:6px">协作者</div><div style="display:flex;gap:4px"><div style="width:28px;height:28px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;font-size:11px;font-weight:700">林</div><div style="width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--line-strong);display:grid;place-items:center;color:var(--ink-3)">${icon('plus', 12)}</div></div></div>
     <div><div class="muted" style="font-size:12px;margin-bottom:6px">分页</div><div class="seg"><button class="on">精简</button><button>分页</button></div></div>
     <div><div class="muted" style="font-size:12px;margin-bottom:6px">格式</div><div class="seg"><button class="on">好莱坞</button><button>亚洲</button></div></div>
     <div><div class="muted" style="font-size:12px;margin-bottom:6px">项目类型</div><div class="seg"><button>电影</button><button class="on">剧集</button></div></div>
