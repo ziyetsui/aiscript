@@ -2,11 +2,17 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { ScriptDoc, scenes, wordCount, type BibleItem, type BibleKind, type Turn } from '@scripter/core';
-import type { Edit, ProjectMeta, ProjectState } from '../shared/ipc.ts';
+import { ScriptDoc, scenes, wordCount, type BibleItem, type BibleKind, type Op, type Turn } from '@scripter/core';
+import type { ChatMsg, Edit, ProjectMeta, ProjectState } from '../shared/ipc.ts';
 import { dataDir, writeAtomic } from './store.ts';
 
-interface Meta extends ProjectMeta { conversationId?: string | null; turns?: Turn[] }
+interface Meta extends ProjectMeta {
+  conversationId?: string | null;
+  turns?: Turn[];
+  chat?: ChatMsg[];
+  /** Ops behind each open modification preview, keyed by chat message id. Never sent to the renderer. */
+  pending?: Record<string, { ops: Op[]; label: string }>;
+}
 interface Open { meta: Meta; doc: ScriptDoc; timer?: NodeJS.Timeout }
 
 const root = () => join(dataDir(), 'projects');
@@ -42,14 +48,14 @@ export function list(): ProjectMeta[] {
   if (!existsSync(root())) return [];
   return readdirSync(root())
     .filter((d) => existsSync(join(root(), d, 'meta.json')))
-    .map((d) => { const { conversationId: _c, turns: _t, ...m } = readMeta(d); return m; })
+    .map((d) => { const { conversationId: _c, turns: _t, chat: _h, pending: _p, ...m } = readMeta(d); return m; })
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
 export function create(title: string, kind: ProjectMeta['kind']): ProjectMeta {
   const id = randomUUID();
   mkdirSync(dirOf(id), { recursive: true });
-  const meta: Meta = { id, title: title.trim() || '未命名剧本', kind, createdAt: Date.now(), updatedAt: Date.now(), words: 0, conversationId: null, turns: [] };
+  const meta: Meta = { id, title: title.trim() || '未命名剧本', kind, createdAt: Date.now(), updatedAt: Date.now(), words: 0, conversationId: null, turns: [], chat: [], pending: {} };
   const doc = new ScriptDoc();
   doc.setTitle(meta.title);
   const p = { meta, doc };
@@ -72,8 +78,8 @@ export function get(id: string): Open {
 
 export function state(p: Open): ProjectState {
   const nodes = p.doc.nodes();
-  const { conversationId: _c, turns: _t, ...meta } = p.meta;
-  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible() };
+  const { conversationId: _c, turns: _t, chat = [], pending: _p, ...meta } = p.meta;
+  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat };
 }
 
 export function edit(id: string, edits: Edit[]): ProjectState {
@@ -102,6 +108,12 @@ export function undoTurn(id: string, turnId: string): ProjectState {
   p.doc.undoTurn(turnId);
   persist(p);
   return state(p);
+}
+
+export function pushChat(p: Open, m: ChatMsg): ChatMsg {
+  (p.meta.chat ??= []).push(m);
+  if (p.meta.chat.length > 400) p.meta.chat.splice(0, p.meta.chat.length - 400);
+  return m;
 }
 
 export function saveNow(p: Open): void {

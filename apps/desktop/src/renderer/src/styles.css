@@ -236,3 +236,12 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .kb-over.on { opacity: 1; }
 .tab-pane { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .tab-pane[hidden] { display: none; }
+/* modification preview */
+.preview { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; }
+.preview.done { opacity: .75; }
+.preview-hd { display: flex; align-items: center; gap: 6px; }
+.preview-list { display: flex; flex-direction: column; gap: 6px; max-height: 280px; overflow: auto; }
+.pv-it { display: grid; grid-template-columns: 44px 1fr; gap: 6px; font-family: var(--font-script); line-height: 1.6; }
+.pv-tag { font-family: var(--font-ui); font-size: 11px; color: var(--ink-3); padding-top: 2px; }
+.pv-it del { display: block; background: color-mix(in oklch, var(--danger) 10%, transparent); color: var(--ink-2); text-decoration-color: var(--danger); padding: 1px 4px; border-radius: 3px; }
+.pv-it ins { display: block; background: color-mix(in oklch, var(--success) 12%, transparent); text-decoration: none; padding: 1px 4px; border-radius: 3px; margin-top: 2px; }

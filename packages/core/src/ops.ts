@@ -2,7 +2,7 @@
 // The model wraps edits in <ops>[ … ]</ops>; we validate every op before touching the document.
 import { z } from 'zod';
 import { ELEMENT_TYPES } from './script.ts';
-import { findByName } from './bible.ts';
+import { findByName } from './bible-model.ts';
 import type { ScriptDoc } from './doc.ts';
 
 const Type = z.enum(ELEMENT_TYPES);
@@ -83,4 +83,38 @@ export function applyOps(doc: ScriptDoc, ops: readonly Op[], label: string) {
       }
     });
   });
+}
+
+// Modification preview (spec 0002 §0, D9, §5.6): new content is written straight away, but anything that
+// rewrites or removes what is already on the page is shown as a diff first and applied only when accepted.
+export type PreviewItem =
+  | { kind: 'insert'; type: string; text: string }
+  | { kind: 'update'; id: string; type: string; before: string; after: string }
+  | { kind: 'retype'; id: string; text: string; from: string; to: string }
+  | { kind: 'delete'; id: string; type: string; before: string }
+  | { kind: 'bible'; text: string };
+
+export function needsReview(ops: readonly Op[]): boolean {
+  return ops.some((o) => o.op === 'updateNode' || o.op === 'deleteNode' || o.op === 'setType');
+}
+
+/** Describe what the ops would change, against the current document. Missing targets are reported, not guessed. */
+export function previewOps(doc: ScriptDoc, ops: readonly Op[]): { items: PreviewItem[]; missing: string[] } {
+  const byId = new Map(doc.nodes().map((n) => [n.id, n]));
+  const items: PreviewItem[] = [];
+  const missing: string[] = [];
+  for (const o of ops) {
+    if (o.op === 'insertNode') items.push({ kind: 'insert', type: o.type, text: o.text });
+    else if (o.op === 'upsertCharacter') items.push({ kind: 'bible', text: `登记角色：${o.name}` });
+    else if (o.op === 'upsertLocation') items.push({ kind: 'bible', text: `登记地点：${o.name}` });
+    else if (o.op === 'setWorld') items.push({ kind: 'bible', text: `世界观「${o.title}」` });
+    else {
+      const n = byId.get(o.id);
+      if (!n) { if (!/^\$\d+$/.test(o.id)) missing.push(o.id); continue; }
+      if (o.op === 'updateNode') items.push({ kind: 'update', id: n.id, type: n.type, before: n.text, after: o.text });
+      else if (o.op === 'deleteNode') items.push({ kind: 'delete', id: n.id, type: n.type, before: n.text });
+      else items.push({ kind: 'retype', id: n.id, text: n.text, from: n.type, to: o.type });
+    }
+  }
+  return { items, missing };
 }

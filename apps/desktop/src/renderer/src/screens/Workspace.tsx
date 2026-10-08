@@ -2,13 +2,12 @@
 // and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ScriptNode } from '@scripter/core/script';
-import type { AiWriteResult, Edit, ExportFormat, KeyStatus, ProjectState, TurnInfo } from '../../../shared/ipc.ts';
+import type { AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState } from '../../../shared/ipc.ts';
 import type { Route } from '../App.tsx';
 import { bell, carriageReturn, keyClick, setSound, soundOn } from '../lib/typewriter.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
 import { Editor, placeCaret } from './Editor.tsx';
 
-interface Msg { role: 'user' | 'ai'; text: string; turn?: TurnInfo; applied?: number; error?: string; citations?: { url: string; title: string }[] }
 const QUICK = ['润色对白', '续写下一场', '检查人物一致性', '润色格式', '总结大纲'];
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const visibleReply = (t: string) => t.split('<ops>')[0]!.trim();
@@ -16,7 +15,7 @@ const visibleReply = (t: string) => t.split('<ops>')[0]!.trim();
 export function Workspace({ id, pending, keys, go }: { id: string; pending?: string; keys: KeyStatus; go: (r: Route) => void }) {
   const [st, setSt] = useState<ProjectState | null>(null);
   const [nodes, setNodes] = useState<ScriptNode[]>([]);
-  const [msgs, setMsgs] = useState<Msg[]>([]);
+  const [asking, setAsking] = useState<string | null>(null); // the user's message while its reply is in flight
   const [input, setInput] = useState('');
   const [web, setWeb] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
@@ -33,7 +32,7 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
   const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); }, []);
   useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, apply]);
   useEffect(() => window.api.ai.onDelta((d) => { if (d.reqId === running) setStream((s) => s + d.text); }), [running]);
-  useEffect(() => { logEnd.current?.scrollIntoView({ block: 'end' }); }, [msgs, stream]);
+  useEffect(() => { logEnd.current?.scrollIntoView({ block: 'end' }); }, [st?.chat.length, stream, asking]);
 
   const edit = useCallback(async (edits: Edit[]) => {
     const s = await window.api.projects.edit(id, edits);
@@ -66,7 +65,7 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
     if (!t || running) return;
     if (!keys.ancher) { toast('先到设置里填写 Ancher key'); return; }
     const reqId = crypto.randomUUID();
-    setMsgs((m) => [...m, { role: 'user', text: t }]);
+    setAsking(t);
     setInput('');
     setStream('');
     setRunning(reqId);
@@ -78,23 +77,34 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
     } catch (e) {
       r = { ok: false, narration: '', applied: 0, errors: [], citations: [], message: String(e) };
     }
+    const s = await window.api.projects.open(id);
     setRunning(null);
     setStream('');
-    const s = await window.api.projects.open(id);
+    setAsking(null);
     const newIds = s.nodes.filter((n) => !before.has(n.id)).map((n) => n.id);
     apply(s);
-    setMsgs((m) => [...m, { role: 'ai', text: r.narration || (r.ok ? '好的。' : ''), turn: r.turn, applied: r.applied, error: r.ok ? (r.errors.length ? `有 ${r.errors.length} 处修改格式不对，已跳过` : undefined) : r.message, citations: r.citations }]);
     if (r.ok && r.turn) void typeOut(newIds, s.nodes);
+    if (!r.ok && !r.cancelled && r.message && !s.chat.length) toast(r.message);
   }
 
   useEffect(() => {
     if (pending && st && !sent.current) { sent.current = true; void send(pending); }
   }, [pending, st]);
 
-  async function undo(turn: TurnInfo) {
-    apply(await window.api.projects.undoTurn(id, turn.id));
-    setMsgs((m) => m.map((x) => (x.turn?.id === turn.id ? { ...x, turn: { ...turn, undone: true } } : x)));
+  async function undo(turnId: string) {
+    apply(await window.api.projects.undoTurn(id, turnId));
     toast('已撤销这一轮修改');
+  }
+
+  async function resolve(m: ChatMsg, accept: boolean) {
+    const before = new Set(nodes.map((n) => n.id));
+    const r = await window.api.ai.resolve(id, m.id, accept);
+    apply(r.state);
+    if (!r.ok) { toast(r.message ?? '没有写入'); return; }
+    if (!accept) { toast('已拒绝，剧本没有改动'); return; }
+    const changed = (m.preview?.items ?? []).flatMap((it) => ('id' in it ? [it.id] : []));
+    setFresh(new Set(changed));
+    void typeOut(r.state.nodes.filter((n) => !before.has(n.id)).map((n) => n.id), r.state.nodes);
   }
 
   async function doExport(f: ExportFormat) {
@@ -150,22 +160,27 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
         <section className="agent" aria-label="AI 编剧">
           <div className="topbar" style={{ height: 44 }}><b style={{ fontSize: 13.5 }}>AI 编剧</b><span style={{ flex: 1 }} /><span className="chip">{keys.ancher ? 'Ancher' : '未连接'}</span></div>
           <div className="agent-log" aria-live="polite">
-            {msgs.length === 0 && !running && (
+            {st.chat.length === 0 && !running && (
               <div className="muted" style={{ fontSize: 13 }}>说说你想写什么。AI 会直接写进剧本，每一轮都可以单独撤销。</div>
             )}
-            {msgs.map((m, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div className={`msg ${m.role}`}>{m.text}</div>
-                {m.turn && (
-                  <div className="turn-card"><Icon name="pen" size={13} /><span style={{ flex: 1 }}>{m.turn.undone ? '已撤销' : `写入 ${m.applied ?? 0} 处修改`}</span>
-                    {!m.turn.undone && <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void undo(m.turn!)}><Icon name="undo" size={13} />撤销</button>}</div>
+            {st.chat.map((m) => {
+              const undone = !!m.turnId && st.turns.find((t) => t.id === m.turnId)?.undone;
+              return (
+              <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {m.text && <div className={`msg ${m.role}`}>{m.text}</div>}
+                {m.preview && <PreviewCard m={m} onResolve={(a) => void resolve(m, a)} />}
+                {m.turnId && (
+                  <div className="turn-card"><Icon name="pen" size={13} /><span style={{ flex: 1 }}>{undone ? '已撤销' : `写入 ${m.applied ?? 0} 处修改`}</span>
+                    {!undone && <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void undo(m.turnId!)}><Icon name="undo" size={13} />撤销</button>}</div>
                 )}
                 {m.citations && m.citations.length > 0 && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{m.citations.slice(0, 5).map((c) => <a key={c.url} className="chip" href={c.url} target="_blank" rel="noreferrer">{c.title || new URL(c.url).hostname}</a>)}</div>
                 )}
                 {m.error && <div className="err" role="alert">{m.error}</div>}
               </div>
-            ))}
+              );
+            })}
+            {asking && <div className="msg user">{asking}</div>}
             {running && <div className="msg ai muted"><span className="spinner" style={{ display: 'inline-block', verticalAlign: -2, marginRight: 6 }} />{visibleReply(stream) || '正在思考…'}</div>}
             <div ref={logEnd} />
           </div>
@@ -191,5 +206,36 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
         </section>
       </div>
     </>
+  );
+}
+
+const TYPE_LABEL: Record<string, string> = { heading: '场景', action: '动作', character: '角色', parenthetical: '括号', dialogue: '对白', transition: '转场', shot: '镜头', note: '注释', subtitle: '字幕' };
+
+/** Modification preview: what would change, accept or reject. Nothing touches the script until 接受. */
+function PreviewCard({ m, onResolve }: { m: ChatMsg; onResolve: (accept: boolean) => void }) {
+  const pv = m.preview!;
+  const label = { open: '', accepted: '已接受并写入', rejected: '已拒绝，剧本没有改动', stale: '剧本已变化，没有写入' }[pv.state];
+  return (
+    <div className={`card preview${pv.state === 'open' ? '' : ' done'}`}>
+      <div className="preview-hd"><Icon name="eye" size={13} /><b style={{ flex: 1 }}>修改预览 · {pv.items.length} 处</b>{label && <span className="muted">{label}</span>}</div>
+      <div className="preview-list">
+        {pv.items.map((it, i) => (
+          <div key={i} className="pv-it">
+            <span className="pv-tag">{it.kind === 'insert' ? '新增' : it.kind === 'update' ? '改写' : it.kind === 'delete' ? '删除' : it.kind === 'retype' ? '改格式' : '设定'}</span>
+            {it.kind === 'update' && <span><del>{it.before}</del><ins>{it.after}</ins></span>}
+            {it.kind === 'delete' && <del>{it.before}</del>}
+            {it.kind === 'insert' && <ins><span className="muted">{TYPE_LABEL[it.type] ?? it.type} · </span>{it.text}</ins>}
+            {it.kind === 'retype' && <span>{it.text}<span className="muted">（{TYPE_LABEL[it.from]} → {TYPE_LABEL[it.to]}）</span></span>}
+            {it.kind === 'bible' && <span className="muted">{it.text}</span>}
+          </div>
+        ))}
+      </div>
+      {pv.state === 'open' && (
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button className="btn btn-ghost" style={{ height: 30 }} onClick={() => onResolve(false)}>拒绝</button>
+          <button className="btn btn-primary" style={{ height: 30 }} onClick={() => onResolve(true)}><Icon name="check" size={13} />接受</button>
+        </div>
+      )}
+    </div>
   );
 }
