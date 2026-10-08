@@ -2,7 +2,7 @@
 import { createServer, type Server } from 'node:http';
 
 export const GOOD_KEY = 'test-ancher-key';
-export const REPLY = '好的，先写开场。<ops>[{"op":"insertNode","type":"heading","text":"外景 胡同口 — 傍晚"},{"op":"insertNode","type":"action","text":"豆豆蹲在自家门墩儿旁边，用手指头戳石狮子的鼻子。"},{"op":"insertNode","type":"character","text":"门墩儿"},{"op":"insertNode","type":"dialogue","text":"别捏了，它要说话的。"}]</ops>';
+export const REPLY = '好的，先写开场。<ops>[{"op":"insertNode","type":"heading","text":"外景 胡同口 — 傍晚"},{"op":"insertNode","type":"action","text":"豆豆蹲在自家门墩儿旁边，用手指头戳石狮子的鼻子。"},{"op":"insertNode","type":"character","text":"门墩儿"},{"op":"insertNode","type":"dialogue","text":"别捏了，它要说话的。"},{"op":"upsertCharacter","name":"门墩儿","role":"精灵 · 一百多岁","desc":"住在石门墩里，嘴硬心软"},{"op":"upsertLocation","name":"胡同口","ie":"外景","times":["傍晚"]}]</ops>';
 
 export function startFakeAncher(): Promise<{ url: string; server: Server; prompts: string[] }> {
   const prompts: string[] = [];

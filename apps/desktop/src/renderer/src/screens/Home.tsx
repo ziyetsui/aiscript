@@ -42,13 +42,13 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
     setBusy(true);
     const title = t.replace(/\s+/g, ' ').slice(0, 18) + (t.length > 18 ? '…' : '');
     const p = await window.api.projects.create(title, kind);
-    go({ name: 'workspace', id: p.id, pending: keys.ancher ? t : undefined });
+    go({ name: 'project', id: p.id, tab: 'write', pending: keys.ancher ? t : undefined });
     if (!keys.ancher) toast('还没填写 Ancher key，AI 暂时不能写。可以先手动写，或到设置里填写');
   }
 
   async function blank() {
     const p = await window.api.projects.create('未命名剧本', kind);
-    go({ name: 'workspace', id: p.id });
+    go({ name: 'project', id: p.id, tab: 'write' });
   }
 
   function pick(i: number) {
@@ -127,7 +127,7 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
             ) : (
               <div className="recents">
                 {recents.map((p) => (
-                  <button key={p.id} className="card recent" onClick={() => go({ name: 'workspace', id: p.id })}>
+                  <button key={p.id} className="card recent" onClick={() => go({ name: 'project', id: p.id, tab: 'write' })}>
                     <b style={{ fontSize: 14 }}>{p.title}</b>
                     <span className="muted tnum" style={{ fontSize: 12 }}>{p.kind === 'video' ? '快速视频' : '剧本'} · {p.words} 字 · {new Date(p.updatedAt).toLocaleDateString('zh-CN')}</span>
                   </button>

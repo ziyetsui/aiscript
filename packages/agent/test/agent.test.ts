@@ -17,6 +17,8 @@ describe('context packing', () => {
     expect(m).toContain('<ops>');
     expect(m).toContain('用户：写第一场');
     expect(m).toContain('（空）');
+    expect(m).not.toContain('项目设定：');
+    expect(buildMessage('x', 't', [], undefined, '角色：\n- 豆豆')).toContain('项目设定：\n角色：\n- 豆豆');
   });
 });
 

@@ -1,6 +1,6 @@
 // AI writes into the script: Ancher returns <ops>, we validate and apply them as one undoable turn (spec 0002 §5.4).
 import { app, type WebContents } from 'electron';
-import { applyOps, parseReply } from '@scripter/core';
+import { applyOps, bibleBrief, parseReply } from '@scripter/core';
 import { buildMessage, checkAncherKey, createAncher, describeError, runChat } from '@scripter/agent';
 import type { AiWriteRequest, AiWriteResult } from '../shared/ipc.ts';
 import { get, saveNow } from './projects.ts';
@@ -19,7 +19,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   running.set(req.reqId, ac);
   try {
     const sdk = ancher(key);
-    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId);
+    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(p.doc.readBible()));
     const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, webSearch: req.webSearch, signal: ac.signal }, {
       onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
     });
