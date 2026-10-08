@@ -1,7 +1,7 @@
 import { ScriptDoc } from '@scripter/core';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { WORKFLOWS, execute, newRun, parseResult, recoverInterrupted, workflow, type WorkflowEnv } from '../src/index.ts';
+import { WORKFLOWS, confirm, execute, newRun, parseResult, recoverInterrupted, workflow, type WorkflowEnv } from '../src/index.ts';
 
 function env(replies: (string | Error)[], over: Partial<WorkflowEnv> = {}) {
   const d = new ScriptDoc();
@@ -84,10 +84,10 @@ describe('engine', () => {
 });
 
 describe('workflows', () => {
-  it('has the eight §5.6 workflows on ⌥1–⌥8', () => {
+  it('has the eight §5.6 workflows on ⌥1–⌥8, plus the episode pipeline on ⌥9', () => {
     expect(WORKFLOWS.map((w) => [w.key, w.title])).toEqual([
       [1, '一个创意 → 3 个走向'], [2, '参考经典结构重写'], [3, '笑点方案'], [4, '写飘检查'],
-      [5, '导演意见 → 规则'], [6, '控字数 / 时长'], [7, '视频 → 逐字稿'], [8, '今日热点选题'],
+      [5, '导演意见 → 规则'], [6, '控字数 / 时长'], [7, '视频 → 逐字稿'], [8, '今日热点选题'], [9, '一集剧本流水线'],
     ]);
   });
 
@@ -155,5 +155,62 @@ describe('workflows', () => {
     const { e } = env([]);
     const run = await execute(workflow('transcribe'), newRun(workflow('transcribe'), { filePath: '/Users/x/第一集.mp4' }, 'x'), e, ac().signal, () => {});
     expect(run.result).toMatchObject({ kind: 'transcript', fileName: '第一集.mp4', provider: 'ancher', text: '你好' });
+  });
+});
+
+describe('episode pipeline (spec §5.4)', () => {
+  const story = { story: '豆豆想要一双会发光的鞋，门墩儿借来姥爷小时候的旧球鞋……', core: { theme: '旧东西里有爱', keyScenes: ['鞋底刻字被发现'], motives: ['豆豆：不想输给大壮'] } };
+  const scenes = (n: number) => ({ scenes: Array.from({ length: n }, (_, i) => ({ heading: `外景 胡同口 — 日${i + 1}`, summary: `第${i + 1}场内容`, key: i === 5 })) });
+  const batch = (from: number, to: number) => `<ops>[${Array.from({ length: to - from }, (_, k) => `{"op":"insertNode","type":"heading","text":"场${from + k + 1}"},{"op":"insertNode","type":"action","text":"${'豆豆跑过胡同。'.repeat(50)}"}`).join(',')}]</ops>`;
+
+  it('pauses for the story and the scene list, uses the writer\'s edits, and ends in ops', async () => {
+    const replies = ['调研', res(story), res(scenes(14)), ...[0, 3, 6, 9, 12].map((i) => batch(i, Math.min(i + 3, 14))), res({ issues: [{ problem: '重场戏偏短', suggestion: '加一拍' }] })];
+    const { e, chat } = env(replies);
+    const def = workflow('episode');
+    let run = await execute(def, newRun(def, { text: '门墩儿借鞋' }, 'ep'), e, ac().signal, () => {});
+    expect(run.status).toBe('waiting');
+    expect(run.waiting).toMatchObject({ stepId: 'confirmStory', title: '确认故事和锁定核心' });
+    expect(run.waiting!.text).toContain('【锁定核心】');
+    confirm(run, `${run.waiting!.text}\n（作者补充：大壮最后也借到了鞋）`);
+    run = await execute(def, run, e, ac().signal, () => {});
+    expect(run.waiting?.stepId).toBe('confirmScenes');
+    expect(run.waiting!.text.split('\n')).toHaveLength(14);
+    expect(String(chat.mock.calls[2]![0])).toContain('作者补充'); // the edited story drives the scene list
+    const edited = run.waiting!.text.split('\n').slice(0, 13).join('\n'); // writer drops the last scene
+    confirm(run, edited);
+    run = await execute(def, run, e, ac().signal, () => {});
+    expect(run.status).toBe('done');
+    expect(run.steps.every((s) => s.status === 'done')).toBe(true);
+    const r = run.result as { kind: string; ops: { op: string; text?: string; after?: string }[]; narration: string };
+    expect(r.kind).toBe('ops');
+    expect(r.ops.filter((o) => o.op === 'insertNode').every((o) => o.after === 'end')).toBe(true);
+    expect(r.narration).toContain('13 场');
+    expect(r.narration).toContain('重场戏偏短');
+    expect(chat).toHaveBeenCalledTimes(3 + 5 + 1);
+  });
+
+  it('rejects a scene list outside 13–17 scenes', async () => {
+    const { e } = env(['调研', res(story), res(scenes(8))]);
+    const def = workflow('episode');
+    const run = await execute(def, newRun(def, { text: 'x' }, 'ep2'), e, ac().signal, () => {});
+    confirm(run, run.waiting!.text);
+    const r2 = await execute(def, run, e, ac().signal, () => {});
+    expect(r2.status).toBe('failed');
+    expect(r2.error).toContain('8 场');
+  });
+
+  it('a failed writing batch resumes without rewriting earlier scenes', async () => {
+    const { e, chat } = env(['调研', res(story), res(scenes(13)), batch(0, 3), new Error('网络断了'), batch(3, 6), batch(6, 9), batch(9, 12), batch(12, 13), res({ issues: [] })]);
+    const def = workflow('episode');
+    let run = await execute(def, newRun(def, { text: 'x', minutes: 10 }, 'ep3'), e, ac().signal, () => {});
+    confirm(run, run.waiting!.text); run = await execute(def, run, e, ac().signal, () => {});
+    confirm(run, run.waiting!.text); run = await execute(def, run, e, ac().signal, () => {});
+    expect(run.status).toBe('failed');
+    expect(run.error).toBe('网络断了');
+    run = await execute(def, run, e, ac().signal, () => {});
+    expect(run.status).toBe('done');
+    const heads = (run.result as { ops: { op: string; type?: string; text?: string }[] }).ops.filter((o) => o.type === 'heading').map((o) => o.text);
+    expect(heads).toEqual(Array.from({ length: 13 }, (_, i) => `场${i + 1}`)); // no duplicates of 1–3
+    expect(chat).toHaveBeenCalledTimes(3 + 6 + 1);
   });
 });

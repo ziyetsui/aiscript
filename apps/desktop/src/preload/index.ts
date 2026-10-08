@@ -43,6 +43,7 @@ const api: Api = {
     start: call('wf:start') as Api['workflows']['start'],
     cancel: call('wf:cancel') as Api['workflows']['cancel'],
     retry: call('wf:retry') as Api['workflows']['retry'],
+    confirm: call('wf:confirm') as Api['workflows']['confirm'],
     apply: call('wf:apply') as Api['workflows']['apply'],
     pickFile: call('wf:pickFile') as Api['workflows']['pickFile'],
     onUpdate(cb) {

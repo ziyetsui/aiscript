@@ -94,8 +94,9 @@ export interface Api {
   };
   workflows: {
     start(projectId: string, wf: WorkflowId, input: WorkflowInput): Promise<ProjectState>;
-    cancel(runId: string): Promise<void>;
+    cancel(runId: string, projectId?: string): Promise<void>;
     retry(projectId: string, runId: string): Promise<ProjectState>;
+    confirm(projectId: string, runId: string, text: string): Promise<ProjectState>;
     apply(projectId: string, runId: string, action: WorkflowAction): Promise<{ ok: boolean; message: string; state: ProjectState }>;
     pickFile(kind: 'media' | 'any'): Promise<string | null>;
     onUpdate(cb: (e: { projectId: string; run: RunState }) => void): () => void;

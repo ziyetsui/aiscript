@@ -14,6 +14,7 @@ export const WF_MENU: { id: WorkflowId; key: number; title: string; desc: string
   { id: 'length', key: 6, title: '控字数 / 时长', desc: '按场估算时长，给出删减方案，先预览再写入', input: 'target' },
   { id: 'transcribe', key: 7, title: '视频 → 逐字稿', desc: '本地视频转逐字稿，存进知识库', input: 'file' },
   { id: 'topics', key: 8, title: '今日热点选题', desc: '联网找今天的热点，筛成 5 个选题', input: 'none' },
+  { id: 'episode', key: 9, title: '一集剧本流水线', desc: '故事和锁定核心、分场都先给你确认，再逐场写完一整集', input: 'text', hint: '这一集的选题或一句话创意（留空则用大纲或选中的选题）' },
 ];
 const optKey = (n: number) => (isMac ? `⌥${n}` : `Alt+${n}`);
 
@@ -30,7 +31,7 @@ export function WorkflowMenu({ onPick, disabled }: { onPick: (id: WorkflowId) =>
   }, [open]);
   return (
     <span ref={ref} style={{ position: 'relative' }}>
-      <button type="button" className="chip" aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={() => setOpen((o) => !o)} title={`工作流（${optKey(1)}–${optKey(8)}）`}>⚡ 工作流</button>
+      <button type="button" className="chip" aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={() => setOpen((o) => !o)} title={`工作流（${optKey(1)}–${optKey(9)}）`}>⚡ 工作流</button>
       {open && (
         <div className="card menu" role="menu" style={{ bottom: 'calc(100% + 6px)', left: 0, width: 320, transformOrigin: 'bottom left' }}>
           {WF_MENU.map((w) => (
@@ -113,17 +114,18 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
   return (
     <div className={`card run run-${run.status}`} aria-label={w?.title}>
       <div className="run-hd"><span aria-hidden="true">⚡</span><b style={{ flex: 1 }}>{w?.title}</b>
-        {run.status === 'running' && <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void window.api.workflows.cancel(run.id)}><Icon name="stop" size={12} />取消</button>}
+        {(run.status === 'running' || run.status === 'waiting') && <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void window.api.workflows.cancel(run.id, projectId)}><Icon name="stop" size={12} />取消</button>}
         {(run.status === 'failed' || run.status === 'cancelled') && <button className="btn btn-ghost" style={{ height: 26 }} onClick={async () => onApplied(await window.api.workflows.retry(projectId, run.id))}><Icon name="undo" size={12} />重试</button>}
       </div>
       <ol className="steps">
         {run.steps.map((s) => (
           <li key={s.id} className={`st-${s.status}`}>
-            <span className="st-ic" aria-hidden="true">{s.status === 'running' ? <span className="spinner" /> : STEP_ICON[s.status]}</span>
+            <span className="st-ic" aria-hidden="true">{s.status === 'running' ? <span className="spinner" /> : s.status === 'waiting' ? '…' : STEP_ICON[s.status]}</span>
             <span>{s.label}{s.note && <span className="muted"> · {s.note}</span>}{s.error && <span className="err" style={{ display: 'block' }}>{s.error}</span>}</span>
           </li>
         ))}
       </ol>
+      {run.status === 'waiting' && run.waiting && <ConfirmPanel key={run.waiting.stepId} run={run} projectId={projectId} onDone={onApplied} />}
       {run.status === 'cancelled' && <div className="muted" style={{ fontSize: 12 }}>已取消，没有写入任何内容</div>}
       {run.applied && <div className="ok">{run.applied}</div>}
       {r?.kind === 'directions' && (
@@ -197,6 +199,23 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
         </div>
       )}
       {r?.kind === 'transcript' && <div className="res"><span className="quote" style={{ maxHeight: 120, overflow: 'auto', whiteSpace: 'pre-wrap' }}>{r.text.slice(0, 600)}{r.text.length > 600 ? '…' : ''}</span></div>}
+    </div>
+  );
+}
+
+/** A paused pipeline step: the writer edits the draft (story, scene list) and confirms to continue (spec §5.4). */
+function ConfirmPanel({ run, projectId, onDone }: { run: RunState; projectId: string; onDone: (s: Awaited<ReturnType<typeof window.api.workflows.confirm>>) => void }) {
+  const w = run.waiting!;
+  const [text, setText] = useState(w.text);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="confirm">
+      <b>{w.title}</b>
+      <span className="muted" style={{ fontSize: 12 }}>{w.hint}</span>
+      <textarea className="input" aria-label={w.title} value={text} onChange={(e) => setText(e.target.value)} rows={Math.min(14, Math.max(5, text.split('\n').length + 1))} />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6 }}>
+        <button className="btn btn-primary" style={{ height: 30 }} disabled={busy || !text.trim()} onClick={async () => { setBusy(true); onDone(await window.api.workflows.confirm(projectId, run.id, text)); }}><Icon name="check" size={13} />确认，继续</button>
+      </div>
     </div>
   );
 }

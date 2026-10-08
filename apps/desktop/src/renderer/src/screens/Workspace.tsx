@@ -13,7 +13,7 @@ const QUICK = ['润色对白', '续写下一场', '检查人物一致性', '润�
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const visibleReply = (t: string) => t.split('<ops>')[0]!.trim();
 
-export function Workspace({ id, pending, keys, go }: { id: string; pending?: string; keys: KeyStatus; go: (r: Route) => void }) {
+export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: string; pending?: string; pendingEpisode?: string; keys: KeyStatus; go: (r: Route) => void }) {
   const [st, setSt] = useState<ProjectState | null>(null);
   const [nodes, setNodes] = useState<ScriptNode[]>([]);
   const [asking, setAsking] = useState<string | null>(null); // the user's message while its reply is in flight
@@ -53,7 +53,7 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
   // ⌥1–⌥8 open a workflow (e.code, because Option+digit types a symbol on macOS). Only while this pane is visible.
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
-      const m = /^Digit([1-8])$/.exec(e.code);
+      const m = /^Digit([1-9])$/.exec(e.code);
       if (!e.altKey || e.metaKey || e.ctrlKey || !m || !root.current?.offsetParent) return;
       e.preventDefault();
       openWorkflow(WF_MENU[+m[1]! - 1]!.id);
@@ -116,8 +116,10 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
   }
 
   useEffect(() => {
-    if (pending && st && !sent.current) { sent.current = true; void send(pending); }
-  }, [pending, st]);
+    if (!st || sent.current) return;
+    if (pending) { sent.current = true; void send(pending); }
+    else if (pendingEpisode !== undefined) { sent.current = true; void startWorkflow('episode', { text: pendingEpisode }); }
+  }, [pending, pendingEpisode, st]);
 
   async function undo(turnId: string) {
     apply(await window.api.projects.undoTurn(id, turnId));

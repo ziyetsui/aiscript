@@ -5,8 +5,8 @@
 import type { Bible, Op, ScriptNode } from '@scripter/core';
 import { z } from 'zod';
 
-export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped';
-export type RunStatus = 'running' | 'done' | 'failed' | 'cancelled';
+export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped' | 'waiting';
+export type RunStatus = 'running' | 'waiting' | 'done' | 'failed' | 'cancelled';
 
 export interface StepState { id: string; label: string; status: StepStatus; error?: string; note?: string }
 
@@ -19,7 +19,7 @@ export type WorkflowResult =
   | { kind: 'transcript'; fileName: string; text: string; srt: string; provider: string }
   | { kind: 'topics'; items: { title: string; logline: string; why: string }[]; citations: { url: string; title: string }[] };
 
-export interface WorkflowInput { text?: string; url?: string; filePath?: string; focusId?: string; target?: number; provider?: 'gemini' | 'ancher' }
+export interface WorkflowInput { text?: string; url?: string; filePath?: string; focusId?: string; target?: number; provider?: 'gemini' | 'ancher'; minutes?: number }
 
 export interface RunState {
   id: string;
@@ -30,6 +30,8 @@ export interface RunState {
   /** Intermediate values carried between steps (JSON-serialisable, persisted). */
   ctx: Record<string, unknown>;
   result?: WorkflowResult;
+  /** Set while the run is paused for the writer (spec §5.4 "人工确认 suspend"). */
+  waiting?: { stepId: string; title: string; text: string; hint: string };
   /** What the writer did with the result. */
   applied?: string;
   error?: string;
@@ -50,9 +52,11 @@ export interface WorkflowEnv {
   hasGemini(): boolean;
 }
 
-export type WorkflowId = 'directions' | 'restructure' | 'jokes' | 'drift' | 'notes' | 'length' | 'transcribe' | 'topics';
+export type WorkflowId = 'directions' | 'restructure' | 'jokes' | 'drift' | 'notes' | 'length' | 'transcribe' | 'topics' | 'episode';
 
-export interface StepDef { id: string; label: string; run(ctx: Record<string, unknown>, env: WorkflowEnv, input: WorkflowInput, signal: AbortSignal): Promise<void | { note?: string; skip?: boolean }> }
+export type StepOutcome = void | { note?: string; skip?: boolean; wait?: { title: string; text: string; hint: string } };
+/** A step may pause the run for the writer; it is re-run after they confirm, with ctx[`confirmed:${id}`] set. */
+export interface StepDef { id: string; label: string; run(ctx: Record<string, unknown>, env: WorkflowEnv, input: WorkflowInput, signal: AbortSignal): Promise<StepOutcome> }
 export interface WorkflowDef {
   id: WorkflowId;
   key: number; // ⌥1–⌥8
@@ -74,7 +78,8 @@ export function newRun(def: WorkflowDef, input: WorkflowInput, id: string): RunS
 export async function execute(def: WorkflowDef, run: RunState, env: WorkflowEnv, signal: AbortSignal, save: (r: RunState) => void): Promise<RunState> {
   run.status = 'running';
   run.error = undefined;
-  for (const st of run.steps) if (st.status === 'failed' || st.status === 'running') { st.status = 'pending'; st.error = undefined; }
+  run.waiting = undefined;
+  for (const st of run.steps) if (st.status === 'failed' || st.status === 'running' || st.status === 'waiting') { st.status = 'pending'; st.error = undefined; }
   save(run);
   for (let i = 0; i < def.steps.length; i++) {
     const st = run.steps[i]!;
@@ -85,6 +90,13 @@ export async function execute(def: WorkflowDef, run: RunState, env: WorkflowEnv,
     try {
       const r = await def.steps[i]!.run(run.ctx, env, run.input, signal);
       if (signal.aborted) return finishCancelled(run, save);
+      if (r?.wait) {
+        st.status = 'waiting';
+        run.status = 'waiting';
+        run.waiting = { stepId: st.id, ...r.wait };
+        save(run);
+        return run;
+      }
       st.status = r?.skip ? 'skipped' : 'done';
       if (r?.note) st.note = r.note;
       save(run);
@@ -116,6 +128,14 @@ function finishCancelled(run: RunState, save: (r: RunState) => void): RunState {
   run.status = 'cancelled';
   run.endedAt = Date.now();
   save(run);
+  return run;
+}
+
+/** The writer confirmed (and possibly edited) what a waiting step showed; `execute` again to continue. */
+export function confirm(run: RunState, text: string): RunState {
+  if (run.status !== 'waiting' || !run.waiting) throw new Error('这个流程没有在等确认');
+  run.ctx[`confirmed:${run.waiting.stepId}`] = text;
+  run.waiting = undefined;
   return run;
 }
 
