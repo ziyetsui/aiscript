@@ -503,6 +503,14 @@ sequenceDiagram
 | 6 | 工作流引擎（§5.6，含取消 / 重试 / 重启后恢复）、导出 PDF / FDX、项目导入导出 | 8 个工作流都能跑完、能取消、失败步骤能重试；FDX 能被 Final Draft 打开 |
 | 7 | 签名、公证、自动更新、beta 发布 | Win / mac 实机安装、升级、卸载都通过 |
 
+**进度（2026-10-08）**：已开始开发，代码在 `apps/` `packages/` `tools/`。
+- ✅ Phase 2 骨架：Electron + React，激活页（离线机器码激活已可用；Keygen 客户端已写好，**待用真实账号实测**）、safeStorage 存 key、`User.me()` 校验
+- ✅ Phase 3 基础：Loro 剧本文档（9 种元素、Enter / Tab / Shift+Tab / 退格合并、多行粘贴、自动保存、重启不丢）、场景列表
+- ✅ AI 写入：Ancher 对话流式输出 → `<ops>` 校验 → 一轮一个 Loro 提交，可单独撤销（作者之后的输入保留）；打字机逐字出现 + 合成音效；联网搜索开关；取消
+- ✅ 导出 PDF / FDX / Fountain / TXT
+- ✅ 测试：22 个单元测试 + 一条 Playwright 驱动真实 Electron 的 E2E（激活 → 填 key → 意图面板 → AI 写第一场 → 手写 → 撤销 → 导出 → 重启）；AI 部分用本地假 Ancher 服务
+- ⏳ 未做：Phase 1 真实 key 实测、角色 / 地点 / 道具 / 世界观 / 知识库页面、⚡ 工作流引擎（Phase 6）、DOCX、内置字体、签名与自动更新（Phase 7）。**注意**：Loro 文档放在主进程（不是 §4.1 图里的渲染进程），渲染进程通过 IPC 编辑，避免在渲染进程打包 wasm
+
 ---
 
 ## 12. 测试

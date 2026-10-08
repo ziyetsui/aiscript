@@ -1,0 +1,130 @@
+// Loro is the single source of truth for a script (spec 0002 §4.1).
+// Every AI turn is recorded as (before, after) frontiers so it can be undone on its own,
+// even after the writer has kept typing (§5.4 "turnId → commits", "Undo edit").
+import { LoroDoc, LoroMap, LoroText, type Frontiers, type LoroMovableList } from 'loro-crdt';
+import { ELEMENT_TYPES, newId, type ElementType, type ScriptNode } from './script.ts';
+
+export interface Turn { id: string; label: string; before: Frontiers; after: Frontiers; undone: boolean }
+
+export class ScriptDoc {
+  readonly doc: LoroDoc;
+  private turns: Turn[] = [];
+
+  constructor(doc = new LoroDoc()) {
+    this.doc = doc;
+  }
+
+  static fromSnapshot(bytes: Uint8Array): ScriptDoc {
+    return new ScriptDoc(LoroDoc.fromSnapshot(bytes));
+  }
+
+  snapshot(): Uint8Array {
+    return this.doc.export({ mode: 'snapshot' });
+  }
+
+  private get list(): LoroMovableList {
+    return this.doc.getMovableList('nodes');
+  }
+
+  get title(): string {
+    return (this.doc.getMap('meta').get('title') as string | undefined) ?? '未命名剧本';
+  }
+
+  setTitle(title: string): void {
+    this.doc.getMap('meta').set('title', title);
+    this.doc.commit({ message: 'title' });
+  }
+
+  nodes(): ScriptNode[] {
+    const out: ScriptNode[] = [];
+    for (let i = 0; i < this.list.length; i++) {
+      const m = this.list.get(i) as LoroMap;
+      const text = m.get('text') as LoroText | undefined;
+      out.push({ id: m.get('id') as string, type: m.get('type') as ElementType, text: text?.toString() ?? '' });
+    }
+    return out;
+  }
+
+  private indexOf(id: string): number {
+    for (let i = 0; i < this.list.length; i++) if ((this.list.get(i) as LoroMap).get('id') === id) return i;
+    return -1;
+  }
+
+  private mapAt(id: string): LoroMap {
+    const i = this.indexOf(id);
+    if (i < 0) throw new Error(`node ${id} not found`);
+    return this.list.get(i) as LoroMap;
+  }
+
+  /** Insert after `afterId` (null = at start, 'end' = append). Returns the new id. Does not commit. */
+  insert(afterId: string | null | 'end', type: ElementType, text: string, id = newId()): string {
+    const at = afterId === 'end' ? this.list.length : afterId === null ? 0 : this.indexOf(afterId) + 1;
+    if (afterId !== 'end' && afterId !== null && at === 0) throw new Error(`node ${afterId} not found`);
+    const m = this.list.insertContainer(at, new LoroMap());
+    m.set('id', id);
+    m.set('type', type);
+    m.setContainer('text', new LoroText()).insert(0, text);
+    return id;
+  }
+
+  setText(id: string, text: string): void {
+    const t = this.mapAt(id).get('text') as LoroText;
+    // Replace in place; Loro merges concurrent character edits.
+    if (t.toString() !== text) {
+      t.delete(0, t.length);
+      t.insert(0, text);
+    }
+  }
+
+  setType(id: string, type: ElementType): void {
+    if (!ELEMENT_TYPES.includes(type)) throw new Error(`bad type ${type}`);
+    this.mapAt(id).set('type', type);
+  }
+
+  remove(id: string): void {
+    const i = this.indexOf(id);
+    if (i >= 0) this.list.delete(i, 1);
+  }
+
+  commit(message = 'edit'): void {
+    this.doc.commit({ message });
+  }
+
+  /** Run `fn` as one AI turn: one commit, recorded for per-turn undo. */
+  turn(label: string, fn: (d: ScriptDoc) => void): Turn {
+    this.doc.commit();
+    const before = this.doc.frontiers();
+    try {
+      fn(this);
+    } catch (e) {
+      // Leave nothing half-written (spec §12.4 "取消后不留下半截写入").
+      this.doc.commit();
+      this.doc.applyDiff(this.doc.diff(this.doc.frontiers(), before));
+      this.doc.commit({ message: `rollback ${label}` });
+      throw e;
+    }
+    this.doc.commit({ message: `ai: ${label}` });
+    const t: Turn = { id: newId(), label, before, after: this.doc.frontiers(), undone: false };
+    this.turns.push(t);
+    return t;
+  }
+
+  listTurns(): readonly Turn[] {
+    return this.turns;
+  }
+
+  /** Turns are persisted next to the snapshot so "撤销这一轮" survives a restart. */
+  loadTurns(turns: Turn[]): void {
+    this.turns = turns.map((t) => ({ ...t }));
+  }
+
+  /** Undo only this turn's changes; later edits by the writer are kept. */
+  undoTurn(turnId: string): void {
+    const t = this.turns.find((x) => x.id === turnId);
+    if (!t || t.undone) return;
+    this.doc.commit();
+    this.doc.applyDiff(this.doc.diff(t.after, t.before));
+    this.doc.commit({ message: `undo ${t.label}` });
+    t.undone = true;
+  }
+}
