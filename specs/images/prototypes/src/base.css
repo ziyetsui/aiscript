@@ -159,3 +159,28 @@ body[data-dark] .pop { background: var(--color-n2-dark-3); }
   #page { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; background: #fff; color: #000; min-height: 0; font-size: 12pt; line-height: 1.5; }
   .sc-node.writing { background: none; } .sc-node.typing::after { display: none; } .sc-node[hidden] { display: none; }
 }
+
+/* ── Ancher brand: symbol logo with ancher's "cipher-spin" (120°, 0.8s, cubic-bezier(.16,1,.3,1)) ── */
+.logo { background: transparent; color: var(--primary); display: grid; place-items: center; }
+.logo .ancher-symbol { width: 100%; height: 100%; display: block; }
+@keyframes cipher-spin { 0% { rotate: 0deg; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); } 100% { rotate: 120deg; } }
+@media (hover: hover) and (pointer: fine) { .logo:hover .ancher-symbol { animation: cipher-spin 0.8s forwards; } }
+.logo.spin .ancher-symbol { animation: cipher-spin 0.8s forwards; }
+
+/* ── ancher landing fadeUp: y 24 → 0, 500ms, ease [.25,.4,0,1], 80ms stagger; reduced = opacity only, 40ms stagger ── */
+.fade-up { animation: fadeUp 500ms cubic-bezier(0.25, 0.4, 0, 1) both; animation-delay: calc(var(--i, 0) * 80ms); }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } }
+@media (prefers-reduced-motion: reduce) { .fade-up { animation: fadeOnly 300ms ease both; animation-delay: calc(var(--i, 0) * 40ms); } }
+@keyframes fadeOnly { from { opacity: 0; } }
+
+/* ── Painting with ancher's circular reveal: muted base + grain, full painting through a spring-following window ── */
+.reveal { position: relative; margin: 0; border-radius: var(--r-xl); overflow: hidden; background: var(--paper); isolation: isolate; }
+.rv-base, .rv-paint { position: absolute; inset: 0; background-image: var(--art); background-size: cover; background-position: 62% 50%; }
+.rv-base { filter: grayscale(.55) brightness(1.06); opacity: .26; }
+.rv-paint { clip-path: circle(150% at 66% 46%); }
+.rv-grain { position: absolute; inset: -50%; pointer-events: none; opacity: .09; mix-blend-mode: multiply; animation: grain 1s steps(1) infinite;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+@keyframes grain { 0% { transform: translate(0, 0); } 25% { transform: translate(-6%, 4%); } 50% { transform: translate(4%, -5%); } 75% { transform: translate(-3%, -2%); } }
+.rv-cap { position: absolute; left: 14px; bottom: 12px; font-size: 11.5px; color: var(--ink-2); padding: 3px 9px; border-radius: 999px;
+  background: color-mix(in srgb, var(--paper) 72%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .rv-paint { clip-path: none; } .rv-grain { animation: none; } .logo .ancher-symbol { animation: none !important; } }
