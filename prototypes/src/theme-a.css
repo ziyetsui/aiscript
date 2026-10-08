@@ -1,0 +1,54 @@
+/* Direction A · Studio Paper — warm paper, serif display, vermilion seal accent.
+   The AI sits in a right-hand column; the script page is the hero. */
+:root {
+  --font-ui: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-display: "Songti SC", "STSong", "Noto Serif SC", "SimSun", Georgia, serif;
+  --desk: #efebe3; --chrome: #e8e3d9; --surface: #fbf9f4; --paper: #fffdf8; --field: #fffdf8;
+  --ink: #1d1b18; --ink-2: #4a4640; --ink-3: #8a847a;
+  --line: #e2dccf; --line-strong: #d3cbbb;
+  --hover: #ece6da; --hover-strong: #e3dccd;
+  --accent: #b23a1d; --accent-hover: #9c321a; --on-accent: #fff8f2; --accent-ring: rgba(178,58,29,.18); --accent-soft: #f6e3da;
+  --ok: #3f7d4e; --selection: #f2d6c9; --write-hl: #fbe9c8;
+  --scrim: rgba(40, 32, 20, .28); --toast: #2a2622; --on-toast: #f5f1ea;
+  --r-ctl: 8px; --r-card: 14px;
+  --shadow-card: 0 1px 0 rgba(60,45,20,.04), 0 1px 3px rgba(60,45,20,.06);
+  --shadow-paper: 0 1px 2px rgba(60,45,20,.06), 0 8px 28px rgba(60,45,20,.08);
+  --shadow-pop: 0 12px 40px rgba(40,30,15,.18), 0 2px 6px rgba(40,30,15,.08);
+}
+.display { font-family: var(--font-display); font-weight: 600; letter-spacing: .01em; }
+.seal { width: 26px; height: 26px; border-radius: 6px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 14px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+
+/* App frame */
+.nav { width: 220px; flex: none; background: var(--chrome); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 10px; gap: 2px; }
+.nav a { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 7px; color: var(--ink-2); text-decoration: none; cursor: default; }
+.nav a.on { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card); font-weight: 500; }
+.nav .grow { flex: 1; }
+.nav .group { margin: 14px 10px 4px; }
+.main { flex: 1; min-width: 0; overflow: auto; }
+.card { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow-card); border: 1px solid var(--line); }
+
+/* Workspace */
+.ws-left { width: 230px; flex: none; border-right: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; overflow: auto; }
+.ws-left .sec { padding: 12px 12px 6px; }
+.ws-left .item { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 30px; padding: 0 10px; border-radius: 7px; color: var(--ink-2); font-size: 13px; }
+.ws-left .item.on { background: var(--hover); color: var(--ink); font-weight: 500; }
+.ws-left .item small { color: var(--ink-3); font-size: 11px; }
+.ws-center { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--desk); }
+.ws-toolbar { height: 46px; flex: none; display: flex; align-items: center; justify-content: center; gap: 2px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.ws-toolbar button { height: 30px; padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--ink-2); transition: transform 160ms var(--ease-out); }
+.ws-toolbar button:active { transform: scale(.97); }
+.ws-toolbar button.on { background: var(--hover-strong); color: var(--ink); }
+.ws-scroll { flex: 1; overflow: auto; padding: 28px 0 80px; }
+.page { width: min(640px, calc(100% - 48px)); margin: 0 auto; background: var(--paper); box-shadow: var(--shadow-paper); padding: 56px 64px; font-family: var(--font-script); font-size: 14px; line-height: 1.65; min-height: 860px; border-radius: 2px; }
+.ws-right { width: 360px; flex: none; border-left: 1px solid var(--line); background: var(--surface); display: flex; flex-direction: column; }
+.ai-head { height: 46px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+.ai-body { flex: 1; overflow: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.ai-foot { padding: 12px; border-top: 1px solid var(--line); }
+.composer { border: 1px solid var(--line-strong); border-radius: 12px; background: var(--paper); padding: 10px; }
+.composer textarea { width: 100%; border: 0; resize: none; background: transparent; outline: none; font-size: 14px; min-height: 44px; }
+.msg-user { margin-left: auto; width: fit-content; max-width: 85%; background: var(--accent-soft); padding: 8px 12px; border-radius: 12px 12px 4px 12px; }
+.tool { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--paper); }
+.tool b { font-weight: 500; color: var(--ink); }
+.narr { font-size: 13px; color: var(--ink-2); }
+.turn-bar { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; padding: 8px 10px; border-radius: 9px; background: var(--hover); }
