@@ -17,3 +17,4 @@ node_modules/
 # The built prototype is a deliverable, keep it in the repo
 !specs/images/prototypes/dist/
 !specs/images/prototypes/v1/dist/
+!specs/images/prototypes/proto/dist/

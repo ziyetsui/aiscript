@@ -385,6 +385,10 @@ sequenceDiagram
 > - 新手清单 6 步和 toast 联动；导出分三栏（集 × 内容 × 格式）
 > - 页面集合按观察修正为：P1 登录 · P2 Onboarding · P3 首页 Recents · P4 剧本工作区（Script / Outline）· P5 AI 面板各状态 · P6 角色画布 · P7 制作设置与分镜 · P8 导出 · P9 定价升级
 
+### 9.1.1 设计方向探索（2026-10-08，当前待你选择）
+
+`specs/images/prototypes/proto/dist/index.html`：**8 个页面 × 每页 5 个方向**，用标准 picker 切换（prototype skill），颜色固定一套。方向 1 是现状，2–5 各在一个维度上发散（输入方式、流程节奏、信息密度、交互模型……），全部可交互。清单见 [proto/README](images/prototypes/proto/README.md)。选定后在这里记录"选了什么、放弃了什么、为什么"，再合并进正式原型。
+
 ### 9.2 原型 v2（当前版本 · 路径 `specs/images/prototypes/dist/index.html`）
 
 用户 2026-10-08 的反馈：**交互先按 laper 一比一做**；很多操作可以交给对话窗口里的 agent，不必单独做页面；**视觉只取 ancher.ai 仓库的 design token**，发散出 5 个方向。
