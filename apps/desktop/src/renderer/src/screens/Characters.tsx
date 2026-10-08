@@ -59,7 +59,8 @@ export function Characters({ id }: { id: string }) {
         ) : (
           <div className="page dots"><div className="grid-cards">
             {chars.map((c) => <CharCard key={c.id} projectId={id} c={c} stat={stats.get(c.name.trim())} onEdit={() => { setError(''); setEditing({ id: c.id, draft: pick(c) }); }} onDelete={() => void remove(c)}
-              onPortrait={async () => { try { const f = await window.api.files.pickImage(id); if (f) await p.update('characters', c.id, { portrait: f }); } catch (e) { toast(String((e as Error).message)); } }} />)}
+              onPortrait={async () => { try { const f = await window.api.files.pickImage(id); if (f) await p.update('characters', c.id, { portrait: f }); } catch (e) { toast(String((e as Error).message)); } }}
+              onReverse={async () => { try { const r = await window.api.ai.reverse(id, 'characters', c.id); p.setSt(r.state); toast(`已写进 ${c.name} 的「外形」`); } catch (e) { toast(cleanErr(e)); } }} />)}
           </div></div>
         )
       )}
@@ -97,7 +98,7 @@ function Avatar({ projectId, c, size = 32 }: { projectId: string; c: Character; 
   return <span className="avatar" style={{ width: size, height: size, background: img ? `center / cover url(${img})` : c.color, fontSize: size * 0.4 }} aria-hidden="true">{img ? '' : c.name.slice(0, 1)}</span>;
 }
 
-function CharCard({ projectId, c, stat, onEdit, onDelete, onPortrait }: { projectId: string; c: Character; stat?: { scenes: number; lines: number }; onEdit(): void; onDelete(): void; onPortrait(): void }) {
+function CharCard({ projectId, c, stat, onEdit, onDelete, onPortrait, onReverse }: { projectId: string; c: Character; stat?: { scenes: number; lines: number }; onEdit(): void; onDelete(): void; onPortrait(): void; onReverse(): void }) {
   const [adv, setAdv] = useState(false);
   const img = useImage(projectId, c.portrait);
   return (
@@ -123,6 +124,7 @@ function CharCard({ projectId, c, stat, onEdit, onDelete, onPortrait }: { projec
             <button className="btn btn-ghost" style={{ height: 30 }} onClick={onPortrait}><Icon name="upload" size={13} />{c.portrait ? '换肖像' : '上传肖像'}</button>
             <button className="btn btn-quiet btn-icon" style={{ height: 30, width: 30 }} onClick={onDelete} aria-label={`删除 ${c.name}`}><Icon name="trash" size={13} /></button>
           </div>
+          {c.portrait && <button className="btn btn-quiet" style={{ height: 28 }} onClick={onReverse} title="用 Ancher 从肖像反推视觉提示词，写进「外形」"><Icon name="spark" size={12} />反推提示词</button>}
         </div>
       </div>
     </div>
@@ -273,3 +275,5 @@ function Casting({ projectId, chars, p }: { projectId: string; chars: Character[
     </div>
   );
 }
+
+export const cleanErr = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': Error: /, '');

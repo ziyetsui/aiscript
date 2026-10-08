@@ -168,6 +168,16 @@ try {
   await page.getByRole('button', { name: '关闭' }).click();
   await page.waitForTimeout(300); // let the drawer scrim fade before the screenshot
   await shot(page, '06-characters');
+  const png = join(tmp, 'portrait.png');
+  writeFileSync(png, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64'));
+  await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [p] })) as typeof dialog.showOpenDialog; }, png);
+  const mdr = page.locator('.card.ecard', { hasText: '门墩儿' });
+  await mdr.getByRole('button', { name: '上传肖像' }).click();
+  await mdr.getByRole('button', { name: '反推提示词' }).click();
+  await page.getByText('已写进 门墩儿 的「外形」').waitFor();
+  await page.getByRole('tablist', { name: '门墩儿 视图' }).getByRole('tab', { name: '高级' }).click();
+  await page.locator('.kv dd', { hasText: '九岁男孩，圆脸，蓝色校服' }).waitFor();
+  await page.getByRole('tablist', { name: '门墩儿 视图' }).getByRole('tab', { name: '肖像' }).click();
   await page.getByRole('tab', { name: '关系' }).click();
   await page.getByLabel('关系', { exact: true }).fill('秘密朋友');
   await page.getByRole('button', { name: '添加', exact: true }).click();
@@ -217,9 +227,18 @@ try {
   await page.getByRole('button', { name: '知识库', exact: true }).click();
   await page.getByRole('button', { name: '添加文件' }).click();
   await page.getByText('导演意见.txt').waitFor();
+  await page.getByRole('button', { name: '写作时参考' }).click();
+  await page.getByRole('button', { name: '写作时参考 ✓' }).waitFor();
+
+  step('selecting script text offers 解释 / 总结 / 翻译 from Ancher');
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await page.locator('.paper .node[data-type="dialogue"]').first().evaluate((el) => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection()!; s.removeAllRanges(); s.addRange(r); });
+  await page.getByRole('toolbar', { name: '选中文字' }).getByRole('button', { name: '解释' }).click();
+  await page.getByRole('dialog', { name: '解释' }).getByText('是孩子的惊讶').waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('toolbar', { name: '选中文字' }).waitFor({ state: 'detached' });
 
   step('⚡ ⌥1 from the keyboard: cancel mid-step, retry, then write a direction into the outline');
-  await page.getByRole('button', { name: '写作', exact: true }).click();
   await page.locator('.paper .node').first().click();
   await page.keyboard.press('Alt+1');
   await page.getByLabel('创意', { exact: true }).fill('__SLOW__ 门墩儿会说话');
@@ -265,6 +284,7 @@ try {
   await page.getByText('写入 6 处修改').last().waitFor({ timeout: 20_000 });
   assert.ok(fake.prompts.at(-1)!.includes('笑点要来自孩子的视角'), 'confirmed rules are sent with the next writing request');
   assert.ok(!fake.prompts.at(-1)!.includes('不要出现手机'), 'unconfirmed rules are not');
+  assert.match(fake.prompts.at(-1)!, /<reference>[\s\S]*《导演意见\.txt》[\s\S]*不要大人式的抖机灵[\s\S]*<\/reference>/, 'pinned knowledge goes along as reference material');
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
   await page.locator('.setting', { hasText: '门墩儿想修好姥爷的旧鞋' }).waitFor();

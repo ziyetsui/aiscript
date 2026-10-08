@@ -33,6 +33,8 @@ const api: Api = {
     write: call('ai:write') as Api['ai']['write'],
     cancel: call('ai:cancel') as Api['ai']['cancel'],
     resolve: call('ai:resolve') as Api['ai']['resolve'],
+    reverse: call('ai:reverse') as Api['ai']['reverse'],
+    selection: call('ai:selection') as Api['ai']['selection'],
     onDelta(cb) {
       const h = (_e: Electron.IpcRendererEvent, d: { reqId: string; text: string }) => cb(d);
       ipcRenderer.on('ai:delta', h);
@@ -64,6 +66,12 @@ const api: Api = {
     open: call('files:open') as Api['files']['open'],
     pickImage: call('files:pickImage') as Api['files']['pickImage'],
     readImage: call('files:readImage') as Api['files']['readImage'],
+    pin: call('files:pin') as Api['files']['pin'],
+    onProjectChanged(cb) {
+      const h = (_e: Electron.IpcRendererEvent, d: { projectId: string }) => cb(d);
+      ipcRenderer.on('project:changed', h);
+      return () => ipcRenderer.removeListener('project:changed', h);
+    },
     pathFor: (file: File) => webUtils.getPathForFile(file),
   },
   update: {

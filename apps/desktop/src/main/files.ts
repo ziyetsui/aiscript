@@ -2,9 +2,12 @@
 // and "导出整个项目" (spec 0002 §8) can carry them. Nothing leaves the machine.
 import { dialog, shell, type BrowserWindow } from 'electron';
 import { randomBytes } from 'node:crypto';
-import { copyFileSync, mkdirSync, readFileSync, statSync } from 'node:fs';
+import { copyFileSync, mkdirSync, openAsBlob, readFileSync, statSync } from 'node:fs';
 import { basename, extname } from 'node:path';
+import { parseWithAncher } from '@scripter/agent';
 import type { ProjectState } from '../shared/ipc.ts';
+import { ancher } from './ai.ts';
+import { getSecret } from './secrets.ts';
 import { filePath, filesDir, get, saveNow, state } from './projects.ts';
 
 const MAX = 200 * 1024 * 1024;
@@ -73,4 +76,49 @@ export async function openFile(id: string, fileId: string): Promise<string> {
   const f = get(id).doc.bible('files').get(fileId);
   if (!f) return '文件不存在';
   return shell.openPath(filePath(id, f.file));
+}
+
+const TEXT_EXT = ['txt', 'md', 'srt', 'fountain', 'fdx'];
+const EXCERPT_MAX = 20000;
+
+/**
+ * "写作时参考": pinning a file extracts its text once (plain text locally; PDF / Word / media through Ancher's
+ * parser) so writing requests can include it. `notify` tells the window the project changed when it finishes.
+ */
+export async function pin(id: string, fileId: string, on: boolean, notify: () => void): Promise<ProjectState> {
+  const p = get(id);
+  const files = p.doc.bible('files');
+  const f = files.get(fileId);
+  if (!f) throw new Error('文件不存在');
+  files.update(fileId, { pinned: on });
+  const needs = on && f.extract !== 'ready';
+  if (needs) files.update(fileId, { extract: 'working' });
+  p.doc.commit('pin file');
+  saveNow(p);
+  if (needs) {
+    void (async () => {
+      let excerpt = '';
+      let ok = true;
+      try {
+        const ext = extname(f.name).slice(1).toLowerCase();
+        if (TEXT_EXT.includes(ext)) {
+          excerpt = readFileSync(filePath(id, f.file), 'utf8');
+          if (ext === 'fdx') excerpt = excerpt.replace(/<\/Paragraph>/g, '\n').replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        } else {
+          const key = getSecret('ancher');
+          if (!key) throw new Error('需要 Ancher key 才能读取这类文件');
+          excerpt = await parseWithAncher(ancher(key), { file: new File([await openAsBlob(filePath(id, f.file))], f.name) }, new AbortController().signal);
+        }
+      } catch {
+        ok = false;
+      }
+      const cur = get(id);
+      if (!cur.doc.bible('files').get(fileId)) return;
+      cur.doc.bible('files').update(fileId, ok ? { excerpt: excerpt.trim().slice(0, EXCERPT_MAX), extract: 'ready' } : { extract: 'failed', pinned: false });
+      cur.doc.commit('file excerpt');
+      saveNow(cur);
+      notify();
+    })();
+  }
+  return state(p);
 }
