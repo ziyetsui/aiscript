@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIScript Prototype</title>
+<style>
+  /* Picker chrome only — the layers carry their own tokens. Neutral glass so it reads over light and dark directions. */
+  :root {
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1); --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+    --glass: rgba(22, 22, 25, .84); --glass-hi: rgba(255,255,255,.10); --glass-line: rgba(255,255,255,.09);
+    --fg: #f4f4f5; --fg-2: #c4c4cc; --fg-3: #8a8a94; --accent: #a5b4fc;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #18181b; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif; font-size: 13px; color: var(--fg); -webkit-font-smoothing: antialiased; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  kbd { font-family: ui-monospace, Menlo, monospace; font-size: 10.5px; padding: 1px 5px; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); color: var(--fg-2); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .press { transition: transform 140ms var(--ease-out), background-color 140ms ease; }
+  .press:active { transform: scale(.97); }
+  .glass { background: var(--glass); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4); box-shadow: 0 0 0 1px var(--glass-line), 0 18px 50px rgba(0,0,0,.42); }
+
+  /* Two stages: pointer-initiated swaps crossfade with a 2px blur to mask the jump; keyboard swaps are instant. */
+  .stage { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; opacity: 0; pointer-events: none; }
+  .stage.front { opacity: 1; pointer-events: auto; z-index: 1; }
+  .stage.fade-in { transition: opacity 220ms var(--ease-out); }
+  .stage.fade-out { transition: opacity 180ms ease, filter 180ms ease; filter: blur(2px); opacity: 0; z-index: 2; pointer-events: none; }
+
+  /* Direction swatch: half background, half primary — reads as "this is what the layer will look like". */
+  .sw { width: 20px; height: 20px; border-radius: 50%; position: relative; flex: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); overflow: hidden; }
+  .sw::after { content: ""; position: absolute; inset: 0; background: var(--p); clip-path: polygon(100% 0, 100% 100%, 0 100%); }
+  .sw-btn { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; transition: transform 140ms var(--ease-out), box-shadow 160ms ease; }
+  .sw-btn:active { transform: scale(.93); }
+  .sw-btn.on { box-shadow: 0 0 0 2px var(--fg); }
+
+  /* Tooltip: delayed the first time, instant while another one was just open (Emil). Origin follows the trigger side. */
+  .tip { position: fixed; z-index: 60; pointer-events: none; padding: 5px 8px; border-radius: 7px; background: #0b0b0d; color: var(--fg); font-size: 12px; white-space: nowrap;
+    box-shadow: 0 0 0 1px var(--glass-line), 0 8px 20px rgba(0,0,0,.4); opacity: 0; transform: scale(.97); transition: opacity 125ms var(--ease-out), transform 125ms var(--ease-out); }
+  .tip.show { opacity: 1; transform: none; }
+  .tip.instant { transition-duration: 0ms; }
+
+  /* Segmented control with a clip-path colour transition: a duplicated "active" layer is clipped to the selected item. */
+  .seg2 { position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: rgba(255,255,255,.06); border-radius: 9px; padding: 2px; }
+  .seg2 > .base button, .seg2 > .hi button { height: 26px; border-radius: 7px; font-size: 12px; }
+  .seg2 > .base, .seg2 > .hi { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .seg2 > .base button { color: var(--fg-3); }
+  .seg2 > .hi { position: absolute; inset: 2px; pointer-events: none; transition: clip-path 220ms var(--ease-out); }
+  .seg2 > .hi button { background: rgba(255,255,255,.16); color: var(--fg); }
+  .kbd-move .seg2 > .hi, .kbd-move .hl, .kbd-move .tick-hl { transition: none !important; }
+
+  .badge { position: fixed; left: 50%; top: 48px; z-index: 70; transform: translate(-50%, -6px); opacity: 0; pointer-events: none; padding: 6px 12px; border-radius: 999px; font-size: 12px;
+    transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
+  .badge.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ── 1 · Dock morph ── */
+  .k1 { position: fixed; right: 14px; top: 44px; z-index: 20; width: 300px; border-radius: 14px; overflow: hidden;
+    clip-path: inset(0 0 0 0 round 14px); transition: clip-path 260ms var(--ease-out); }
+  .k1.closed { clip-path: inset(0 0 calc(100% - 30px) calc(100% - 176px) round 15px); transition-duration: 180ms; }
+  .k1 .pillface { position: absolute; top: 0; right: 0; width: 176px; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 12px; font-size: 12px; opacity: 0; transition: opacity 120ms ease; }
+  .k1.closed .pillface { opacity: 1; transition-delay: 60ms; }
+  .k1 .inner { transition: opacity 160ms ease 60ms; } .k1.closed .inner { opacity: 0; transition-delay: 0ms; }
+  .k1 header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 6px; }
+  .k1 header b { flex: 1; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--fg-3); }
+  .k1 .list { position: relative; padding: 0 6px; }
+  .k1 .hl { position: absolute; left: 6px; right: 6px; top: 0; height: 30px; border-radius: 8px; background: var(--glass-hi); transition: transform 200ms var(--ease-in-out); }
+  .k1 .pg { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; height: 30px; padding: 0 8px; border-radius: 8px; color: var(--fg-2); text-align: left; }
+  .k1 .pg i { font-style: normal; width: 20px; color: var(--fg-3); font-size: 11.5px; }
+  .k1 .pg.on { color: var(--fg); }
+  .k1 .row { display: flex; align-items: center; gap: 6px; padding: 10px 12px 0; }
+  .k1 .note { padding: 8px 12px 0; color: var(--fg-3); font-size: 11.5px; line-height: 1.5; min-height: 34px; }
+  .k1 footer { padding: 10px 12px 12px; color: var(--fg-3); font-size: 11px; display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ── 2 · Command palette ── */
+  .k2-hint { position: fixed; right: 156px; top: 5px; z-index: 20; height: 26px; padding: 0 10px; border-radius: 999px; display: flex; align-items: center; gap: 8px; font-size: 12px; transform-origin: top right; }
+  .k2-scrim { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity 150ms ease; }
+  .k2-scrim.open { opacity: 1; pointer-events: auto; }
+  .k2 { position: fixed; z-index: 41; left: 50%; top: 14vh; width: min(560px, calc(100vw - 32px)); margin-left: max(-280px, calc(-50vw + 16px)); border-radius: 14px; overflow: hidden;
+    opacity: 0; transform: scale(.96); pointer-events: none; transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out); }
+  .k2.open { opacity: 1; transform: none; pointer-events: auto; }
+  .k2.instant { transition: none; }
+  .k2 input { width: 100%; height: 48px; border: 0; outline: none; background: transparent; padding: 0 16px; font-size: 15px; color: var(--fg); border-bottom: 1px solid var(--glass-line); }
+  .k2 .res { max-height: 52vh; overflow: auto; padding: 6px; }
+  .k2 .grp { padding: 8px 10px 4px; font-size: 11px; color: var(--fg-3); letter-spacing: .06em; }
+  .k2 .it { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 10px; border-radius: 8px; text-align: left; color: var(--fg-2); }
+  .k2 .it.sel { background: var(--glass-hi); color: var(--fg); }
+  .k2 .it .cur { margin-left: auto; font-size: 11px; color: var(--fg-3); }
+  .k2 footer { display: flex; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--glass-line); color: var(--fg-3); font-size: 11.5px; }
+
+  /* ── 3 · Filmstrip ── */
+  .k3 { position: fixed; left: 50%; bottom: 12px; z-index: 20; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; padding: 10px; border-radius: 16px;
+    transition: transform 220ms var(--ease-out); }
+  .k3.closed { transform: translate(-50%, calc(100% + 12px)); transition-duration: 180ms; }
+  .k3 .tile { width: 92px; border-radius: 10px; padding: 6px; text-align: left; color: var(--fg-2); background: rgba(255,255,255,.04); transition: transform 160ms var(--ease-out), background-color 150ms ease; }
+  .k3 .tile .thumb { height: 50px; border-radius: 6px; margin-bottom: 6px; padding: 6px; display: flex; flex-direction: column; gap: 3px; background: var(--tb); }
+  .k3 .tile .thumb i { display: block; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--tp) 70%, transparent); }
+  .k3 .tile .thumb i:nth-child(2) { width: 70%; background: color-mix(in srgb, var(--tf) 30%, transparent); } .k3 .tile .thumb i:nth-child(3) { width: 45%; background: color-mix(in srgb, var(--tf) 22%, transparent); }
+  .k3 .tile b { display: block; font-size: 11px; font-weight: 600; color: var(--fg); } .k3 .tile span { font-size: 10.5px; color: var(--fg-3); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .k3 .tile.on { background: rgba(255,255,255,.14); transform: translateY(-6px); }
+  .k3 .tile:active { transform: translateY(-6px) scale(.97); }
+  @media (hover: hover) and (pointer: fine) { .k3 .tile:not(.on):hover { background: rgba(255,255,255,.08); } }
+  .k3 .side { display: flex; flex-direction: column; gap: 8px; padding: 0 4px 0 8px; border-left: 1px solid var(--glass-line); }
+  .k3 .tile.enter { animation: tileIn 260ms var(--ease-out) both; }
+  @keyframes tileIn { from { opacity: 0; transform: translateY(8px); } }
+  .k3-handle { position: fixed; left: 50%; bottom: 8px; z-index: 19; transform: translateX(-50%); width: 64px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.5); box-shadow: 0 0 0 1px rgba(0,0,0,.2); }
+
+  /* ── 4 · Draggable puck ── */
+  .k4 { position: fixed; left: 0; top: 0; z-index: 30; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; touch-action: none; user-select: none; cursor: grab;
+    transition: transform 420ms var(--ease-drawer); }
+  .k4.dragging { transition: none; cursor: grabbing; }
+  .k4 .num { font-weight: 700; font-size: 14px; }
+  .k4 svg { position: absolute; inset: 0; }
+  .k4-menu { position: fixed; z-index: 31; width: 268px; padding: 10px; border-radius: 14px; opacity: 0; transform: scale(.96); pointer-events: none;
+    transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
+  .k4-menu.open { opacity: 1; transform: none; pointer-events: auto; }
+  .k4-menu .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .k4-menu .g { height: 30px; padding: 0 8px; border-radius: 8px; text-align: left; color: var(--fg-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+  .k4-menu .g.on { background: var(--glass-hi); color: var(--fg); }
+
+  /* ── 5 · Edge rail ── */
+  .k5 { position: fixed; right: 0; top: 50%; z-index: 20; transform: translateY(-50%); width: 40px; padding: 10px 0; border-radius: 12px 0 0 12px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+    transition: transform 220ms var(--ease-out); }
+  .k5.closed { transform: translate(100%, -50%); transition-duration: 160ms; }
+  .k5 .ticks { position: relative; display: flex; flex-direction: column; }
+  .k5 .tick-hl { position: absolute; left: 5px; right: 5px; top: 0; height: 26px; border-radius: 7px; background: var(--glass-hi); transition: transform 200ms var(--ease-in-out); }
+  .k5 .tick { position: relative; width: 40px; height: 26px; display: grid; place-items: center; font-size: 11px; color: var(--fg-3); }
+  .k5 .tick.on { color: var(--fg); font-weight: 700; }
+  .k5 .sep { width: 18px; height: 1px; background: var(--glass-line); margin: 6px 0; }
+  .k5-tab { position: fixed; right: 0; top: 50%; z-index: 19; transform: translateY(-50%); width: 10px; height: 56px; border-radius: 6px 0 0 6px; background: rgba(255,255,255,.55); }
+
+  .k-style { display: flex; gap: 4px; align-items: center; color: var(--fg-3); font-size: 11px; }
+  .k-style button { width: 18px; height: 18px; border-radius: 5px; font-size: 10.5px; color: var(--fg-3); }
+  .k-style button.on { background: var(--glass-hi); color: var(--fg); }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; } }
+</style>
+</head>
+<body>
+<iframe class="stage front" id="sa" title="原型画面"></iframe>
+<iframe class="stage" id="sb" title="原型画面（预载）" aria-hidden="true"></iframe>
+<div id="root"></div>
+<div class="tip" id="tip" role="tooltip"></div>
+<div class="badge glass" id="badge"></div>
+<script>
+/*__LAYERS__*/
+/*__META__*/
+const PAGES = META.pages, DIRS = Object.keys(META.directions);
+const KINDS = ['Dock 形变', '命令面板', '底部胶片条', '可拖拽圆钮', '侧边刻度尺'];
+const state = { page: PAGES[0].id, dir: DIRS[0], os: 'mac', kind: 1 };
+let open = true, loaded = '', viaKeyboard = false;
+const $ = (id) => document.getElementById(id);
+const store = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} } };
+const pageIdx = () => PAGES.findIndex((p) => p.id === state.page);
+const pad = (n) => String(n).padStart(2, '0');
+const swatch = (d) => `<span class="sw" style="background:${META.directions[d].swatch[0]};--p:${META.directions[d].swatch[1]}"></span>`;
+
+/* ── Stages ── */
+let front = $('sa'), back = $('sb');
+window.stage = front;
+function postOS(f) { try { f.contentWindow.postMessage({ type: 'proto:os', os: state.os }, '*'); } catch (_) {} }
+function showLayer() {
+  const key = state.page + '-' + state.dir;
+  if (key === loaded) { postOS(front); return; }
+  loaded = key;
+  const instant = viaKeyboard || matchMedia('(prefers-reduced-motion: reduce)').matches || !front.srcdoc;
+  const next = back, prev = front;
+  next.onload = () => {
+    postOS(next);
+    next.classList.remove('fade-out');
+    if (instant) { next.classList.add('front'); prev.classList.remove('front'); }
+    else {
+      next.classList.add('fade-in', 'front');
+      prev.classList.remove('front'); prev.classList.add('fade-out');
+      setTimeout(() => { prev.classList.remove('fade-out'); next.classList.remove('fade-in'); }, 240);
+    }
+    front = next; back = prev; window.stage = front;
+    try { front.contentDocument.addEventListener('keydown', onKey); } catch (_) {}
+  };
+  next.srcdoc = LAYERS[key].replace('<body', '<body data-os="' + state.os + '"');
+}
+
+/* ── Tooltip: first hover waits, the next one within 600ms shows instantly ── */
+let tipTimer, tipWarmUntil = 0;
+function tipOn(el, text, side) {
+  clearTimeout(tipTimer);
+  const t = $('tip'); const warm = Date.now() < tipWarmUntil;
+  const show = () => {
+    t.textContent = text; t.classList.toggle('instant', warm);
+    const r = el.getBoundingClientRect(), tw = t.offsetWidth, th = t.offsetHeight;
+    let x = r.left + r.width / 2 - tw / 2, y = r.top - th - 8, o = 'bottom center';
+    if (side === 'left') { x = r.left - tw - 10; y = r.top + r.height / 2 - th / 2; o = 'right center'; }
+    if (side === 'below') { y = r.bottom + 8; o = 'top center'; }
+    t.style.left = Math.max(8, x) + 'px'; t.style.top = Math.max(8, y) + 'px'; t.style.transformOrigin = o; t.classList.add('show');
+  };
+  warm ? show() : (tipTimer = setTimeout(show, 380));
+}
+function tipOff() { clearTimeout(tipTimer); const t = $('tip'); if (t.classList.contains('show')) tipWarmUntil = Date.now() + 600; t.classList.remove('show'); }
+function bindTips(scope, side) { scope.querySelectorAll('[data-tip]').forEach((el) => { el.onpointerenter = () => tipOn(el, el.dataset.tip, side); el.onpointerleave = tipOff; }); }
+
+/* ── Shared pieces ── */
+function seg2(id, items, cur) {
+  const btns = items.map(([v, t]) => `<button data-v="${v}">${t}</button>`).join('');
+  return `<div class="seg2" id="${id}"><div class="base">${btns}</div><div class="hi" aria-hidden="true">${btns}</div></div>`;
+}
+function syncSeg2(id, values, cur) {
+  const el = $(id); if (!el) return; const i = values.indexOf(cur), n = values.length;
+  el.querySelector('.hi').style.clipPath = `inset(0 ${((n - 1 - i) / n * 100).toFixed(3)}% 0 ${(i / n * 100).toFixed(3)}% round 7px)`;
+  el.querySelectorAll('.base button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === cur));
+}
+function styleSwitch() { return `<div class="k-style" aria-label="picker 样式">Picker${KINDS.map((n, i) => `<button class="press ${state.kind === i + 1 ? 'on' : ''}" data-kind="${i + 1}" data-tip="${i + 1} · ${n}">${i + 1}</button>`).join('')}</div>`; }
+function bindStyle(scope) { scope.querySelectorAll('[data-kind]').forEach((b) => (b.onclick = () => setKind(+b.dataset.kind))); }
+function dirButtons(cls = '') { return DIRS.map((d) => `<button class="sw-btn ${cls}" data-d="${d}" data-tip="${META.directions[d].name} · ${META.directions[d].zh}" aria-label="${META.directions[d].name}">${swatch(d)}</button>`).join(''); }
+function bindDirs(scope) { scope.querySelectorAll('[data-d]').forEach((b) => (b.onclick = () => set({ dir: b.dataset.d }))); }
+function syncDirs(scope) { scope.querySelectorAll('[data-d]').forEach((b) => b.classList.toggle('on', b.dataset.d === state.dir)); }
+
+/* ── Picker 1 · Dock morph ── */
+const K1 = {
+  mount(root) {
+    root.innerHTML = `<section class="k1 glass ${open ? '' : 'closed'}" id="k1" aria-label="原型层级切换器">
+      <button class="pillface" id="k1-pill" aria-label="展开切换器"><span id="k1-pill-t" class="tnum"></span></button>
+      <div class="inner"><header><b>AIScript 原型</b>${styleSwitch()}<button class="press" id="k1-x" aria-label="收起" style="width:24px;height:24px;border-radius:7px;background:rgba(255,255,255,.08)">–</button></header>
+      <div class="list" id="k1-list" role="listbox" aria-label="页面"><div class="hl" aria-hidden="true"></div>
+        ${PAGES.map((p, i) => `<button class="pg press" role="option" data-p="${p.id}"><i class="tnum">${pad(i + 1)}</i>${p.name}</button>`).join('')}</div>
+      <div class="row" style="justify-content:space-between">${dirButtons()}</div>
+      <div class="row">${seg2('k1-os', [['mac', 'macOS'], ['win', 'Windows']])}</div>
+      <div class="note" id="k1-note"></div>
+      <footer><span><kbd>↑</kbd><kbd>↓</kbd> 页面</span><span><kbd>1</kbd>–<kbd>5</kbd> 方向</span><span><kbd>M</kbd><kbd>W</kbd></span><span><kbd>H</kbd> 收起</span><span><kbd>P</kbd> 换 picker</span></footer></div></section>`;
+    const r = $('k1');
+    r.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => set({ page: b.dataset.p })));
+    r.querySelector('#k1-os').querySelectorAll('.base button').forEach((b) => (b.onclick = () => set({ os: b.dataset.v })));
+    $('k1-x').onclick = () => toggle(false); $('k1-pill').onclick = () => toggle(true);
+    bindDirs(r); bindStyle(r); bindTips(r, 'below');
+  },
+  update() {
+    const r = $('k1'); if (!r) return; const i = pageIdx();
+    r.querySelector('.hl').style.transform = `translateY(${i * 30}px)`;
+    r.querySelectorAll('[data-p]').forEach((b) => { const on = b.dataset.p === state.page; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+    syncDirs(r); syncSeg2('k1-os', ['mac', 'win'], state.os);
+    $('k1-note').textContent = META.directions[state.dir].note;
+    $('k1-pill-t').innerHTML = `${swatch(state.dir)}&nbsp; ${pad(i + 1)} · ${PAGES[i].name.split(' ')[0]}`;
+  },
+  toggle(o) { $('k1').classList.toggle('closed', !o); },
+};
+
+/* ── Picker 2 · Command palette ── */
+let k2Sel = 0, k2Items = [];
+const K2 = {
+  mount(root) {
+    root.innerHTML = `<button class="k2-hint glass press" id="k2-hint" aria-label="打开命令面板"><span id="k2-hint-t" class="tnum"></span><kbd>⌘K</kbd></button>
+      <div class="k2-scrim" id="k2-scrim"></div>
+      <section class="k2 glass" id="k2" role="dialog" aria-label="切换层级"><input id="k2-q" placeholder="搜索页面、方向、系统…（例：工作区 余烬）" autocomplete="off" spellcheck="false">
+        <div class="res" id="k2-res" role="listbox"></div>
+        <footer><span><kbd>↑</kbd><kbd>↓</kbd> 选择</span><span><kbd>↵</kbd> 应用</span><span><kbd>esc</kbd> 关闭</span><span style="margin-left:auto">${styleSwitch()}</span></footer></section>`;
+    $('k2-hint').onclick = () => K2.openPalette(false); $('k2-scrim').onclick = () => K2.close();
+    $('k2-q').oninput = () => { k2Sel = 0; K2.render(); };
+    $('k2-q').onkeydown = (e) => {
+      if (e.key === 'ArrowDown') { k2Sel = Math.min(k2Sel + 1, k2Items.length - 1); K2.render(); e.preventDefault(); }
+      else if (e.key === 'ArrowUp') { k2Sel = Math.max(k2Sel - 1, 0); K2.render(); e.preventDefault(); }
+      else if (e.key === 'Enter') { const it = k2Items[k2Sel]; if (it) { viaKeyboard = true; set(it.patch); viaKeyboard = false; K2.close(); } e.preventDefault(); }
+      else if (e.key === 'Escape') { K2.close(); e.preventDefault(); }
+      e.stopPropagation();
+    };
+    bindStyle($('k2')); bindTips($('k2'), 'below');
+  },
+  items(q) {
+    const all = [];
+    PAGES.forEach((p, i) => all.push({ g: '页面', label: `${pad(i + 1)} ${p.name}`, patch: { page: p.id }, on: p.id === state.page }));
+    DIRS.forEach((d) => all.push({ g: '方向（只换 token）', label: `${META.directions[d].name} · ${META.directions[d].zh}`, sw: d, patch: { dir: d }, on: d === state.dir }));
+    [['mac', 'macOS 窗口外框'], ['win', 'Windows 窗口外框']].forEach(([o, t]) => all.push({ g: '系统', label: t, patch: { os: o }, on: o === state.os }));
+    PAGES.forEach((p) => DIRS.forEach((d) => all.push({ g: '组合', label: `${p.name} × ${META.directions[d].zh}`, sw: d, patch: { page: p.id, dir: d }, combo: true })));
+    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return words.length ? all.filter((it) => words.every((w) => it.label.toLowerCase().includes(w))).slice(0, 40) : all.filter((it) => !it.combo);
+  },
+  render() {
+    k2Items = K2.items($('k2-q').value); let g = '';
+    $('k2-res').innerHTML = k2Items.map((it, i) => (it.g !== g ? `<div class="grp">${(g = it.g)}</div>` : '') +
+      `<button class="it ${i === k2Sel ? 'sel' : ''}" role="option" data-i="${i}">${it.sw ? swatch(it.sw) : ''}<span>${it.label}</span>${it.on ? '<span class="cur">当前</span>' : ''}</button>`).join('') || '<div class="grp">没有匹配的结果</div>';
+    $('k2-res').querySelectorAll('[data-i]').forEach((b) => {
+      b.onpointermove = () => { if (k2Sel !== +b.dataset.i) { k2Sel = +b.dataset.i; $('k2-res').querySelectorAll('.it').forEach((x) => x.classList.toggle('sel', x === b)); } };
+      b.onclick = () => { set(k2Items[+b.dataset.i].patch); K2.close(); };
+    });
+    const sel = $('k2-res').querySelector('.sel'); sel && sel.scrollIntoView({ block: 'nearest' });
+  },
+  openPalette(fromKeyboard) {
+    const p = $('k2'), h = $('k2-hint').getBoundingClientRect();
+    p.classList.toggle('instant', fromKeyboard);
+    p.style.transformOrigin = fromKeyboard ? 'center top' : `${h.left + h.width / 2 - p.getBoundingClientRect().left}px 0`;
+    $('k2-q').value = ''; k2Sel = 0; K2.render(); p.classList.add('open'); $('k2-scrim').classList.add('open'); setTimeout(() => $('k2-q').focus(), 0);
+  },
+  close() { $('k2').classList.remove('open', 'instant'); $('k2-scrim').classList.remove('open'); },
+  update() { const i = pageIdx(); if ($('k2-hint-t')) $('k2-hint-t').innerHTML = `${swatch(state.dir)}&nbsp; ${pad(i + 1)} · ${PAGES[i].name.split(' ')[0]} · ${state.os === 'mac' ? 'macOS' : 'Win'}`; if ($('k2').classList.contains('open')) K2.render(); },
+  toggle(o) { $('k2-hint').hidden = !o; if (!o) K2.close(); },
+};
+
+/* ── Picker 3 · Filmstrip ── */
+const K3 = {
+  mount(root) {
+    root.innerHTML = `<button class="k3-handle press" id="k3-handle" aria-label="展开胶片条" hidden></button>
+      <section class="k3 glass ${open ? '' : 'closed'}" id="k3" aria-label="原型层级切换器">
+        ${PAGES.map((p, i) => `<button class="tile enter" style="animation-delay:${i * 30}ms" data-p="${p.id}" aria-label="${p.name}"><div class="thumb"><i></i><i></i><i></i></div><b class="tnum">${pad(i + 1)}</b><span>${p.name}</span></button>`).join('')}
+        <div class="side"><div style="display:flex;gap:2px">${dirButtons()}</div>${seg2('k3-os', [['mac', 'macOS'], ['win', 'Win']])}
+          <div style="display:flex;align-items:center;justify-content:space-between">${styleSwitch()}<button class="press" id="k3-x" aria-label="收起" style="width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.08)">⌄</button></div></div></section>`;
+    const r = $('k3');
+    r.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => set({ page: b.dataset.p })));
+    r.querySelector('#k3-os').querySelectorAll('.base button').forEach((b) => (b.onclick = () => set({ os: b.dataset.v })));
+    $('k3-x').onclick = () => toggle(false); $('k3-handle').onclick = () => toggle(true);
+    bindDirs(r); bindStyle(r); bindTips(r, 'above');
+    setTimeout(() => r.querySelectorAll('.tile').forEach((t) => t.classList.remove('enter')), 600);
+  },
+  update() {
+    const r = $('k3'); if (!r) return; const [bg, pr] = META.directions[state.dir].swatch; const dark = /#11/.test(bg);
+    r.querySelectorAll('[data-p]').forEach((b) => { b.classList.toggle('on', b.dataset.p === state.page); b.style.cssText += `;--tb:${bg};--tp:${pr};--tf:${dark ? '#fff' : '#000'}`; });
+    syncDirs(r); syncSeg2('k3-os', ['mac', 'win'], state.os);
+  },
+  toggle(o) { $('k3').classList.toggle('closed', !o); $('k3-handle').hidden = o; },
+};
+
+/* ── Picker 4 · Draggable puck: pointer capture, momentum fling, rubber-band edges, snap to corners ── */
+const K4 = {
+  pos: null,
+  corners() { const m = 16, w = innerWidth, h = innerHeight, s = 52; return { tl: [m, 44], tr: [w - s - m, 44], bl: [m, h - s - m], br: [w - s - m, h - s - m] }; },
+  mount(root) {
+    root.innerHTML = `<div class="k4 glass" id="k4" role="button" tabindex="0" aria-label="切换层级（可拖动）"><svg viewBox="0 0 52 52" aria-hidden="true" id="k4-ring"></svg><span class="num tnum" id="k4-n"></span></div>
+      <section class="k4-menu glass" id="k4-menu" aria-label="切换层级">
+        <div class="grid" id="k4-grid">${PAGES.map((p, i) => `<button class="g press" data-p="${p.id}" data-tip="${p.name}"><span class="tnum" style="color:var(--fg-3)">${pad(i + 1)}</span> ${p.name.split(' ')[0]}</button>`).join('')}</div>
+        <div style="display:flex;justify-content:space-between;margin:10px 0 8px">${dirButtons()}</div>
+        ${seg2('k4-os', [['mac', 'macOS'], ['win', 'Windows']])}
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px">${styleSwitch()}<span style="color:var(--fg-3);font-size:11px">拖动圆钮换位置</span></div></section>`;
+    const el = $('k4'), menu = $('k4-menu');
+    menu.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => set({ page: b.dataset.p })));
+    menu.querySelector('#k4-os').querySelectorAll('.base button').forEach((b) => (b.onclick = () => set({ os: b.dataset.v })));
+    bindDirs(menu); bindStyle(menu); bindTips(menu, 'below');
+    K4.corner = store.get('k4-corner') || 'br'; K4.place(K4.corners()[K4.corner]);
+    let start = null, dragging = false, last = null;
+    el.addEventListener('pointerdown', (e) => {
+      if (start) return; // ignore extra touch points once a drag has begun
+      el.setPointerCapture(e.pointerId); start = { x: e.clientX, y: e.clientY, px: K4.pos[0], py: K4.pos[1], t: performance.now(), id: e.pointerId }; last = { ...start }; dragging = false;
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!start || e.pointerId !== start.id) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (!dragging && Math.hypot(dx, dy) < 4) return;
+      if (!dragging) { dragging = true; el.classList.add('dragging'); K4.menuOpen(false); }
+      let x = start.px + dx, y = start.py + dy; const maxX = innerWidth - 52, maxY = innerHeight - 52;
+      const rubber = (v, lo, hi) => (v < lo ? lo - (lo - v) * 0.35 : v > hi ? hi + (v - hi) * 0.35 : v); // friction past the edges
+      x = rubber(x, 0, maxX); y = rubber(y, 0, maxY); K4.place([x, y]);
+      last = { x: e.clientX, y: e.clientY, t: performance.now(), px: last.x, py: last.y, pt: last.t };
+    });
+    const end = (e) => {
+      if (!start || e.pointerId !== start.id) return;
+      el.releasePointerCapture(e.pointerId); el.classList.remove('dragging');
+      if (!dragging) { start = null; K4.menuOpen(!menu.classList.contains('open')); return; }
+      const dt = Math.max(1, last.t - (last.pt || start.t)), vx = (last.x - (last.px ?? start.x)) / dt, vy = (last.y - (last.py ?? start.y)) / dt;
+      let [x, y] = K4.pos; if (Math.hypot(vx, vy) > 0.11) { x += vx * 220; y += vy * 220; } // a quick flick is enough
+      const c = K4.corners(); K4.corner = Object.keys(c).sort((a, b) => Math.hypot(c[a][0] - x, c[a][1] - y) - Math.hypot(c[b][0] - x, c[b][1] - y))[0];
+      store.set('k4-corner', K4.corner); K4.place(c[K4.corner]); start = null;
+    };
+    el.addEventListener('pointerup', end); el.addEventListener('pointercancel', end);
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { K4.menuOpen(!menu.classList.contains('open')); e.preventDefault(); } });
+    document.addEventListener('pointerdown', (e) => { if (!e.target.closest('#k4,#k4-menu')) K4.menuOpen(false); });
+    addEventListener('resize', () => K4.place(K4.corners()[K4.corner]));
+  },
+  place([x, y]) { K4.pos = [x, y]; $('k4').style.transform = `translate(${x}px, ${y}px)`; },
+  menuOpen(o) {
+    const m = $('k4-menu'); if (!o) { m.classList.remove('open'); return; }
+    const [x, y] = K4.pos, right = x > innerWidth / 2, bottom = y > innerHeight / 2, mw = 268, mh = m.offsetHeight || 260;
+    m.style.left = (right ? x + 52 - mw : x) + 'px'; m.style.top = (bottom ? y - mh - 10 : y + 62) + 'px';
+    m.style.transformOrigin = `${right ? 'right' : 'left'} ${bottom ? 'bottom' : 'top'}`; // grows out of the puck's corner
+    m.classList.add('open');
+  },
+  update() {
+    if (!$('k4')) return; const i = pageIdx(); $('k4-n').textContent = pad(i + 1);
+    const segs = DIRS.map((d, k) => { const a0 = (k / DIRS.length) * Math.PI * 2 - Math.PI / 2 + 0.08, a1 = ((k + 1) / DIRS.length) * Math.PI * 2 - Math.PI / 2 - 0.08, r = 23;
+      const p = (a) => `${26 + r * Math.cos(a)} ${26 + r * Math.sin(a)}`;
+      return `<path d="M ${p(a0)} A ${r} ${r} 0 0 1 ${p(a1)}" fill="none" stroke="${META.directions[d].swatch[1]}" stroke-width="${d === state.dir ? 4 : 2}" stroke-linecap="round" opacity="${d === state.dir ? 1 : .45}"/>`; }).join('');
+    $('k4-ring').innerHTML = segs;
+    const m = $('k4-menu'); m.querySelectorAll('[data-p]').forEach((b) => b.classList.toggle('on', b.dataset.p === state.page)); syncDirs(m); syncSeg2('k4-os', ['mac', 'win'], state.os);
+  },
+  toggle(o) { $('k4').hidden = !o; if (!o) K4.menuOpen(false); },
+};
+
+/* ── Picker 5 · Edge rail ── */
+const K5 = {
+  mount(root) {
+    root.innerHTML = `<button class="k5-tab press" id="k5-tab" aria-label="展开刻度尺" hidden></button>
+      <nav class="k5 glass ${open ? '' : 'closed'}" id="k5" aria-label="原型层级切换器">
+        <div class="ticks" id="k5-ticks"><div class="tick-hl" aria-hidden="true"></div>${PAGES.map((p, i) => `<button class="tick press tnum" data-p="${p.id}" data-tip="${pad(i + 1)} · ${p.name}" aria-label="${p.name}">${pad(i + 1)}</button>`).join('')}</div>
+        <div class="sep"></div>${DIRS.map((d) => `<button class="sw-btn" data-d="${d}" data-tip="${META.directions[d].name} · ${META.directions[d].zh}" aria-label="${META.directions[d].name}">${swatch(d)}</button>`).join('')}
+        <div class="sep"></div><button class="tick press" id="k5-os" data-tip="切换系统外框">⌘</button>
+        <button class="tick press" id="k5-kind" data-tip="换 picker 样式（P）">P</button><button class="tick press" id="k5-x" data-tip="收起（H）">›</button></nav>`;
+    const r = $('k5');
+    r.querySelectorAll('[data-p]').forEach((b) => (b.onclick = () => set({ page: b.dataset.p })));
+    $('k5-os').onclick = () => set({ os: state.os === 'mac' ? 'win' : 'mac' }); $('k5-kind').onclick = () => setKind((state.kind % KINDS.length) + 1);
+    $('k5-x').onclick = () => toggle(false); $('k5-tab').onclick = () => toggle(true);
+    let wheelAt = 0; $('k5-ticks').addEventListener('wheel', (e) => { e.preventDefault(); const now = Date.now(); if (now - wheelAt < 140) return; wheelAt = now;
+      const i = pageIdx() + (e.deltaY > 0 ? 1 : -1); if (PAGES[i]) set({ page: PAGES[i].id }); }, { passive: false });
+    bindDirs(r); bindTips(r, 'left');
+  },
+  update() { const r = $('k5'); if (!r) return; r.querySelector('.tick-hl').style.transform = `translateY(${pageIdx() * 26}px)`; r.querySelectorAll('[data-p]').forEach((b) => b.classList.toggle('on', b.dataset.p === state.page)); syncDirs(r); $('k5-os').textContent = state.os === 'mac' ? '⌘' : '⊞'; },
+  toggle(o) { $('k5').classList.toggle('closed', !o); $('k5-tab').hidden = o; },
+};
+
+const KS = [null, K1, K2, K3, K4, K5];
+function badge(text) { const b = $('badge'); b.textContent = text; b.classList.add('show'); clearTimeout(badge.t); badge.t = setTimeout(() => b.classList.remove('show'), 1200); }
+function setKind(k) { state.kind = k; $('root').innerHTML = ''; KS[k].mount($('root')); KS[k].update(); KS[k].toggle(open); store.set('picker-kind', k); writeHash(); badge(`Picker ${k} · ${KINDS[k - 1]}`); }
+function toggle(o) { open = o; KS[state.kind].toggle(o); }
+window.toggle = toggle;
+
+function readHash() {
+  const [page, dir, os, kind] = location.hash.slice(1).split('-');
+  if (PAGES.some((p) => p.id === page)) state.page = page;
+  if (dir in META.directions) state.dir = dir;
+  if (os === 'mac' || os === 'win') state.os = os;
+  const k = +(kind || '').replace('k', '') || +store.get('picker-kind') || 1; if (k >= 1 && k <= 5) state.kind = k;
+}
+function writeHash() { history.replaceState(null, '', `#${state.page}-${state.dir}-${state.os}-k${state.kind}`); }
+function set(patch) {
+  Object.assign(state, patch); showLayer();
+  const r = $('root'); if (viaKeyboard) r.classList.add('kbd-move');
+  KS[state.kind].update(); writeHash();
+  if (viaKeyboard) requestAnimationFrame(() => requestAnimationFrame(() => r.classList.remove('kbd-move')));
+}
+window.set = set;
+
+// Keyboard switching is instant everywhere: no crossfade, no sliding highlight (used many times per review).
+function onKey(e) {
+  const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); if (state.kind !== 2) setKind(2); K2.openPalette(true); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const i = pageIdx(), k = e.key.toLowerCase(); viaKeyboard = true;
+  if (k === 'arrowdown' || k === 'arrowright') { set({ page: PAGES[Math.min(i + 1, PAGES.length - 1)].id }); e.preventDefault(); }
+  else if (k === 'arrowup' || k === 'arrowleft') { set({ page: PAGES[Math.max(i - 1, 0)].id }); e.preventDefault(); }
+  else if (/^[1-9]$/.test(k) && ('d' + k) in META.directions) set({ dir: 'd' + k });
+  else if (k === 'm') set({ os: 'mac' });
+  else if (k === 'w') set({ os: 'win' });
+  else if (k === 'h') toggle(!open);
+  else if (k === 'p') setKind((state.kind % KINDS.length) + 1);
+  else if (k === '/' ) { e.preventDefault(); if (state.kind !== 2) setKind(2); K2.openPalette(true); }
+  viaKeyboard = false;
+}
+document.addEventListener('keydown', onKey);
+addEventListener('hashchange', () => { readHash(); set({}); });
+
+readHash();
+KS[state.kind].mount($('root')); viaKeyboard = true; set({}); viaKeyboard = false;
+</script>
+</body>
+</html>

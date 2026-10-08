@@ -30,6 +30,18 @@ aicv沉淀的提示词：aicv/aicv-prompts-2026-09-29-to-2026-10-08.md
 我已经在chrome 浏览器打开了 这个网站， 需要登录你可以告诉我，用computer use复刻完整交互流程，可以操控实际写一次剧本，体验一下从onboarding 到 最终生产出来一集剧本的完整流程 （的每一个交互状态和细节）， 我想用 emil的 skill 把目前每个页面再做 2 个不同方向的发散，可以一起给我，我最终选出一版来进行真正的整合 ， 原型格式是"单文件 + 悬浮层级切换器 + 每层一个完整 HTML 文档"。
 
 
+然后这是之前的客户调研 ， 你可以看一下基于用户访谈，以及他们的痛点， 原型有哪些细节/ 交互流程可以增加或者增强的。'/Users/ziye/Library/Mobile Documents/com~apple~CloudDocs/wiki/20-29 Beta/monetization/products/ai-services/ai-script-agent/docs/solution-script-agent-qa.md' '/Users/ziye/Library/Mobile Documents/com~apple~CloudDocs/wiki/20-29 Beta/monetization/products/ai-services/ai-script-agent/docs/meeting' '/Users/ziye/Library/Mobile Documents/com~apple~CloudDocs/wiki/20-29 Beta/monetization/products/ai-services/ai-script-agent/docs/client-inputs/20260917-intake-client-audio-transcript.md' '/Users/ziye/Library/Mobile Documents/com~apple~CloudDocs/wiki/20-29 Beta/monetization/products/ai-services/ai-script-agent/docs/client-inputs/research-client-needs-and-pain-points.md'
+比如客户现在已经有了第一集动画片的剧本，但是对于内容不是很满意，想复刻哆啦A梦的第一集的原型， 换成自己的人物等等， 生成剧本
+
+
+你可以看一下 我的 ancher.ai 这个网站， 以及 切换 github ， 看一下这个网站的repo ， 根据这个 repo 的 design token 去发散5个方向不同的原型页面 （注意只是design token）， 你刚才提到的很多交互 其实可以通过对话 窗口的agent 完成， 原型交互功能还是尽量 向laper 靠拢
+
+最终的目的，就是 原型 能实现功能就可以了， 比如客户现在已经有了第一集动画片的剧本，但是对于内容不是很满意，想复刻哆啦A梦的第一集的原型， 换成自己的人物等等， 生成剧本
+
+
+还有一个事，如果我需要转录视频， 把本地的视频路径给 agent对话窗口， 让它转成逐字稿， 我是否可以自己选择 模型，比如gemini ， 因为 vita api 非常高昂，这是否可实现， 就像我在codex里的操作一样
+
+
 创建pr， 分支 ， 并合并部署。
 
 /Users/ziye/Developer/aiscript/vendors/llm-space ， 这是一个桌面客户端的 repo ， 查看一下 这个客户端 用到的技术 ，包括登录等等， 更新到 spec。 
@@ -60,6 +72,16 @@ https://www.npmjs.com/package/@ancher-ai/cli
 
 
 先输出 spec， 然后按照 spec 彻底执行 。 
+
+
+
+补充： 我先不要服务器， 先要本地， /Users/ziye/Developer/aiscript/docs/chat-exports ， /Users/ziye/Developer/aiscript/docs/chat-exports/桌面应用与-Ancher-SDK-讨论记录-2026-10-08.md  
+
+这是我和大模型讨论的方案， 仔细阅读， 你可以基于这个， 更新spec ， 以及原型 ， 还有一点快捷指令， 针对用户痛点的工作流可以加上
+以及不要账号登录了， 给api （ 我在ancher.ai  上生成的）， 以及三个激活码， 用户安装完 填写激活码 ， 需要想个办法 （因为我不想要 服务器， 只在本地），需要想个办法， 这个激活码用过一次 就不能用了 ，类似 invitation code ，是否可实现 
+
+这是原型 ：prototypes/dist/index.html 
+
 
 
 
@@ -208,3 +230,6 @@ https://www.npmjs.com/package/@ancher-ai/cli
     }
   ]
 }
+
+
+

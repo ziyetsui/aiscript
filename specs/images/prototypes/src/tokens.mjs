@@ -47,6 +47,7 @@ const motion = ({ ease, press, pop, modal, scale, y, spin, hl }) =>
 
 export const DIRECTIONS = {
   d1: {
+    swatch: ['oklch(0.985 0.008 85)', 'oklch(0.58 0.14 45)'],
     name: '01 · Studio Rust', zh: '纸墨锈红',
     note: '桌面 Agent 原生系统：暖纸 oklch + 唯一锈红强调，Source Serif 标题，暖棕阴影；动效克制（ease-out 160ms，按压 0.97）',
     css: `--bg: var(--studio-paper); --rail: var(--studio-paper-deep); --sidebar: var(--studio-paper-deep); --surface: var(--studio-card);
@@ -60,6 +61,7 @@ export const DIRECTIONS = {
       ${motion({ ease: 'var(--ease-strong-out)', press: 160, pop: 200, modal: 240, scale: 0.97, y: 6, spin: 600, hl: 600 })}`,
   },
   d2: {
+    swatch: ['#f9f9f8', '#366fb6'],
     name: '02 · App Navy', zh: '产品藏蓝',
     note: 'app.ancher.ai 浅色原样：n2 + b1 藏蓝，Manrope / Lora，radius 8；动效用产品自带 --ease-fast，150/250ms，按压 0.98',
     css: `--bg: var(--color-n2-light-2); --rail: var(--color-n2-light-3); --sidebar: var(--color-n2-light-3); --surface: var(--color-n2-light-1);
@@ -73,6 +75,7 @@ export const DIRECTIONS = {
       ${motion({ ease: 'var(--ease-fast)', press: 150, pop: 150, modal: 250, scale: 0.98, y: 4, spin: 550, hl: 500 })}`,
   },
   d3: {
+    swatch: ['#111110', '#eb7514'],
     name: '03 · App Ember', zh: '产品余烬',
     note: 'app.ancher.ai 深色原样：n2 暗面 + b2 橙（白字），Lora 标题；夜间写作降低动效位移（4px），高亮延长到 700ms 方便追踪 AI 落笔',
     css: `--bg: var(--color-n2-dark-1); --rail: var(--color-n2-dark-1); --sidebar: var(--color-n2-dark-3); --surface: var(--color-n2-dark-2);
@@ -86,6 +89,7 @@ export const DIRECTIONS = {
       ${motion({ ease: 'var(--ease-fast)', press: 150, pop: 180, modal: 250, scale: 0.97, y: 4, spin: 550, hl: 700 })}`,
   },
   d4: {
+    swatch: ['#fdfcfd', '#196bf0'],
     name: '04 · Graphite Signal', zh: '石墨信号',
     note: 'n3 冷紫灰 + b3 信号蓝，圆角 ×0.5，Manrope 粗体 + Geist Mono 标签；为高频使用而设：按压 0.98 / 100ms，弹层只做透明度不做位移',
     css: `--bg: var(--color-n3-light-1); --rail: var(--color-n3-light-2); --sidebar: var(--color-n3-light-2); --surface: var(--color-n3-light-1);
@@ -99,6 +103,7 @@ export const DIRECTIONS = {
       ${motion({ ease: 'var(--ease-fast)', press: 100, pop: 125, modal: 180, scale: 0.98, y: 0, spin: 450, hl: 400 })}`,
   },
   d5: {
+    swatch: ['#111110', 'oklch(0.72 0.11 80)'],
     name: '05 · Lamplight', zh: '台灯夜写',
     note: '暖暗 n2 + 桌面系统的赭黄作强调、鼠尾草作成功色，Source Serif 斜体标题，浮层毛玻璃；动效最柔：抽屉曲线 280ms、位移 10px',
     css: `--bg: var(--color-n2-dark-1); --rail: #0d0d0c; --sidebar: rgb(255 248 230 / .03); --surface: rgb(255 248 230 / .045);

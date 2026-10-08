@@ -1,6 +1,6 @@
 name: Deploy prototype
 
-# Publishes prototypes/dist to GitHub Pages on every push to main.
+# Publishes specs/images/prototypes/dist to GitHub Pages on every push to main.
 # Requires Pages to be enabled with "GitHub Actions" as the source (see specs/0002 D10).
 on:
   push:
@@ -29,10 +29,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - run: node prototypes/build.mjs && node prototypes/check.mjs
+      - run: node specs/images/prototypes/build.mjs && node specs/images/prototypes/check.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: prototypes/dist
+          path: specs/images/prototypes/dist
       - id: deployment
         uses: actions/deploy-pages@v4
