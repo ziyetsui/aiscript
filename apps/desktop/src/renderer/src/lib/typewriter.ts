@@ -2,10 +2,22 @@
 // A key click per character (random pitch, softer for punctuation), a carriage return per paragraph, a bell per turn.
 let ctx: AudioContext | null = null;
 let enabled = (() => { try { return localStorage.getItem('tw-sound') !== 'off'; } catch { return true; } })();
+let volume = (() => { try { const v = Number(localStorage.getItem('tw-volume')); return Number.isFinite(v) && localStorage.getItem('tw-volume') !== null ? v : 1; } catch { return 1; } })();
 
+export const soundVolume = () => volume;
+/** 0–1, applied on top of the per-sound gain. */
+export function setVolume(v: number): void {
+  volume = Math.max(0, Math.min(1, v));
+  try { localStorage.setItem('tw-volume', String(volume)); } catch { /* storage may be unavailable */ }
+}
+
+const listeners = new Set<(on: boolean) => void>();
 export const soundOn = () => enabled;
+/** Keep every sound toggle (workspace header, settings) in step. */
+export function onSound(cb: (on: boolean) => void): () => void { listeners.add(cb); return () => { listeners.delete(cb); }; }
 export function setSound(on: boolean): void {
   enabled = on;
+  listeners.forEach((l) => l(on));
   try { localStorage.setItem('tw-sound', on ? 'on' : 'off'); } catch { /* storage may be unavailable */ }
   if (on) ensure();
 }
@@ -34,7 +46,7 @@ function noiseBurst(dur: number, freq: number, gain: number): void {
   bp.frequency.value = freq;
   bp.Q.value = 1.4;
   const g = c.createGain();
-  g.gain.value = gain;
+  g.gain.value = gain * volume;
   src.connect(bp).connect(g).connect(c.destination);
   src.start();
 }
@@ -56,7 +68,7 @@ export function bell(): void {
   const g = c.createGain();
   o.frequency.value = 2093;
   g.gain.setValueAtTime(0.0001, c.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.08, c.currentTime + 0.01);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.08 * volume), c.currentTime + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.9);
   o.connect(g).connect(c.destination);
   o.start();

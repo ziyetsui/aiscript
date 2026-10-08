@@ -6,7 +6,7 @@ import type { AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectStat
 import { RunCard, WF_MENU, WorkflowLauncher, WorkflowMenu } from '../components/Workflows.tsx';
 import { SelectionBar } from '../components/SelectionBar.tsx';
 import type { Route } from '../App.tsx';
-import { bell, carriageReturn, keyClick, setSound, soundOn } from '../lib/typewriter.ts';
+import { bell, carriageReturn, keyClick, onSound, setSound, soundOn } from '../lib/typewriter.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
 import { Editor, placeCaret } from './Editor.tsx';
 
@@ -41,6 +41,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
 
   const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); }, []);
   useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, apply]);
+  useEffect(() => onSound(setSoundState), []);
   useEffect(() => window.api.ai.onDelta((d) => { if (d.reqId === running) setStream((s) => s + d.text); }), [running]);
   useEffect(() => { logEnd.current?.scrollIntoView({ block: 'end' }); }, [st?.chat.length, stream, asking]);
   // Remount the outline editor only when the outline changed from outside (e.g. 「写进大纲」), never while typing.

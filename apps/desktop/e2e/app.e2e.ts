@@ -315,6 +315,9 @@ try {
   await page.getByRole('button', { name: '设置', exact: true }).click();
   await page.getByText('测试工作室 · 第 1/3 台').waitFor();
   assert.ok(!(await page.locator('body').textContent())!.match(/积分余额|用量统计|credits/i));
+  await page.getByLabel('剧本字体').selectOption('song');
+  assert.match(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-script')), /Songti SC/);
+  await page.getByLabel('剧本字体').selectOption('typewriter');
   await shot(page, '05-settings');
   const diag = join(tmp, 'diag.zip');
   await app.evaluate(({ dialog }, p) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath: p })) as typeof dialog.showSaveDialog; }, diag);
