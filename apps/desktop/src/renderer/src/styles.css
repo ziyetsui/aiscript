@@ -48,7 +48,7 @@ h1, h2, h3 { text-wrap: balance; margin: 0; }
   .btn-ghost:hover:not(:disabled), .btn-quiet:hover:not(:disabled) { background: var(--hover); }
 }
 .card { background: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line); }
-.chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-2); }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; white-space: nowrap; flex: none; padding: 0 10px; border-radius: 999px; font-size: 12px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); color: var(--ink-2); }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 12.5px; color: var(--ink-2); }
 .input { height: 40px; border-radius: var(--r); border: 1px solid var(--line-strong); background: var(--surface); padding: 0 12px; width: 100%; }
@@ -245,3 +245,24 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .pv-tag { font-family: var(--font-ui); font-size: 11px; color: var(--ink-3); padding-top: 2px; }
 .pv-it del { display: block; background: color-mix(in oklch, var(--danger) 10%, transparent); color: var(--ink-2); text-decoration-color: var(--danger); padding: 1px 4px; border-radius: 3px; }
 .pv-it ins { display: block; background: color-mix(in oklch, var(--success) 12%, transparent); text-decoration: none; padding: 1px 4px; border-radius: 3px; margin-top: 2px; }
+/* workflows */
+.kbd { font: 11px var(--font-mono); padding: 2px 6px; border-radius: 4px; background: var(--muted); color: var(--ink-3); }
+.launcher { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; font-size: 13px; animation: popIn 160ms var(--ease-out) both; transform-origin: bottom center; }
+.quote { font-family: var(--font-script); font-size: 12.5px; background: var(--muted); padding: 6px 8px; border-radius: var(--r-sm); }
+.run { padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; font-size: 12.5px; }
+.run-hd { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.steps li { display: grid; grid-template-columns: 18px 1fr; gap: 6px; color: var(--ink-2); }
+.steps li.st-pending { color: var(--ink-3); } .steps li.st-done .st-ic { color: var(--success); } .steps li.st-failed .st-ic { color: var(--danger); }
+.st-ic { display: grid; place-items: center; height: 18px; font-size: 12px; } .st-ic .spinner { width: 11px; height: 11px; border-width: 1.5px; }
+.steps li.st-pending .st-ic::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--line-strong); }
+.res { display: flex; flex-direction: column; gap: 6px; }
+.res-card { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: var(--r); background: var(--bg); box-shadow: inset 0 0 0 1px var(--line); text-align: left; }
+.res-card.pick { flex-direction: row; gap: 8px; align-items: flex-start; cursor: pointer; } .res-card.pick input { margin-top: 3px; accent-color: var(--primary); }
+.res-card.issue:not(:disabled) { cursor: pointer; } @media (hover: hover) and (pointer: fine) { .res-card.issue:not(:disabled):hover { box-shadow: inset 0 0 0 1px var(--ink-3); } }
+/* outline view */
+.outline-doc { width: min(760px, 100%); margin: 0 auto; min-height: 900px; border: 0; outline: none; resize: none; display: block; background: var(--surface); box-shadow: var(--shadow-card), inset 0 0 0 1px var(--line);
+  border-radius: 4px; padding: 56px 64px; font-family: var(--font-script); font-size: 14px; line-height: 1.8; color: var(--ink); }
+.view-switch { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.view-switch button { display: flex; gap: 8px; align-items: center; padding: 7px 8px; border-radius: var(--r-sm); font-size: 13px; color: var(--ink-2); text-align: left; }
+.view-switch button[aria-current="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow-card); }

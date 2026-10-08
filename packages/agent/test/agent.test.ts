@@ -64,3 +64,36 @@ describe('checkAncherKey', () => {
     expect(await checkAncherKey({ User: { me: async () => { throw new TypeError('fetch failed'); } } } as any)).toMatchObject({ ok: false, reason: 'network' });
   });
 });
+
+describe('parsing and transcription helpers', async () => {
+  const { parseWithAncher, srtToText, transcribeWithGemini } = await import('../src/index.ts');
+
+  it('polls an Ancher note until ready and returns its content', async () => {
+    const get = vi.fn().mockResolvedValueOnce({ id: 'n1', status: 'processing' }).mockResolvedValueOnce({ id: 'n1', status: 'ready' });
+    const sdk = { Note: { createFromUrl: vi.fn(async () => ({ id: 'n1', status: 'queued' })), get, getContent: vi.fn(async () => new Response('解析后的正文')) }, File: {} } as any;
+    expect(await parseWithAncher(sdk, { url: 'https://example.com/a' }, new AbortController().signal, 1)).toBe('解析后的正文');
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('reports a failed note', async () => {
+    const sdk = { Note: { createFromFile: vi.fn(async () => ({ id: 'n2', status: 'error', error_message: '文件损坏' })) }, File: { upload: vi.fn(async () => ({ id: 'f1' })) } } as any;
+    await expect(parseWithAncher(sdk, { file: new Blob(['x']) }, new AbortController().signal, 1)).rejects.toThrow('文件损坏');
+  });
+
+  it('strips SRT to text', () => {
+    expect(srtToText('1\n00:00:00,000 --> 00:00:01,000\n豆豆：你好\n\n2\n00:00:01,000 --> 00:00:02,000\n门墩儿：别捏了\n')).toBe('豆豆：你好\n门墩儿：别捏了');
+  });
+
+  it('runs the Gemini upload → generate sequence', async () => {
+    const calls: string[] = [];
+    const f = (async (url: string, init?: RequestInit) => {
+      calls.push(`${init?.method ?? 'GET'} ${String(url).replace(/\?.*$/, '')}`);
+      if (String(url).endsWith('/upload/v1beta/files')) return new Response('{}', { headers: { 'x-goog-upload-url': 'https://upload.example/u1' } });
+      if (String(url) === 'https://upload.example/u1') return Response.json({ file: { name: 'files/abc', uri: 'https://g/files/abc', state: 'ACTIVE' } });
+      return Response.json({ candidates: [{ content: { parts: [{ text: '```srt\n1\n00:00:00,000 --> 00:00:01,000\n豆豆：你好\n```' }] } }] });
+    }) as typeof fetch;
+    const r = await transcribeWithGemini('k', new Blob(['v']), '第一集.mp4', new AbortController().signal, f);
+    expect(r.text).toBe('豆豆：你好');
+    expect(calls).toEqual(['POST https://generativelanguage.googleapis.com/upload/v1beta/files', 'POST https://upload.example/u1', 'POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent']);
+  });
+});

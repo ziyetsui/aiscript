@@ -11,15 +11,22 @@ export interface Location { id: string; name: string; ie: '内景' | '外景' | 
 export interface Prop { id: string; name: string; category: string; color: string; desc: string; visual: string; x: number; y: number }
 export interface WorldSetting { id: string; title: string; value: string }
 export interface KnowledgeFile { id: string; name: string; size: number; src: 'upload' | 'chat'; file: string; addedAt: number }
+/** Director-review rules (spec 0002 §1.1 "审稿与规则库"): pending until a human confirms; hard rules vs preferences. */
+export interface Rule { id: string; text: string; scope: string; source: string; level: 'hard' | 'pref'; status: 'pending' | 'active'; addedAt: number }
+/** Humor examples marked funny / not funny (正反例库). */
+export interface Joke { id: string; text: string; mechanism: string; verdict: 'good' | 'bad'; context: string; addedAt: number }
+/** Topic pool (选题池). */
+export interface Topic { id: string; title: string; logline: string; why: string; source: string; status: 'idea' | 'picked' | 'dropped'; reason: string; addedAt: number }
 
 export interface Bible {
   characters: Character[]; relations: Relation[]; locations: Location[];
   props: Prop[]; world: WorldSetting[]; files: KnowledgeFile[];
+  rules: Rule[]; jokes: Joke[]; topics: Topic[];
 }
 export type BibleKind = keyof Bible;
 export type BibleItem<K extends BibleKind> = Bible[K][number];
 
-export const BIBLE_KINDS: BibleKind[] = ['characters', 'relations', 'locations', 'props', 'world', 'files'];
+export const BIBLE_KINDS: BibleKind[] = ['characters', 'relations', 'locations', 'props', 'world', 'files', 'rules', 'jokes', 'topics'];
 
 export const BIBLE_DEFAULTS: { [K in BibleKind]: Omit<BibleItem<K>, 'id'> } = {
   characters: { name: '', role: '', desc: '', color: 'oklch(0.58 0.14 45)', look: '', catchphrase: '', want: '', fear: '', voice: '', portrait: '', castLocked: false, x: 0, y: 0 },
@@ -28,6 +35,9 @@ export const BIBLE_DEFAULTS: { [K in BibleKind]: Omit<BibleItem<K>, 'id'> } = {
   props: { name: '', category: '', color: 'oklch(0.36 0.07 160)', desc: '', visual: '', x: 40, y: 40 },
   world: { title: '', value: '' },
   files: { name: '', size: 0, src: 'upload', file: '', addedAt: 0 },
+  rules: { text: '', scope: '全剧', source: '', level: 'hard', status: 'pending', addedAt: 0 },
+  jokes: { text: '', mechanism: '', verdict: 'good', context: '', addedAt: 0 },
+  topics: { title: '', logline: '', why: '', source: '', status: 'idea', reason: '', addedAt: 0 },
 };
 
 /** Find a character by name (the script stores names, not ids). */
@@ -87,6 +97,8 @@ export function bibleBrief(b: Bible, maxChars = 3000): string {
   }
   if (b.locations.length) parts.push('地点：\n' + b.locations.map((l) => `- ${l.name}（${l.ie}）${l.desc ? `：${l.desc}` : ''}`).join('\n'));
   if (b.props.length) parts.push('道具：\n' + b.props.map((p) => `- ${p.name}${p.desc ? `：${p.desc}` : ''}`).join('\n'));
+  const rules = b.rules.filter((r) => r.status === 'active');
+  if (rules.length) parts.unshift('规则库（导演确认过，硬规则必须遵守）：\n' + rules.map((r) => `- [${r.level === 'hard' ? '硬规则' : '偏好'}·${r.scope}] ${r.text}`).join('\n'));
   const s = parts.join('\n\n');
   return s.length > maxChars ? `${s.slice(0, maxChars)}…` : s;
 }

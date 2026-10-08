@@ -1,12 +1,13 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
 import { checkGeminiKey } from '@scripter/agent';
 import type { BibleKind } from '@scripter/core';
-import type { AiWriteRequest, Edit, ExportFormat, KeyResult, ProjectMeta } from '../shared/ipc.ts';
+import type { AiWriteRequest, Edit, ExportFormat, KeyResult, ProjectMeta, WorkflowAction, WorkflowId, WorkflowInput } from '../shared/ipc.ts';
 import * as ai from './ai.ts';
 import { save as exportSave } from './exporter.ts';
 import { activateKeygen, activateOffline, deactivateLocal, licenseStatus } from './license.ts';
 import * as files from './files.ts';
+import * as wf from './workflows.ts';
 import * as projects from './projects.ts';
 import { encryptionAvailable, getSecret, setSecret } from './secrets.ts';
 import { readJson, writeJson } from './store.ts';
@@ -77,6 +78,20 @@ function registerIpc(): void {
   ipcMain.handle('projects:remove', gated((id: string) => projects.remove(id)));
   ipcMain.handle('projects:edit', gated((id: string, edits: Edit[]) => projects.edit(id, edits)));
   ipcMain.handle('projects:undoTurn', gated((id: string, turnId: string) => projects.undoTurn(id, turnId)));
+  ipcMain.handle('projects:setOutline', gated((id: string, text: string) => projects.setOutline(id, text)));
+
+  const active = () => { if (licenseStatus().state !== 'active') throw new Error('未激活'); };
+  ipcMain.handle('wf:start', (e, projectId: string, id: WorkflowId, input: WorkflowInput) => { active(); return wf.start(projectId, id, input, e.sender); });
+  ipcMain.handle('wf:cancel', (_e, runId: string) => wf.cancel(runId));
+  ipcMain.handle('wf:retry', (e, projectId: string, runId: string) => { active(); return wf.retry(projectId, runId, e.sender); });
+  ipcMain.handle('wf:apply', gated((projectId: string, runId: string, a: WorkflowAction) => wf.apply(projectId, runId, a)));
+  ipcMain.handle('wf:pickFile', async (e, kind: 'media' | 'any') => {
+    active();
+    const w = BrowserWindow.fromWebContents(e.sender);
+    if (!w) return null;
+    const r = await dialog.showOpenDialog(w, { properties: ['openFile'], filters: kind === 'media' ? [{ name: '视频 / 音频', extensions: ['mp4', 'mov', 'm4v', 'webm', 'mkv', 'mp3', 'wav', 'm4a', 'aac'] }] : [{ name: '文件', extensions: ['*'] }] });
+    return r.canceled ? null : r.filePaths[0] ?? null;
+  });
 
   const KINDS = new Set<BibleKind>(['characters', 'relations', 'locations', 'props', 'world', 'files']);
   const kind = (k: string): BibleKind => { if (!KINDS.has(k as BibleKind)) throw new Error('bad kind'); return k as BibleKind; };

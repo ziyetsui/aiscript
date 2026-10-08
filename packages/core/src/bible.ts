@@ -22,7 +22,7 @@ export class Collection<K extends BibleKind> {
     const out: BibleItem<K>[] = [];
     for (let i = 0; i < this.list.length; i++) {
       const m = this.list.get(i) as LoroMap;
-      out.push({ ...DEFAULTS[this.kind], ...(m.toJSON() as object) } as BibleItem<K>);
+      out.push({ ...DEFAULTS[this.kind], ...(m.toJSON() as object) } as unknown as BibleItem<K>);
     }
     return out;
   }
@@ -32,7 +32,7 @@ export class Collection<K extends BibleKind> {
   }
 
   add(data: Partial<BibleItem<K>>, at?: number): BibleItem<K> {
-    const item = { ...DEFAULTS[this.kind], ...data, id: data.id ?? newId() } as BibleItem<K>;
+    const item = { ...DEFAULTS[this.kind], ...data, id: data.id ?? newId() } as unknown as BibleItem<K>;
     const m = this.list.insertContainer(at ?? this.list.length, new LoroMap());
     for (const [k, v] of Object.entries(item)) m.set(k, v as never);
     return item;

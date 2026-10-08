@@ -60,3 +60,20 @@ export function describeError(e: unknown): string {
   if (e instanceof Error && e.name === 'AbortError') return '已取消';
   return e instanceof Error ? e.message : String(e);
 }
+
+/** Ancher's parser (notes): URL or uploaded file → text. Polls until the note is ready. [待实测] with a real key. */
+export async function parseWithAncher(sdk: Pick<AncherSdk, 'Note' | 'File'>, src: { url?: string; file?: Blob }, signal: AbortSignal, pollMs = 2000): Promise<string> {
+  let note = src.url
+    ? await sdk.Note.createFromUrl({ text: src.url })
+    : await sdk.Note.createFromFile({ file_id: (await sdk.File.upload(src.file!)).id });
+  for (let i = 0; (note.status === 'queued' || note.status === 'processing') && i < 300; i++) {
+    if (signal.aborted) throw Object.assign(new Error('已取消'), { name: 'AbortError' });
+    await new Promise((r) => setTimeout(r, pollMs));
+    note = await sdk.Note.get(note.id);
+  }
+  if (note.status !== 'ready') throw new Error(note.error_message || 'Ancher 没能解析这个内容');
+  const res = await sdk.Note.getContent(note.id);
+  const text = (await res.text()).trim();
+  if (!text) throw new Error('Ancher 解析结果为空');
+  return text;
+}

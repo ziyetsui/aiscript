@@ -2,7 +2,8 @@
 // and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import type { ScriptNode } from '@scripter/core/script';
-import type { AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState } from '../../../shared/ipc.ts';
+import type { AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
+import { RunCard, WF_MENU, WorkflowLauncher, WorkflowMenu } from '../components/Workflows.tsx';
 import type { Route } from '../App.tsx';
 import { bell, carriageReturn, keyClick, setSound, soundOn } from '../lib/typewriter.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
@@ -25,6 +26,13 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [sound, setSoundState] = useState(soundOn());
   const [exportOpen, setExportOpen] = useState(false);
+  const [view, setView] = useState<'script' | 'outline'>('script');
+  const [launcher, setLauncher] = useState<{ id: WorkflowId; focusId: string | null; focusText: string | null } | null>(null);
+  const lastFocus = useRef<string | null>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const outlineTimer = useRef<number | undefined>(undefined);
+  const outlineSent = useRef<string | null>(null);
+  const [outlineKey, setOutlineKey] = useState(0);
   const toast = useToast();
   const sent = useRef(false);
   const logEnd = useRef<HTMLDivElement>(null);
@@ -33,6 +41,26 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
   useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, apply]);
   useEffect(() => window.api.ai.onDelta((d) => { if (d.reqId === running) setStream((s) => s + d.text); }), [running]);
   useEffect(() => { logEnd.current?.scrollIntoView({ block: 'end' }); }, [st?.chat.length, stream, asking]);
+  // Remount the outline editor only when the outline changed from outside (e.g. 「写进大纲」), never while typing.
+  useEffect(() => {
+    if (st && st.outline !== outlineSent.current) { outlineSent.current = st.outline; setOutlineKey((k) => k + 1); }
+  }, [st?.outline]);
+  // Live workflow progress from main.
+  useEffect(() => window.api.workflows.onUpdate(({ projectId, run }) => {
+    if (projectId !== id) return;
+    setSt((s) => (s ? { ...s, runs: s.runs.some((r) => r.id === run.id) ? s.runs.map((r) => (r.id === run.id ? run : r)) : [...s.runs, run] } : s));
+  }), [id]);
+  // ⌥1–⌥8 open a workflow (e.code, because Option+digit types a symbol on macOS). Only while this pane is visible.
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      const m = /^Digit([1-8])$/.exec(e.code);
+      if (!e.altKey || e.metaKey || e.ctrlKey || !m || !root.current?.offsetParent) return;
+      e.preventDefault();
+      openWorkflow(WF_MENU[+m[1]! - 1]!.id);
+    };
+    document.addEventListener('keydown', k);
+    return () => document.removeEventListener('keydown', k);
+  });
 
   const edit = useCallback(async (edits: Edit[]) => {
     const s = await window.api.projects.edit(id, edits);
@@ -107,6 +135,36 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
     void typeOut(r.state.nodes.filter((n) => !before.has(n.id)).map((n) => n.id), r.state.nodes);
   }
 
+  function openWorkflow(wf: WorkflowId) {
+    if (!keys.ancher) { toast('工作流需要 Ancher key，请到设置里填写'); return; }
+    const w = WF_MENU.find((x) => x.id === wf)!;
+    const focusId = lastFocus.current;
+    const focusText = focusId ? nodes.find((n) => n.id === focusId)?.text ?? null : null;
+    if (w.input === 'none') void startWorkflow(wf, {});
+    else setLauncher({ id: wf, focusId, focusText });
+  }
+
+  async function startWorkflow(wf: WorkflowId, input: WorkflowInput) {
+    setLauncher(null);
+    const focusId = launcher?.focusId ?? lastFocus.current ?? undefined;
+    setSt(await window.api.workflows.start(id, wf, { ...input, ...(focusId ? { focusId } : {}) }));
+  }
+
+  function jumpTo(nodeId: string) {
+    setView('script');
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(`[data-id="${nodeId}"]`);
+      el?.scrollIntoView({ block: 'center' });
+      placeCaret(el, 'end');
+    });
+  }
+
+  function onOutline(text: string) {
+    window.clearTimeout(outlineTimer.current);
+    outlineSent.current = text;
+    outlineTimer.current = window.setTimeout(() => { void window.api.projects.setOutline(id, text).then((s) => setSt((x) => (x ? { ...x, outline: s.outline } : s))); }, 400);
+  }
+
   async function doExport(f: ExportFormat) {
     setExportOpen(false);
     const r = await window.api.exporter.save(id, f);
@@ -144,18 +202,25 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
           )}
         </span>
       </div>
-      <div className="ws">
+      <div className="ws" ref={root}>
         <aside className="outline" aria-label="场景">
+          <div className="view-switch" role="tablist" aria-label="视图">
+            <button role="tab" aria-current={view === 'script'} aria-selected={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={14} />剧本</button>
+            <button role="tab" aria-current={view === 'outline'} aria-selected={view === 'outline'} onClick={() => setView('outline')}><Icon name="book" size={14} />大纲</button>
+          </div>
           <div className="eyebrow">场景</div>
           {st.scenes.length === 0 ? <div className="muted" style={{ fontSize: 12, padding: '4px 8px' }}>写下第一个场景标题后会出现在这里</div>
             : st.scenes.map((s) => (
-              <button key={s.nodeId} title={s.heading} onClick={() => { const el = document.querySelector<HTMLElement>(`[data-id="${s.nodeId}"]`); el?.scrollIntoView({ block: 'center' }); placeCaret(el, 'end'); }}>
+              <button key={s.nodeId} title={s.heading} onClick={() => jumpTo(s.nodeId)}>
                 <span className="tnum muted">{s.index}.</span> {s.heading || '（未命名场景）'}
               </button>
             ))}
         </aside>
-        <div className="paper-scroll">
-          <Editor nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
+        <div className="paper-scroll" onFocus={(e) => { const nid = (e.target as HTMLElement).dataset?.id; if (nid) lastFocus.current = nid; }}>
+          {view === 'script'
+            ? <Editor nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
+            : <textarea className="outline-doc" aria-label="大纲" key={outlineKey} defaultValue={st.outline} onChange={(e) => onOutline(e.target.value)}
+                placeholder={'写下这一集的故事大纲：起、承、转、合，重场戏，人物动机。\n「写飘检查」会对照这里检查剧本有没有跑偏。'} />}
         </div>
         <section className="agent" aria-label="AI 编剧">
           <div className="topbar" style={{ height: 44 }}><b style={{ fontSize: 13.5 }}>AI 编剧</b><span style={{ flex: 1 }} /><span className="chip">{keys.ancher ? 'Ancher' : '未连接'}</span></div>
@@ -168,6 +233,7 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
               return (
               <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {m.text && <div className={`msg ${m.role}`}>{m.text}</div>}
+                {m.runId && (() => { const run = st.runs.find((r) => r.id === m.runId); return run ? <RunCard run={run} projectId={id} onApplied={(s) => apply(s)} onJump={jumpTo} /> : null; })()}
                 {m.preview && <PreviewCard m={m} onResolve={(a) => void resolve(m, a)} />}
                 {m.turnId && (
                   <div className="turn-card"><Icon name="pen" size={13} /><span style={{ flex: 1 }}>{undone ? '已撤销' : `写入 ${m.applied ?? 0} 处修改`}</span>
@@ -185,7 +251,9 @@ export function Workspace({ id, pending, keys, go }: { id: string; pending?: str
             <div ref={logEnd} />
           </div>
           <div className="composer">
+            {launcher && <WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} />}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+              <WorkflowMenu onPick={openWorkflow} disabled={!!running} />
               {QUICK.map((q) => <button key={q} className="chip" disabled={!!running} onClick={() => void send(q)}>{q}</button>)}
             </div>
             <form className="card box" onSubmit={submit}>

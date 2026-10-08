@@ -1,0 +1,328 @@
+// The eight pain-point workflows from spec 0002 §5.6, in the same order as ⌥1–⌥8.
+import { bibleBrief, parseReply, scenes, wordCount, type Op } from '@scripter/core';
+import { z } from 'zod';
+import { packScript, WRITE_SYSTEM } from '../prompt.ts';
+import { parseResult, type WorkflowDef, type WorkflowEnv, type WorkflowId, type WorkflowInput } from './engine.ts';
+
+const RESULT_RULE = '只在 <result>…</result> 里输出 JSON，不要加注释；JSON 外可以写一两句说明。';
+const brief = (env: WorkflowEnv) => bibleBrief(env.bible(), 2500) || '（还没有项目设定）';
+const script = (env: WorkflowEnv, focusId?: string, max = 9000) => packScript(env.title(), env.nodes(), focusId, max).text;
+
+/** Things the writer has said no to: hard rules, 「不能写的」, unfunny jokes, dropped topics with reasons. */
+function negatives(env: WorkflowEnv): string {
+  const b = env.bible();
+  const out: string[] = [];
+  const banned = b.world.find((w) => w.title.includes('不能写'))?.value.trim();
+  if (banned) out.push(`不能写的：${banned}`);
+  for (const r of b.rules.filter((x) => x.status === 'active')) out.push(`${r.level === 'hard' ? '硬规则' : '偏好'}：${r.text}`);
+  for (const j of b.jokes.filter((x) => x.verdict === 'bad').slice(-10)) out.push(`不好笑的例子：${j.text}${j.mechanism ? `（${j.mechanism}）` : ''}`);
+  for (const t of b.topics.filter((x) => x.status === 'dropped').slice(-10)) out.push(`被否的选题：${t.title}${t.reason ? `，原因：${t.reason}` : ''}`);
+  return out.join('\n') || '（暂无）';
+}
+
+const need = (v: unknown, msg: string) => { if (!v) throw new Error(msg); };
+
+async function ask(env: WorkflowEnv, prompt: string, signal: AbortSignal, webSearch = false) {
+  const r = await env.chat(prompt, { webSearch, signal });
+  return r;
+}
+
+/** Ops-producing steps reuse the write contract, and must produce at least one valid op. */
+function opsFrom(text: string): { narration: string; ops: Op[] } {
+  const p = parseReply(text);
+  if (!p.ops.length) throw new Error(p.errors.length ? `AI 给出的修改格式不对：${p.errors[0]}` : 'AI 没有给出具体修改，请重试');
+  return { narration: p.narration, ops: p.ops };
+}
+
+const DirectionsSchema = z.object({ items: z.array(z.object({ title: z.string(), conflict: z.string(), resolution: z.string(), beats: z.array(z.string()).max(8), joke: z.string().default('') })).min(3).max(3) });
+const BeatsSchema = z.object({ beats: z.array(z.object({ beat: z.string(), function: z.string() })).min(3), jokes: z.array(z.string()).default([]), names: z.array(z.string()).default([]) });
+const MapSchema = z.object({ map: z.array(z.object({ slot: z.string(), ours: z.string() })).min(1) });
+const JokesSchema = z.object({ items: z.array(z.object({ text: z.string(), mechanism: z.string(), conflict: z.string().default('') })).min(3).max(5) });
+const IssuesSchema = z.object({ summary: z.string(), items: z.array(z.object({ nodeId: z.string().nullable().default(null), quote: z.string().default(''), problem: z.string(), suggestion: z.string() })) });
+const RulesSchema = z.object({ items: z.array(z.object({ text: z.string(), scope: z.string().default('全剧'), level: z.enum(['hard', 'pref']).default('hard'), conflict: z.string().default('') })).min(1) });
+const TopicsSchema = z.object({ items: z.array(z.object({ title: z.string(), logline: z.string(), why: z.string() })).min(3).max(5) });
+
+const VIDEO = ['mp4', 'mov', 'm4v', 'webm', 'mkv', 'mp3', 'wav', 'm4a', 'aac'];
+
+export const WORKFLOWS: WorkflowDef[] = [
+  {
+    id: 'directions', key: 1, title: '一个创意 → 3 个走向', desc: '冲突来源和解决方式都不同的三个走向，选一个写进大纲',
+    input: 'text', inputHint: '一句话创意（留空则用大纲）',
+    steps: [
+      { id: 'read', label: '读大纲', async run(ctx, env, input) {
+        ctx.idea = (input.text ?? '').trim() || env.outline().trim();
+        need(ctx.idea, '先写一句创意，或者先在大纲里写点东西');
+        return { note: `创意 ${String(ctx.idea).length} 字` };
+      } },
+      { id: 'rules', label: '读规则和反例', async run(ctx, env) { ctx.neg = negatives(env); ctx.brief = brief(env); } },
+      { id: 'research', label: 'Ancher 联网调研', async run(ctx, env, _i, signal) {
+        const r = await ask(env, `为下面这个少儿动画创意做简短调研（题材相关的真实生活细节、孩子会怎么说怎么做、类似作品常见套路要避开什么），列 5–8 条要点，每条一句话。\n创意：${ctx.idea}`, signal, true);
+        ctx.research = r.text;
+        ctx.citations = r.citations.slice(0, 6);
+        return { note: `${r.citations.length} 条来源` };
+      } },
+      { id: 'generate', label: '生成 3 个走向', async run(ctx, env, _i, signal) {
+        const r = await ask(env, `你是少儿动画编剧。根据创意写 3 个故事走向，要求三者的【冲突来源】和【解决方式】两两不同，主笑点也不同。不要违反下面的规则和反例。
+${RESULT_RULE}
+格式：{"items":[{"title":"一句话标题","conflict":"冲突来源","resolution":"解决方式","beats":["起","承","转","合"],"joke":"主笑点"}]}
+
+创意：${ctx.idea}
+调研要点：${ctx.research}
+项目设定：${ctx.brief}
+规则和反例：${ctx.neg}`, signal);
+        const out = parseResult(r.text, DirectionsSchema);
+        const conflicts = new Set(out.items.map((x) => x.conflict.trim()));
+        if (conflicts.size < out.items.length) throw new Error('三个走向的冲突来源有重复，请重试');
+        ctx.items = out.items;
+      } },
+    ],
+    finish: (ctx) => ({ kind: 'directions', items: ctx.items as never, citations: (ctx.citations as never) ?? [] }),
+  },
+  {
+    id: 'restructure', key: 2, title: '参考经典结构重写', desc: '解析参考作品 → 拆节拍 → 映射到自家角色 → 原创度检查 → 改写（先预览）',
+    input: 'url-or-text', inputHint: '参考作品的链接、文件或一段剧本',
+    steps: [
+      { id: 'parse', label: 'Ancher 解析参考', async run(ctx, env, input, signal) {
+        if (input.url || input.filePath) ctx.ref = await env.parse({ url: input.url, filePath: input.filePath }, signal);
+        else ctx.ref = (input.text ?? '').trim();
+        need(ctx.ref, '请提供参考作品的链接、文件或文字');
+        return { note: `${String(ctx.ref).length} 字` };
+      } },
+      { id: 'beats', label: '拆节拍', async run(ctx, env, _i, signal) {
+        const r = await ask(env, `把参考作品拆成节拍：每个节拍写出发生了什么（beat）和它在结构里的作用（function，例如"建立愿望""第一次失败""反转"）。再列出它的笑点机制（jokes）和所有专有名词（names：人物、道具、地名、台词口头禅）。
+${RESULT_RULE}
+格式：{"beats":[{"beat":"…","function":"…"}],"jokes":["…"],"names":["…"]}
+
+参考作品：
+${String(ctx.ref).slice(0, 8000)}`, signal);
+        ctx.model = parseResult(r.text, BeatsSchema);
+        return { note: `${(ctx.model as z.infer<typeof BeatsSchema>).beats.length} 个节拍` };
+      } },
+      { id: 'map', label: '功能位映射到自家角色', async run(ctx, env, _i, signal) {
+        const r = await ask(env, `把参考作品里每个功能位（推动者、阻碍者、帮手、愿望物件等）映射到我们项目自己的角色和道具上。只借结构，不借人物。
+${RESULT_RULE}
+格式：{"map":[{"slot":"功能位","ours":"我们的角色/道具"}]}
+
+节拍：${JSON.stringify((ctx.model as z.infer<typeof BeatsSchema>).beats)}
+我们的设定：${brief(env)}`, signal);
+        ctx.map = parseResult(r.text, MapSchema).map;
+      } },
+      { id: 'rewrite', label: '生成改写', async run(ctx, env, _i, signal) {
+        const model = ctx.model as z.infer<typeof BeatsSchema>;
+        const r = await ask(env, `${WRITE_SYSTEM}
+
+任务：按参考作品的节拍结构，用我们自己的角色重写当前剧本（或在空白处写出新的一场）。只借结构和笑点机制，人物、道具、台词必须原创，不能出现这些专有名词：${model.names.join('、') || '（无）'}。
+节拍：${JSON.stringify(model.beats)}
+笑点机制：${model.jokes.join('；')}
+功能位映射：${JSON.stringify(ctx.map)}
+项目设定：${brief(env)}
+规则和反例：${negatives(env)}
+
+${script(env)}`, signal);
+        const o = opsFrom(r.text);
+        ctx.narration = o.narration;
+        ctx.ops = o.ops;
+      } },
+      { id: 'originality', label: '原创度检查', async run(ctx) {
+        const names = (ctx.model as z.infer<typeof BeatsSchema>).names.filter((n) => n.trim().length >= 2);
+        const text = (ctx.ops as Op[]).map((o) => ('text' in o ? o.text : '')).join('\n');
+        const hits = names.filter((n) => text.includes(n));
+        if (hits.length) throw new Error(`改写里出现了参考作品的专有名词：${hits.join('、')}。点重试让 AI 重新改写`);
+        return { note: '没有借用参考作品的人物、道具和台词' };
+      } },
+    ],
+    finish: (ctx) => ({ kind: 'ops', narration: String(ctx.narration ?? ''), ops: ctx.ops as Op[] }),
+  },
+  {
+    id: 'jokes', key: 3, title: '笑点方案', desc: '选中一句台词，出 3–5 个方案，标出笑点机制和规则冲突',
+    input: 'focus', inputHint: '先把光标放在要改的那一句',
+    steps: [
+      { id: 'context', label: '读上下文', async run(ctx, env, input) {
+        const nodes = env.nodes();
+        const i = nodes.findIndex((n) => n.id === input.focusId);
+        const target = i >= 0 ? nodes[i]! : [...nodes].reverse().find((n) => n.type === 'dialogue' || n.type === 'action');
+        need(target, '剧本里还没有可以改的台词');
+        ctx.target = { id: target!.id, text: target!.text };
+        ctx.around = script(env, target!.id, 3000);
+        return { note: `「${target!.text.slice(0, 16)}${target!.text.length > 16 ? '…' : ''}」` };
+      } },
+      { id: 'examples', label: '读正反例', async run(ctx, env) {
+        const b = env.bible();
+        ctx.good = b.jokes.filter((j) => j.verdict === 'good').slice(-8).map((j) => `${j.text}（${j.mechanism}）`);
+        ctx.neg = negatives(env);
+        return { note: `${b.jokes.length} 条正反例` };
+      } },
+      { id: 'generate', label: '出笑点方案', async run(ctx, env, _i, signal) {
+        const r = await ask(env, `你是少儿动画的喜剧编剧（受众 5–10 岁）。为指定的这一句写 3–5 个更好笑的替换方案，每个方案标出笑点机制（如反差、误会、夸张、重复、孩子视角的较真）。如果某个方案和规则或反例冲突，在 conflict 里写明，否则留空。避免踩香蕉皮这类老套笑点。
+${RESULT_RULE}
+格式：{"items":[{"text":"替换后的这一句","mechanism":"笑点机制","conflict":""}]}
+
+要改的这一句：${(ctx.target as { text: string }).text}
+上下文：
+${ctx.around}
+好笑的例子：${(ctx.good as string[]).join('；') || '（暂无）'}
+规则和反例：${ctx.neg}
+项目设定：${brief(env)}`, signal);
+        const out = parseResult(r.text, JokesSchema);
+        const bad = env.bible().jokes.filter((j) => j.verdict === 'bad').map((j) => j.text.trim());
+        ctx.items = out.items.map((x) => ({ ...x, conflict: x.conflict || (bad.includes(x.text.trim()) ? '和「不好笑」的例子一样' : '') }));
+      } },
+    ],
+    finish: (ctx) => ({ kind: 'jokes', target: (ctx.target as never) ?? null, items: ctx.items as never }),
+  },
+  {
+    id: 'drift', key: 4, title: '写飘检查', desc: '对照大纲和锁定核心，逐项检查剧本有没有跑偏',
+    input: 'none',
+    steps: [
+      { id: 'core', label: '读大纲和锁定核心', async run(ctx, env) {
+        const core = env.bible().world.filter((w) => w.value.trim()).map((w) => `${w.title}：${w.value}`).join('\n');
+        ctx.core = core;
+        ctx.outline = env.outline();
+        need(core || env.outline().trim(), '先写大纲，或在世界观里写下故事核心，才能检查有没有写飘');
+      } },
+      { id: 'read', label: '读全文', async run(ctx, env) {
+        need(env.nodes().length, '剧本还是空的');
+        ctx.script = script(env, undefined, 14000);
+        return { note: `${wordCount(env.nodes())} 字 · ${scenes(env.nodes()).length} 场` };
+      } },
+      { id: 'compare', label: '逐项比对', async run(ctx, env, _i, signal) {
+        const r = await ask(env, `逐项检查剧本是否偏离大纲和故事核心：主线是否跑偏、重场戏是否还在、人物动机是否前后一致、有没有违反规则。每个问题给出节点 id（剧本里方括号中的 id，找不到就填 null）、原文摘录、问题和修改建议。没有问题就返回空数组。
+${RESULT_RULE}
+格式：{"summary":"一句话结论","items":[{"nodeId":"…","quote":"…","problem":"…","suggestion":"…"}]}
+
+大纲：${ctx.outline || '（无）'}
+故事核心与设定：${ctx.core || '（无）'}
+规则：${negatives(env)}
+${ctx.script}`, signal);
+        const out = parseResult(r.text, IssuesSchema);
+        const ids = new Set(env.nodes().map((n) => n.id));
+        ctx.summary = out.summary;
+        ctx.items = out.items.map((x) => ({ ...x, nodeId: x.nodeId && ids.has(x.nodeId) ? x.nodeId : null }));
+        return { note: `${out.items.length} 个问题` };
+      } },
+    ],
+    finish: (ctx) => ({ kind: 'issues', summary: String(ctx.summary ?? ''), items: ctx.items as never }),
+  },
+  {
+    id: 'notes', key: 5, title: '导演意见 → 规则', desc: '把批注、截图、录音整理成待确认规则，确认后进入规则库',
+    input: 'url-or-text', inputHint: '粘贴导演意见，或选一张截图 / 一段录音',
+    steps: [
+      { id: 'recognize', label: '识别意见', async run(ctx, env, input, signal) {
+        ctx.notes = input.filePath || input.url ? await env.parse({ url: input.url, filePath: input.filePath }, signal) : (input.text ?? '').trim();
+        need(ctx.notes, '请粘贴导演意见，或选择截图 / 录音');
+        ctx.source = input.filePath ? input.filePath.split(/[\\/]/).pop() : input.url ?? '导演意见';
+      } },
+      { id: 'compare', label: '对照规则库', async run(ctx, env) {
+        ctx.existing = env.bible().rules.map((r) => `[${r.status === 'active' ? '已生效' : '待确认'}] ${r.text}`);
+        return { note: `${(ctx.existing as string[]).length} 条已有规则` };
+      } },
+      { id: 'draft', label: '生成待确认规则', async run(ctx, env, _i, signal) {
+        const r = await ask(env, `把导演意见整理成可以复用的写作规则：一条规则只说一件事，能用来检查以后的剧本。标出适用范围（全剧 / 某角色 / 某类场景）和级别（hard=硬规则，pref=偏好）。如果和已有规则冲突或重复，在 conflict 里说明。
+${RESULT_RULE}
+格式：{"items":[{"text":"规则","scope":"全剧","level":"hard","conflict":""}]}
+
+导演意见：${String(ctx.notes).slice(0, 6000)}
+已有规则：${(ctx.existing as string[]).join('\n') || '（无）'}`, signal);
+        ctx.items = parseResult(r.text, RulesSchema).items;
+      } },
+    ],
+    finish: (ctx) => ({ kind: 'rules', items: ctx.items as never, source: String(ctx.source ?? '导演意见') }),
+  },
+  {
+    id: 'length', key: 6, title: '控字数 / 时长', desc: '按场估算时长，给出删减方案，重场戏不动（先预览）',
+    input: 'target', inputHint: '目标字数（10 分钟约 5000 字）',
+    steps: [
+      { id: 'read', label: '读全文', async run(ctx, env, input) {
+        const n = env.nodes();
+        need(n.length, '剧本还是空的');
+        ctx.words = wordCount(n);
+        ctx.target = input.target && input.target > 0 ? input.target : 5000;
+        return { note: `现在 ${ctx.words} 字，目标 ${ctx.target} 字` };
+      } },
+      { id: 'estimate', label: '按场估算时长', async run(ctx, env) {
+        // ~500 字/分钟 for a 10-minute kids' episode (5000 字 ≈ 10 分钟, spec §1.1).
+        const nodes = env.nodes();
+        const per: { heading: string; words: number }[] = [];
+        let cur: { heading: string; words: number } | null = null;
+        for (const nd of nodes) {
+          if (nd.type === 'heading') { cur = { heading: nd.text, words: 0 }; per.push(cur); }
+          else if (cur) cur.words += wordCount([nd]);
+        }
+        ctx.perScene = per.map((s) => `${s.heading}：${s.words} 字 ≈ ${(s.words / 500).toFixed(1)} 分钟`);
+        if ((ctx.words as number) <= (ctx.target as number)) return { note: '已经在目标以内，不需要删减' };
+        return { note: `约 ${((ctx.words as number) / 500).toFixed(1)} 分钟` };
+      } },
+      { id: 'plan', label: '给出删减方案', async run(ctx, env, _i, signal) {
+        if ((ctx.words as number) <= (ctx.target as number)) throw new Error(`剧本 ${ctx.words} 字，已经在目标 ${ctx.target} 字以内`);
+        const r = await ask(env, `${WRITE_SYSTEM}
+
+任务：把剧本从 ${ctx.words} 字删减到 ${ctx.target} 字左右。重场戏和锁定的故事核心不动；优先删重复的动作描写、拖沓的对白、可以合并的过场。用 updateNode / deleteNode 给出修改。
+各场时长：
+${(ctx.perScene as string[]).join('\n')}
+项目设定：${brief(env)}
+
+${script(env, undefined, 14000)}`, signal);
+        const o = opsFrom(r.text);
+        ctx.narration = o.narration;
+        ctx.ops = o.ops;
+      } },
+    ],
+    finish: (ctx) => ({ kind: 'ops', narration: String(ctx.narration ?? ''), ops: ctx.ops as Op[] }),
+  },
+  {
+    id: 'transcribe', key: 7, title: '视频 → 逐字稿', desc: '本地视频转成逐字稿，存进知识库，可以导出 SRT',
+    input: 'file', inputHint: '选择本地视频或音频',
+    steps: [
+      { id: 'check', label: '检查格式和大小', async run(ctx, _env, input) {
+        need(input.filePath, '请选择一个视频或音频文件');
+        const ext = input.filePath!.split('.').pop()?.toLowerCase() ?? '';
+        if (!VIDEO.includes(ext)) throw new Error(`不支持 .${ext}，请选择 ${VIDEO.join(' / ')}`);
+        ctx.fileName = input.filePath!.split(/[\\/]/).pop();
+      } },
+      { id: 'provider', label: '选择转写服务', async run(ctx, env, input) {
+        ctx.provider = input.provider ?? (env.hasGemini() ? 'gemini' : 'ancher');
+        return { note: ctx.provider === 'gemini' ? 'Gemini（你自己的 key）' : 'Ancher' };
+      } },
+      { id: 'transcribe', label: '上传并转写', async run(ctx, env, input, signal) {
+        const r = await env.transcribe(input.filePath!, ctx.provider as 'gemini' | 'ancher', signal);
+        need(r.text.trim(), '没有识别出文字');
+        ctx.text = r.text;
+        ctx.srt = r.srt;
+        return { note: `${r.text.length} 字` };
+      } },
+    ],
+    finish: (ctx) => ({ kind: 'transcript', fileName: String(ctx.fileName), text: String(ctx.text), srt: String(ctx.srt ?? ''), provider: String(ctx.provider) }),
+  },
+  {
+    id: 'topics', key: 8, title: '今日热点选题', desc: 'Ancher 联网搜索今天的热点，筛成 5 个适合儿童动画的选题',
+    input: 'none',
+    steps: [
+      { id: 'search', label: 'Ancher 联网搜索', async run(ctx, env, _i, signal) {
+        const today = new Date().toLocaleDateString('zh-CN');
+        const r = await ask(env, `搜索今天（${today}）和儿童、家庭、学校、北京胡同生活有关的新闻和社交媒体热点，列出 10 条，每条一句话并注明来源。`, signal, true);
+        ctx.hot = r.text;
+        ctx.citations = r.citations.slice(0, 8);
+        return { note: `${r.citations.length} 条来源` };
+      } },
+      { id: 'pick', label: '筛出 5 个选题', async run(ctx, env, _i, signal) {
+        const r = await ask(env, `从这些热点里筛出最多 5 个适合 5–10 岁观众、10 分钟一集的动画选题。每个选题要能落到我们的角色和世界观里，写清楚一句话故事（logline）和为什么适合（why）。避开被否过的选题和规则里不能写的内容。
+${RESULT_RULE}
+格式：{"items":[{"title":"…","logline":"…","why":"…"}]}
+
+热点：${ctx.hot}
+项目设定：${brief(env)}
+规则和反例：${negatives(env)}`, signal);
+        ctx.items = parseResult(r.text, TopicsSchema).items;
+      } },
+    ],
+    finish: (ctx) => ({ kind: 'topics', items: ctx.items as never, citations: (ctx.citations as never) ?? [] }),
+  },
+];
+
+export const workflow = (id: WorkflowId) => {
+  const d = WORKFLOWS.find((w) => w.id === id);
+  if (!d) throw new Error(`unknown workflow ${id}`);
+  return d;
+};
+
+export type { WorkflowInput };

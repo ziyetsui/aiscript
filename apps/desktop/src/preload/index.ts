@@ -25,6 +25,7 @@ const api: Api = {
     remove: call('projects:remove') as Api['projects']['remove'],
     edit: call('projects:edit') as Api['projects']['edit'],
     undoTurn: call('projects:undoTurn') as Api['projects']['undoTurn'],
+    setOutline: call('projects:setOutline') as Api['projects']['setOutline'],
   },
   ai: {
     write: call('ai:write') as Api['ai']['write'],
@@ -34,6 +35,18 @@ const api: Api = {
       const h = (_e: Electron.IpcRendererEvent, d: { reqId: string; text: string }) => cb(d);
       ipcRenderer.on('ai:delta', h);
       return () => ipcRenderer.removeListener('ai:delta', h);
+    },
+  },
+  workflows: {
+    start: call('wf:start') as Api['workflows']['start'],
+    cancel: call('wf:cancel') as Api['workflows']['cancel'],
+    retry: call('wf:retry') as Api['workflows']['retry'],
+    apply: call('wf:apply') as Api['workflows']['apply'],
+    pickFile: call('wf:pickFile') as Api['workflows']['pickFile'],
+    onUpdate(cb) {
+      const h = (_e: Electron.IpcRendererEvent, d: { projectId: string; run: import('../shared/ipc.ts').RunState }) => cb(d);
+      ipcRenderer.on('wf:update', h);
+      return () => ipcRenderer.removeListener('wf:update', h);
     },
   },
   bible: {

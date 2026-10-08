@@ -3,7 +3,7 @@
 // Spec 0002 §0 "AI 改稿", §5.4, D9, §12.4.
 import { app, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
-import { applyOps, bibleBrief, needsReview, parseReply, previewOps } from '@scripter/core';
+import { applyOps, bibleBrief, needsReview, parseReply, previewOps, type Op } from '@scripter/core';
 import { buildMessage, checkAncherKey, createAncher, describeError, runChat } from '@scripter/agent';
 import type { AiWriteRequest, AiWriteResult, ChatMsg, TurnInfo } from '../shared/ipc.ts';
 import { get, pushChat, saveNow, state } from './projects.ts';
@@ -48,9 +48,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
         reply({ text: parsed.narration, citations, error: 'AI 要改的段落找不到了，剧本没有改动。请再说一次' });
         return { ok: false, narration: parsed.narration, applied: 0, errors: parsed.errors, citations, message: 'AI 要改的段落找不到了' };
       }
-      const m = reply({ text: parsed.narration || '我想这样改，确认后再写入：', citations, error: skipped, preview: { items: pv.items, state: 'open' } });
-      (p.meta.pending ??= {})[m.id] = { ops: parsed.ops, label: req.instruction.slice(0, 24) };
-      saveNow(p);
+      const m = propose(p, parsed.ops, parsed.narration || '我想这样改，确认后再写入：', req.instruction.slice(0, 24), { citations, error: skipped });
       return { ok: true, narration: parsed.narration, applied: 0, errors: parsed.errors, citations, previewId: m.id };
     }
     let turn;
@@ -69,6 +67,14 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   } finally {
     running.delete(req.reqId);
   }
+}
+
+/** Put ops behind a modification preview in the conversation (used by chat replies and workflow results). */
+export function propose(p: ReturnType<typeof get>, ops: Op[], text: string, label: string, extra: Partial<ChatMsg> = {}): ChatMsg {
+  const m = pushChat(p, msg({ role: 'ai', text, ...extra, preview: { items: previewOps(p.doc, ops).items, state: 'open' } }));
+  (p.meta.pending ??= {})[m.id] = { ops, label };
+  saveNow(p);
+  return m;
 }
 
 /** Accept → apply as one undoable turn (re-checked against the current text). Reject → nothing changes. */
