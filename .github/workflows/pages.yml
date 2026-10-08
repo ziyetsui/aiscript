@@ -1,0 +1,38 @@
+name: Deploy prototype
+
+# Publishes prototypes/dist to GitHub Pages on every push to main.
+# Requires Pages to be enabled with "GitHub Actions" as the source (see specs/0002 D10).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    # Set the repo variable PAGES_ENABLED=true once Pages is available for this repo.
+    if: vars.PAGES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node prototypes/build.mjs && node prototypes/check.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: prototypes/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

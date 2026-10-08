@@ -1,0 +1,54 @@
+/* Direction B · Night Desk — dark, immersive focus mode. AI lives in a floating
+   command bar (⌘K) and writes proposals inline that the writer accepts or rejects. */
+:root {
+  --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-display: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --desk: #0d0e11; --chrome: #0a0b0d; --surface: #15171c; --paper: #121419; --field: #1a1d23;
+  --ink: #ecedf0; --ink-2: #b4b7c0; --ink-3: #737782;
+  --line: #22252c; --line-strong: #2e323a;
+  --hover: #1d2027; --hover-strong: #262a32;
+  --accent: #9aa8ff; --accent-hover: #b0bbff; --on-accent: #0d0e11; --accent-ring: rgba(154,168,255,.25); --accent-soft: rgba(154,168,255,.12);
+  --amber: #f2b45c; --amber-soft: rgba(242,180,92,.10);
+  --ok: #4fb57a; --selection: rgba(154,168,255,.3); --write-hl: rgba(242,180,92,.10);
+  --scrim: rgba(0,0,0,.55); --toast: #ecedf0; --on-toast: #111;
+  --r-ctl: 9px; --r-card: 16px;
+  --shadow-card: 0 0 0 1px var(--line);
+  --shadow-pop: 0 0 0 1px var(--line-strong), 0 24px 60px rgba(0,0,0,.55);
+}
+body { color-scheme: dark; }
+.display { font-family: var(--font-display); font-weight: 600; letter-spacing: -.02em; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: -.01em; }
+.mark { width: 22px; height: 22px; border-radius: 6px; background: linear-gradient(135deg, var(--accent), #c9a3ff); }
+
+.rail { width: 56px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 0; border-right: 1px solid var(--line); background: var(--chrome); }
+.rail button { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; color: var(--ink-3); transition: transform 160ms var(--ease-out); }
+.rail button:active { transform: scale(.95); }
+.rail button.on { background: var(--hover-strong); color: var(--ink); }
+.rail .grow { flex: 1; }
+.main { flex: 1; min-width: 0; overflow: auto; }
+.card { background: var(--surface); border-radius: var(--r-card); box-shadow: var(--shadow-card); }
+
+/* Workspace: scene rail + focused page + floating command bar */
+.scene-rail { width: 210px; flex: none; padding: 16px 10px; overflow: auto; border-right: 1px solid var(--line); }
+.scene-rail .s { display: block; padding: 8px 10px; border-radius: 8px; color: var(--ink-3); font-size: 12.5px; }
+.scene-rail .s b { display: block; color: var(--ink-2); font-weight: 500; font-size: 13px; }
+.scene-rail .s.on { background: var(--hover); }
+.scene-rail .s.on b { color: var(--ink); }
+.focus { flex: 1; min-width: 0; position: relative; display: flex; flex-direction: column; }
+.focus-top { height: 44px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 16px; color: var(--ink-3); font-size: 12.5px; }
+.focus-scroll { flex: 1; overflow: auto; padding: 8px 0 160px; }
+.page { width: min(640px, calc(100% - 48px)); margin: 0 auto; font-family: var(--font-script); font-size: 14.5px; line-height: 1.7; color: var(--ink-2); }
+.page .sc-heading, .page .sc-char { color: var(--ink); }
+.cmdbar { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); width: min(620px, calc(100% - 40px));
+  background: rgba(26,29,35,.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  border-radius: 14px; box-shadow: var(--shadow-pop); padding: 8px; }
+.cmdbar .row { display: flex; align-items: center; gap: 8px; }
+.cmdbar input { flex: 1; height: 38px; background: transparent; border: 0; outline: none; padding: 0 8px; font-size: 15px; }
+.agent-pill { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow-pop); font-size: 12.5px; color: var(--ink-2);
+  opacity: 0; transform: translate(-50%, -6px); transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out); pointer-events: none; }
+.agent-pill.show { opacity: 1; transform: translate(-50%, 0); }
+.proposal { border-left: 2px solid var(--amber); background: var(--amber-soft); padding: 6px 12px; margin: 10px -14px; border-radius: 0 8px 8px 0; }
+.proposal-bar { display: flex; gap: 6px; justify-content: flex-end; margin-top: 6px; font-family: var(--font-ui); }
+.inspector { width: 300px; flex: none; border-left: 1px solid var(--line); padding: 16px; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.step { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+.step.wait { color: var(--ink-3); }

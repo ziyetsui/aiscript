@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AIScript Prototype</title>
+<style>
+  :root { --ease-out: cubic-bezier(0.23, 1, 0.32, 1); }
+  html, body { margin: 0; height: 100%; background: #1b1b1d; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+
+  /* Floating layer switcher: neutral glass so it reads over both the paper and the dark direction. */
+  .sw { position: fixed; right: 16px; top: 46px; z-index: 10; width: 300px; color: #f2f2f3; font-size: 13px;
+    background: rgba(24, 24, 27, .86); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4);
+    border-radius: 14px; box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 18px 50px rgba(0,0,0,.4);
+    transform-origin: top right; transition: transform 220ms var(--ease-out), opacity 180ms var(--ease-out); }
+  .sw.closed { transform: scale(.96); opacity: 0; pointer-events: none; }
+  .sw header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 8px; }
+  .sw header b { flex: 1; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: #a1a1aa; }
+  .sw .list { max-height: min(52vh, 420px); overflow: auto; padding: 0 6px; }
+  .sw .pg { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 7px 8px; border-radius: 8px; color: #d4d4d8; background: none; border: 0; font: inherit; cursor: pointer; }
+  .sw .pg i { font-style: normal; width: 22px; color: #71717a; font-variant-numeric: tabular-nums; font-size: 12px; }
+  .sw .pg.on { background: rgba(255,255,255,.1); color: #fff; }
+  @media (hover: hover) and (pointer: fine) { .sw .pg:hover { background: rgba(255,255,255,.06); } }
+  .sw .row { display: flex; gap: 6px; padding: 10px 12px 0; }
+  .seg { flex: 1; display: flex; background: rgba(255,255,255,.06); border-radius: 9px; padding: 2px; }
+  .seg button { flex: 1; height: 28px; border: 0; border-radius: 7px; background: none; color: #a1a1aa; font: inherit; font-size: 12px; cursor: pointer; transition: transform 140ms var(--ease-out); }
+  .seg button:active { transform: scale(.97); }
+  .seg button.on { background: rgba(255,255,255,.14); color: #fff; }
+  .seg.dirs { flex-direction: column; } .seg.dirs button { text-align: left; padding: 0 10px; }
+  .sw .note { padding: 8px 12px 0; color: #a1a1aa; font-size: 12px; min-height: 18px; }
+  .sw footer { padding: 10px 12px 12px; color: #71717a; font-size: 11px; display: flex; gap: 10px; flex-wrap: wrap; }
+  kbd { font-family: ui-monospace, monospace; font-size: 10.5px; padding: 1px 5px; border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); color: #d4d4d8; }
+  .icon-btn { width: 26px; height: 26px; border: 0; border-radius: 7px; background: rgba(255,255,255,.08); color: #e4e4e7; cursor: pointer; display: grid; place-items: center; }
+  .pill { position: fixed; right: 156px; top: 5px; z-index: 9; height: 28px; padding: 0 14px; border: 0; border-radius: 999px; cursor: pointer;
+    background: rgba(24,24,27,.86); color: #f4f4f5; font: inherit; font-size: 12.5px; box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 10px 30px rgba(0,0,0,.35);
+    backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); transition: transform 140ms var(--ease-out); }
+  .pill:active { transform: scale(.97); }
+  :focus-visible { outline: 2px solid #9aa8ff; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .sw, .seg button, .pill { transition: none; } }
+  @media (max-width: 520px) { .sw { left: 16px; width: auto; } .pill { right: 16px; } }
+</style>
+</head>
+<body>
+<iframe id="stage" title="原型画面"></iframe>
+<button class="pill" id="pill" hidden>层级 · <span id="pill-t"></span></button>
+<section class="sw" id="sw" aria-label="原型层级切换器">
+  <header><b>AIScript 原型 · ancher tokens</b><button class="icon-btn" id="collapse" aria-label="收起切换器" title="收起 (H)">–</button></header>
+  <div class="list" id="list" role="listbox" aria-label="页面"></div>
+  <div class="row"><div class="seg dirs" id="dir" role="group" aria-label="设计方向（只换 design token）"></div></div>
+  <div class="row"><div class="seg" id="os" role="group" aria-label="系统"><button data-os="mac">macOS</button><button data-os="win">Windows</button></div></div>
+  <div class="note" id="note"></div>
+  <footer><span><kbd>↑</kbd><kbd>↓</kbd> 页面</span><span><kbd>1</kbd>–<kbd>5</kbd> 方向</span><span><kbd>M</kbd><kbd>W</kbd> 系统</span><span><kbd>H</kbd> 收起</span></footer>
+</section>
+<script>
+/*__LAYERS__*/
+/*__META__*/
+const state = { page: META.pages[0].id, dir: Object.keys(META.directions)[0], os: 'mac' };
+const stage = document.getElementById('stage');
+const list = document.getElementById('list');
+const dirSeg = document.getElementById('dir');
+
+META.pages.forEach((p, i) => {
+  const b = document.createElement('button');
+  b.className = 'pg'; b.dataset.id = p.id; b.setAttribute('role', 'option');
+  b.innerHTML = '<i>' + String(i + 1).padStart(2, '0') + '</i>' + p.name;
+  b.onclick = () => set({ page: p.id });
+  list.appendChild(b);
+});
+Object.entries(META.directions).forEach(([k, d]) => {
+  const b = document.createElement('button'); b.dataset.dir = k; b.innerHTML = d.name + ' <span style="opacity:.6">' + d.zh + '</span>'; b.onclick = () => set({ dir: k }); dirSeg.appendChild(b);
+});
+document.querySelectorAll('#os button').forEach((b) => (b.onclick = () => set({ os: b.dataset.os })));
+
+function readHash() {
+  const [page, dir, os] = location.hash.slice(1).split('-');
+  if (META.pages.some((p) => p.id === page)) state.page = page;
+  if (dir in META.directions) state.dir = dir;
+  if (os === 'mac' || os === 'win') state.os = os;
+}
+let loaded = '';
+function render() {
+  const key = state.page + '-' + state.dir;
+  if (loaded !== key) {
+    stage.srcdoc = LAYERS[key].replace('<body>', '<body data-os="' + state.os + '">');
+    loaded = key;
+  } else {
+    stage.contentWindow && stage.contentWindow.postMessage({ type: 'proto:os', os: state.os }, '*');
+  }
+  list.querySelectorAll('.pg').forEach((b) => { const on = b.dataset.id === state.page; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+  dirSeg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.dir === state.dir));
+  document.querySelectorAll('#os button').forEach((b) => b.classList.toggle('on', b.dataset.os === state.os));
+  document.getElementById('note').textContent = META.directions[state.dir].note;
+  const idx = META.pages.findIndex((p) => p.id === state.page);
+  document.getElementById('pill-t').textContent = String(idx + 1).padStart(2, '0') + ' · ' + state.dir.slice(1);
+  history.replaceState(null, '', '#' + state.page + '-' + state.dir + '-' + state.os);
+}
+function set(patch) { Object.assign(state, patch); render(); }
+// The iframe gets the OS on load too, so a srcdoc swap never flashes the wrong chrome.
+stage.addEventListener('load', () => stage.contentWindow.postMessage({ type: 'proto:os', os: state.os }, '*'));
+
+const sw = document.getElementById('sw'), pill = document.getElementById('pill');
+function toggle(open) { sw.classList.toggle('closed', !open); pill.hidden = open; }
+document.getElementById('collapse').onclick = () => toggle(false);
+pill.onclick = () => toggle(true);
+
+// Keyboard switching is instant (no animation): it is used many times in a review session.
+function onKey(e) {
+  const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const idx = META.pages.findIndex((p) => p.id === state.page);
+  const k = e.key.toLowerCase();
+  if (k === 'arrowdown' || k === 'arrowright') { set({ page: META.pages[Math.min(idx + 1, META.pages.length - 1)].id }); e.preventDefault(); }
+  else if (k === 'arrowup' || k === 'arrowleft') { set({ page: META.pages[Math.max(idx - 1, 0)].id }); e.preventDefault(); }
+  else if (/^[1-9]$/.test(k) && ('d' + k) in META.directions) set({ dir: 'd' + k });
+  else if (k === 'm') set({ os: 'mac' });
+  else if (k === 'w') set({ os: 'win' });
+  else if (k === 'h') toggle(sw.classList.contains('closed'));
+}
+document.addEventListener('keydown', onKey);
+// Forward keys pressed while focus is inside the layer (same-origin srcdoc).
+stage.addEventListener('load', () => { try { stage.contentDocument.addEventListener('keydown', onKey); } catch (_) {} });
+
+readHash(); render();
+window.addEventListener('hashchange', () => { readHash(); render(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  prototype:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Build prototype
+        run: node prototypes/build.mjs
+      - name: Check prototype format contract
+        run: node prototypes/check.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prototype
+          path: prototypes/dist/index.html
