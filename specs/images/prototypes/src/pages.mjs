@@ -520,3 +520,4 @@ export const PAGES = [
   { id: 'p7', name: '最近', render: p7 },
   { id: 'p8', name: '设置 · 激活 / 密钥', render: p8 },
 ];
+export { icon, chrome, nodes, IDEA, SCRIPT1, SCRIPT2, OUTLINE, CHARS, LOCS, rail, workspace, ICONS_JS };
