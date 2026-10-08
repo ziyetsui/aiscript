@@ -1,4 +1,4 @@
-# AIScript 原型 v2
+# Ancher Scripter 原型 v2
 
 `dist/index.html` 是单个文件，共 40 层：**8 个页面 × 5 个 design token 方向**，每层都是一份完整的 HTML 文档。文件大约 1.2MB，有些预览器打不开，用浏览器直接打开即可，离线可用。
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AIScript Prototype</title>
+<title>Ancher Scripter Prototype</title>
 <style>
   /* Picker chrome only — the layers carry their own tokens. Neutral glass so it reads over light and dark directions. */
   :root {
@@ -224,7 +224,7 @@ const K1 = {
   mount(root) {
     root.innerHTML = `<section class="k1 glass ${open ? '' : 'closed'}" id="k1" aria-label="原型层级切换器">
       <button class="pillface" id="k1-pill" aria-label="展开切换器"><span id="k1-pill-t" class="tnum"></span></button>
-      <div class="inner"><header><b>AIScript 原型</b>${styleSwitch()}<button class="press" id="k1-x" aria-label="收起" style="width:24px;height:24px;border-radius:7px;background:rgba(255,255,255,.08)">–</button></header>
+      <div class="inner"><header><b>Ancher Scripter 原型</b>${styleSwitch()}<button class="press" id="k1-x" aria-label="收起" style="width:24px;height:24px;border-radius:7px;background:rgba(255,255,255,.08)">–</button></header>
       <div class="list" id="k1-list" role="listbox" aria-label="页面"><div class="hl" aria-hidden="true"></div>
         ${PAGES.map((p, i) => `<button class="pg press" role="option" data-p="${p.id}"><i class="tnum">${pad(i + 1)}</i>${p.name}</button>`).join('')}</div>
       <div class="row" style="justify-content:space-between">${dirButtons()}</div>

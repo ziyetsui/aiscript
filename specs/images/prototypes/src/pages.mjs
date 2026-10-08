@@ -57,10 +57,10 @@ const CHARS = [['豆豆', '男 · 9 岁 · 三年级学生', '胆小，心细，
 const LOCS = [['胡同口', '傍晚'], ['豆豆家', '夜'], ['学校操场', '日']];
 
 /* ═════ P1 激活（v0.2：不登录。激活码由托管 license 服务一次性绑定本机，见 spec §6） ═════ */
-const p1 = () => chrome('AIScript · 激活', `
+const p1 = () => chrome('Ancher Scripter · 激活', `
   <div class="act-layout" style="flex:1;display:grid;grid-template-columns:minmax(400px,0.95fr) 1.05fr;gap:16px;padding:16px">
     <div class="act-form" style="display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px">
-      <div class="fade-up" style="--i:0;text-align:center"><div class="logo" id="brand-logo" style="margin:0 auto 14px;width:44px;height:44px" aria-label="Ancher" role="img">${symbolSvg(44)}</div><h1 class="display" style="font-size:36px;line-height:1.1;margin:0 0 8px">激活 AIScript</h1><p class="muted" style="margin:0">输入你收到的激活码。不需要注册，也不需要登录。</p></div>
+      <div class="fade-up" style="--i:0;text-align:center"><div class="logo" id="brand-logo" style="margin:0 auto 14px;width:44px;height:44px" aria-label="Ancher" role="img">${symbolSvg(44)}</div><h1 class="display" style="font-size:36px;line-height:1.1;margin:0 0 8px">激活 Ancher Scripter</h1><p class="muted" style="margin:0">输入你收到的激活码。不需要注册，也不需要登录。</p></div>
       <div class="card fade-up" style="--i:1;width:min(400px,100%);padding:18px;display:flex;flex-direction:column;gap:12px" id="act-card">
         <label style="font-size:12.5px;font-weight:600" for="code">激活码</label>
         <input class="input" id="code" value="AIS-7K3F-9Q2M-4XHD-B8NC" spellcheck="false" autocomplete="off" style="font-family:var(--font-family-mono);letter-spacing:.04em">
@@ -81,7 +81,7 @@ const p1 = () => chrome('AIScript · 激活', `
     <div class="display" id="mt" style="font-size:20px;margin-bottom:4px">手动激活（无法联网时）</div>
     <p class="muted" style="margin:0 0 12px;font-size:13px">把下面的机器码发给提供方，对方会给你一个只对这台电脑有效的离线激活码。</p>
     <div style="display:flex;gap:8px;align-items:center"><code class="input" style="display:flex;align-items:center;font-family:var(--font-family-mono)">AS-7K3F-9Q2M-4XHD-B8NC</code><button class="btn btn-ghost" style="height:40px" onclick="toast('机器码已复制')">复制</button></div>
-    <textarea class="input" style="height:84px;padding:10px 12px;margin-top:10px;font-family:var(--font-family-mono);font-size:12px;resize:none" placeholder="粘贴离线激活码（AIS1-…），或把 .aiscript-license 文件拖到这里"></textarea>
+    <textarea class="input" style="height:84px;padding:10px 12px;margin-top:10px;font-family:var(--font-family-mono);font-size:12px;resize:none" placeholder="粘贴离线激活码（AIS1-…），或把 .scripter-license 文件拖到这里"></textarea>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px"><button class="btn btn-ghost" onclick="closeModal('manual')">取消</button><button class="btn btn-primary" onclick="closeModal('manual');toast('离线激活成功')">激活</button></div></div></div>
   <script>
   async function activate(kind){ const b=document.getElementById('act-btn'), box=document.getElementById('act-steps'); b.disabled=true; box.innerHTML='';
@@ -122,7 +122,7 @@ const p1 = () => chrome('AIScript · 激活', `
   </script>`);
 
 /* ═════ P2 Onboarding（laper：一句话 + 添加文件 + 类型） ═════ */
-const p2 = () => chrome('AIScript', `
+const p2 = () => chrome('Ancher Scripter', `
   <div class="ob" style="flex:1;position:relative;display:grid;place-items:center;overflow:hidden">
     <div aria-hidden="true" style="position:absolute;inset:-20%;background:radial-gradient(22% 30% at 25% 70%, var(--primary-soft), transparent 70%),radial-gradient(18% 26% at 75% 25%, var(--hl), transparent 70%),radial-gradient(20% 22% at 60% 85%, var(--primary-soft), transparent 70%);filter:blur(40px)"></div>
     <button class="chip" style="position:absolute;top:14px;right:16px">中 / EN</button>
@@ -143,7 +143,7 @@ const p2 = () => chrome('AIScript', `
   async function go(b){b.disabled=true;const s=document.getElementById('status');s.innerHTML='<span style="display:inline-flex;gap:8px;align-items:center"><span class="spin"></span>正在创建项目，AI 会马上开始……</span>';await wait(1100);s.textContent='→ 跳转到工作区（见第 04 页，AI 自动开跑）';b.disabled=false;}</script>`);
 
 /* ═════ P3 创作首页（laper /app/new） ═════ */
-const p3 = () => chrome('AIScript', `
+const p3 = () => chrome('Ancher Scripter', `
   <div class="home" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 18px;position:relative">
     <div style="align-self:stretch;display:flex;justify-content:space-between;align-items:center"><button class="btn btn-quiet" style="width:34px;padding:0" aria-label="菜单">${icon('menu', 16)}</button><span class="chip" style="height:30px"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span> 已激活 · Ancher 已连接</span></div>
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;width:min(640px,100%)">
@@ -152,7 +152,7 @@ const p3 = () => chrome('AIScript', `
         <div style="display:flex;gap:8px;align-items:center"><button class="btn btn-ghost" style="height:30px">${icon('plus', 13)} 添加文件</button><button class="btn btn-ghost" style="height:30px">${icon('doc', 13)} 剧本 ${icon('chev', 12)}</button><span style="flex:1"></span><button class="btn btn-primary" style="width:34px;height:34px;padding:0;border-radius:50%" aria-label="发送">${icon('send', 15)}</button></div></div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">${[['indent', '格式'], ['bulb', '灵感'], ['pen', '写作'], ['film', '情节'], ['user', '角色']].map(([ic, t]) => `<button class="btn btn-ghost" style="height:32px">${icon(ic, 14)} ${t}</button>`).join('')}</div>
     </div>
-    <div class="muted" style="font-size:11.5px;display:flex;gap:16px">AIScript · 剧本博物馆 · support@aiscript.app · 服务条款 · 隐私政策</div>
+    <div class="muted" style="font-size:11.5px;display:flex;gap:16px">Ancher Scripter · 剧本博物馆 · 帮助与支持 · 服务条款 · 隐私政策</div>
   </div>`);
 
 /* ═════ P4 工作区（laper 主流程：AI 自动开跑） ═════ */
@@ -199,7 +199,7 @@ const WORKFLOWS = [
 const welcome = `<div id="welcome" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 8px;text-align:center">
   <div style="width:100%;height:96px;border-radius:var(--r-xl);background:radial-gradient(60% 90% at 30% 40%, var(--primary-soft), transparent 70%),radial-gradient(50% 80% at 75% 60%, var(--hl), transparent 70%),var(--muted)"></div>
   <b>你的编剧搭档，随时待命。</b><div class="muted" style="font-size:13px">我的任务是替你处理繁琐的格式工作。<br>还有更多。</div></div>`;
-const workspace = () => chrome('AIScript — <span id="t-proj">新剧本</span>', `
+const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本</span>', `
   ${rail('写作')}
   <aside class="col2">
     <div class="hd"><span id="proj">新剧本</span><span style="flex:1"></span><button class="btn btn-quiet" style="height:24px;padding:0 6px" aria-label="新建一集">${icon('plus', 13)}</button><button class="btn btn-quiet" style="height:24px;padding:0 6px" aria-label="更多">···</button></div>
@@ -446,7 +446,7 @@ TW.ui(); setTimeout(turn1, 700);
 const ICONS_JS = `<script>window.ICON=${JSON.stringify({ copy: icon('copy', 13), up: icon('up', 13), down: icon('down', 13), undo: icon('undo', 13), send: icon('send', 15), stop: icon('stop', 13), video: icon('video', 12) })};</script>`;
 
 /* ═════ P5 角色画布（laper /characters） ═════ */
-const p5 = () => chrome('AIScript — 角色', `${rail('角色')}
+const p5 = () => chrome('Ancher Scripter — 角色', `${rail('角色')}
   <section class="center" style="background-image:radial-gradient(var(--line-strong) 1px, transparent 1px);background-size:20px 20px">
     <div class="center-hd" style="background:var(--bg)"><b>角色</b><span class="chip tnum" style="height:20px">4</span><span style="flex:1"></span><div class="seg"><button class="on">概览</button><button>关系</button><button>选角</button></div><span style="flex:1"></span>
       <button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出">${icon('export', 14)}</button><button class="btn btn-primary" style="height:28px">${icon('plus', 13)} 新角色</button></div>
@@ -462,7 +462,7 @@ const p5 = () => chrome('AIScript — 角色', `${rail('角色')}
     </div></section>`);
 
 /* ═════ P6 制作设置 + 分镜（laper /production） ═════ */
-const p6 = () => chrome('AIScript — 制作', `${rail('制作')}
+const p6 = () => chrome('Ancher Scripter — 制作', `${rail('制作')}
   <section class="center">
     <div class="center-hd"><b>门墩儿</b><span class="muted">制作 · 5</span><span style="flex:1"></span><button class="btn btn-primary" style="height:28px">${icon('plus', 13)} 新增卷</button></div>
     <div style="display:flex;gap:6px;padding:10px 14px;border-bottom:1px solid var(--line);overflow:auto">${['1. 外景 胡同口 — 傍晚', '2. 内景 豆豆家 — 夜', '3. 外景 学校操场 — 日', '4. 外景 胡同口 — 傍晚', '5. 内景 姥爷修车铺 — 夜'].map((t, i) => `<button class="chip" style="${i === 0 ? 'background:var(--surface);box-shadow:var(--shadow-card);color:var(--ink)' : ''}">${t}</button>`).join('')}</div>
@@ -488,13 +488,13 @@ const p6 = () => chrome('AIScript — 制作', `${rail('制作')}
     <div style="display:flex;justify-content:flex-end;margin-top:14px"><button class="btn btn-primary" onclick="closeModal('prod')">确认</button></div></div></div>`);
 
 /* ═════ P7 最近（laper /app/recents） ═════ */
-const p7 = () => chrome('AIScript', `
+const p7 = () => chrome('Ancher Scripter', `
   <nav class="rec-nav" style="width:220px;flex:none;padding:14px 10px;display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line);background:var(--sidebar)" class="col2">
-    <div style="display:flex;align-items:center;gap:8px;font-weight:700;padding:0 6px 12px"><div class="logo" style="margin:0" aria-label="Ancher" role="img">${symbolSvg(24)}</div>AIScript</div>
+    <div style="display:flex;align-items:center;gap:8px;font-weight:700;padding:0 6px 12px"><div class="logo" style="margin:0" aria-label="Ancher" role="img">${symbolSvg(24)}</div>Ancher Scripter</div>
     ${[['plus', '新建'], ['home', '最近', 1], ['doc', '剧本'], ['video', '快速视频 Beta'], ['users', '社区'], ['trash', '回收站']].map(([ic, t, on]) => `<div class="item${on ? ' on' : ''}" style="margin:0">${icon(ic, 15)} ${t}</div>`).join('')}
     <div style="flex:1"></div>
     <div class="card" style="padding:12px;margin:8px 0;background:linear-gradient(140deg, var(--primary-soft), var(--surface))"><div class="row" style="display:flex;align-items:center;gap:6px;font-weight:600"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span>已激活 · Ancher 已连接</div>
-      <div class="muted" style="font-size:11.5px;margin-top:4px">北京 · 1 / 3<br>项目保存在本机 ~/AIScript</div></div>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">北京 · 1 / 3<br>项目保存在本机 ~/Ancher Scripter</div></div>
     <button class="btn btn-primary" style="height:32px">新功能</button></nav>
   <main class="rec-main" style="flex:1;overflow:auto;padding:24px 32px"><div class="muted" style="margin-bottom:16px">最近</div>
     <div class="rec-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
@@ -504,7 +504,7 @@ const p7 = () => chrome('AIScript', `
 
 /* ═════ P8 设置（v0.2：激活与授权 · 模型与密钥 · 项目数据；不显示用量） ═════ */
 const setRow = (k, v) => `<div style="display:flex;padding:9px 0;border-top:1px solid var(--line);font-size:13px"><span class="muted" style="width:120px;flex:none">${k}</span><span style="flex:1">${v}</span></div>`;
-const p8 = () => chrome('AIScript — 设置', `
+const p8 = () => chrome('Ancher Scripter — 设置', `
   <nav class="col2" style="width:220px;padding-top:14px">
     <div class="hd">设置</div>
     ${['激活与授权', '模型与密钥', '编辑器', '项目数据'].map((t, i) => `<a class="item${i === 0 ? ' on' : ''}" href="#s${i}" style="text-decoration:none">${t}</a>`).join('')}
@@ -526,8 +526,8 @@ const p8 = () => chrome('AIScript — 设置', `
       ${setRow('生成方式', '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" checked style="accent-color:var(--primary)"> AI 写作时逐字打出（系统开启"减少动态效果"时整段出现）</label>')}
       ${setRow('打字机音效', '<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" checked style="accent-color:var(--primary)"> 生成时播放按键声、换行声，写完"叮"一下</label><input type="range" min="0" max="100" value="32" aria-label="音量" style="width:160px;margin-top:6px;accent-color:var(--primary)">')}
       ${setRow('默认导出格式', '<div class="seg"><button class="on">PDF</button><button>Final Draft</button><button>Fountain</button><button>Word</button><button>TXT</button></div>')}</section>
-    <section class="card" id="s3" style="padding:18px"><b>项目数据</b><div class="muted" style="font-size:12.5px;margin:4px 0 10px">剧本、规则库、逐字稿都保存在本机 <code>~/AIScript</code>。换电脑时导出再导入。</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="toast('已导出 门墩儿.aiscript')">导出整个项目</button><button class="btn btn-ghost">导入项目</button><button class="btn btn-ghost" onclick="toast('已导出诊断包（不含 key 和剧本内容）')">导出诊断包</button></div></section>
+    <section class="card" id="s3" style="padding:18px"><b>项目数据</b><div class="muted" style="font-size:12.5px;margin:4px 0 10px">剧本、规则库、逐字稿都保存在本机 <code>~/Ancher Scripter</code>。换电脑时导出再导入。</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" onclick="toast('已导出 门墩儿.scripter')">导出整个项目</button><button class="btn btn-ghost">导入项目</button><button class="btn btn-ghost" onclick="toast('已导出诊断包（不含 key 和剧本内容）')">导出诊断包</button></div></section>
   </main>`);
 
 export const PAGES = [
