@@ -57,10 +57,17 @@ export interface AiWriteResult {
   /** Set when the reply is a modification preview waiting for the writer. */
   previewId?: string;
 }
+export type UpdateStatus = { state: 'idle' | 'checking' | 'none' | 'downloading' | 'ready' | 'error'; version?: string; percent?: number; message?: string };
 export type ExportFormat = 'pdf' | 'docx' | 'fdx' | 'fountain' | 'txt';
 
 export interface Api {
   app: { info(): Promise<{ version: string; platform: string }>; diagnostics(): Promise<{ ok: boolean; path?: string }> };
+  update: {
+    status(): Promise<UpdateStatus>;
+    check(): Promise<void>;
+    install(): Promise<void>;
+    onStatus(cb: (s: UpdateStatus) => void): () => void;
+  };
   license: {
     status(): Promise<LicenseStatus>;
     activateKeygen(key: string): Promise<ActivateResult>;

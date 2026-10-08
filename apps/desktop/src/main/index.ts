@@ -7,6 +7,7 @@ import * as ai from './ai.ts';
 import { save as exportSave } from './exporter.ts';
 import { activateKeygen, activateOffline, deactivateLocal, licenseStatus } from './license.ts';
 import * as archive from './archive.ts';
+import * as updater from './updater.ts';
 import * as files from './files.ts';
 import * as wf from './workflows.ts';
 import * as projects from './projects.ts';
@@ -31,6 +32,7 @@ function createWindow(): void {
     webPreferences: { preload: join(import.meta.dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
   win.once('ready-to-show', () => (e2e ? win?.showInactive() : win?.show()));
+  if (!e2e) updater.initUpdater(win);
   // Links open in the system browser; the app window never navigates away.
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) void shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('http://localhost') && !url.startsWith('file://')) e.preventDefault(); });
@@ -50,6 +52,9 @@ const active = () => { if (licenseStatus().state !== 'active') throw new Error('
 
 function registerIpc(): void {
   ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform }));
+  ipcMain.handle('update:status', () => updater.updateStatus());
+  ipcMain.handle('update:check', () => updater.checkNow());
+  ipcMain.handle('update:install', () => updater.installNow());
   ipcMain.handle('app:diagnostics', (e) => { const w = BrowserWindow.fromWebContents(e.sender); return w ? archive.exportDiagnostics(w) : { ok: false }; });
   ipcMain.handle('license:status', () => licenseStatus());
   ipcMain.handle('license:activateKeygen', (_e, key: string) => activateKeygen(key));

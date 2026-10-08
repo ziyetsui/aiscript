@@ -1,0 +1,44 @@
+# Spec 0002 §13: mac arm64/x64 + win x64, signed when certificates are present, published to a public releases repo.
+appId: ai.ancher.scripter
+productName: Ancher Scripter
+copyright: Copyright © 2026 Ancher
+directories:
+  buildResources: buildres
+  output: release
+files:
+  - out/**
+  - package.json
+extraResources:
+  # Public key for offline activation codes (pnpm license keypair). Required for a usable build.
+  - from: resources/license-public.pem
+    to: license-public.pem
+asar: true
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip # electron-updater needs the zip on macOS
+      arch: [arm64, x64]
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: buildres/entitlements.mac.plist
+  entitlementsInherit: buildres/entitlements.mac.plist
+  # notarize is driven by APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID in CI
+dmg:
+  title: Ancher Scripter
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  # Azure Trusted Signing is configured in CI via environment (AZURE_*); unsigned locally.
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Ancher Scripter
+publish:
+  provider: github
+  owner: ziyetsui
+  repo: aiscript-releases
+  releaseType: draft

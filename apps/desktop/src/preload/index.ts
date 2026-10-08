@@ -65,6 +65,16 @@ const api: Api = {
     readImage: call('files:readImage') as Api['files']['readImage'],
     pathFor: (file: File) => webUtils.getPathForFile(file),
   },
+  update: {
+    status: call('update:status') as Api['update']['status'],
+    check: call('update:check') as Api['update']['check'],
+    install: call('update:install') as Api['update']['install'],
+    onStatus(cb) {
+      const h = (_e: Electron.IpcRendererEvent, s: import('../shared/ipc.ts').UpdateStatus) => cb(s);
+      ipcRenderer.on('update:status', h);
+      return () => ipcRenderer.removeListener('update:status', h);
+    },
+  },
   exporter: { save: call('export:save') as Api['exporter']['save'] },
 };
 
