@@ -10,6 +10,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(join(here, 'src', p), 'utf8');
 const base = read('base.css') + '\n' + read('variants.css');
 const runtime = read('runtime.js');
+// three.js (MIT) is inlined once in the shell and shared with every layer through parent.THREE.
+const threeSrc = read('vendor/three.module.min.js').replace(/export\{([^}]*)\};?\s*$/, (_, list) =>
+  'window.THREE={' + list.split(',').map((e) => { const [a, b] = e.trim().split(/\s+as\s+/); return `${b || a}:${a}`; }).join(',') + '};');
 
 const layerDoc = (page, key) => {
   const d = DIRECTIONS[key];
@@ -40,7 +43,7 @@ const meta = JSON.stringify({
   pages: PAGES.map(({ id, name }) => ({ id, name })),
   directions: Object.fromEntries(Object.entries(DIRECTIONS).map(([k, d]) => [k, { name: d.name, zh: d.zh, note: d.note, swatch: d.swatch }])),
 });
-const shell = read('shell.html').replace('/*__LAYERS__*/', `const LAYERS = ${json};`).replace('/*__META__*/', `const META = ${meta};`);
+const shell = read('shell.html').replace('/*__LAYERS__*/', `const LAYERS = ${json};`).replace('/*__META__*/', `const META = ${meta};`).replace('/*__THREE__*/', () => threeSrc);
 
 mkdirSync(join(here, 'dist'), { recursive: true });
 writeFileSync(join(here, 'dist', 'index.html'), shell);

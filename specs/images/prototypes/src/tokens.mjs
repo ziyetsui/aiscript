@@ -60,20 +60,6 @@ export const DIRECTIONS = {
       --scrim: rgb(40 30 15 / .24); --glass: none; color-scheme: light;
       ${motion({ ease: 'var(--ease-strong-out)', press: 160, pop: 200, modal: 240, scale: 0.97, y: 6, spin: 600, hl: 600 })}`,
   },
-  d2: {
-    swatch: ['#f9f9f8', '#366fb6'],
-    name: '02 · App Navy', zh: '产品藏蓝',
-    note: 'app.ancher.ai 浅色原样：n2 + b1 藏蓝，Manrope / Lora，radius 8；动效用产品自带 --ease-fast，150/250ms，按压 0.98',
-    css: `--bg: var(--color-n2-light-2); --rail: var(--color-n2-light-3); --sidebar: var(--color-n2-light-3); --surface: var(--color-n2-light-1);
-      --muted: var(--color-n2-light-3); --line: var(--color-n2-light-4); --line-strong: var(--color-n2-light-6);
-      --ink: var(--color-n2-light-12); --ink-2: var(--color-n2-light-11); --ink-3: var(--color-n2-light-10);
-      --primary: var(--color-b1-500); --primary-hover: var(--color-b1-600); --primary-fg: var(--color-n2-light-1); --primary-soft: var(--color-b1-50);
-      --paper: var(--color-n2-light-1); --hl: var(--color-b2-100); --hover: var(--color-n2-light-4);
-      --font-ui: var(--ff-manrope); --font-display: var(--ff-lora); --font-family-mono: var(--ff-geist-mono); --display-weight: 500; --display-track: -0.01em;
-      --radius-mult: .8; --type-scale: 1; --shadow-card: 0px 1px 2px 0px rgb(0 0 0 / .05), 0px 1px 3px 0px rgb(0 0 0 / .1); --shadow-pop: 0px 10px 15px -3px rgb(0 0 0 / .04), 0px 25px 50px -12px rgb(0 0 0 / .1);
-      --scrim: rgb(33 32 28 / .28); --glass: none; color-scheme: light;
-      ${motion({ ease: 'var(--ease-fast)', press: 150, pop: 150, modal: 250, scale: 0.98, y: 4, spin: 550, hl: 500 })}`,
-  },
   d3: {
     swatch: ['#111110', '#eb7514'],
     name: '03 · App Ember', zh: '产品余烬',

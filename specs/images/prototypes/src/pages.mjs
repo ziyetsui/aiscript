@@ -75,6 +75,10 @@ const p1 = () => chrome('Ancher Scripter · 激活', `
     </div>
     <figure class="act-art reveal" id="reveal" role="img" aria-label="ancher 品牌画作：窗边读书的女子（斯卡恩画派风格）" style="--art:url(${ART})">
       <div class="rv-base" aria-hidden="true"></div><div class="rv-paint" id="rv-paint" aria-hidden="true"></div><div class="rv-grain" aria-hidden="true"></div>
+      <canvas class="film-gl" id="gl" aria-hidden="true"></canvas>
+      <div class="film-lines" id="film" aria-live="polite"></div>
+      <div class="film-slug" id="slug" aria-hidden="true">内景　窗边　午后</div>
+      <button class="film-ctl" id="film-ctl" type="button">跳过</button>
       <figcaption class="rv-cap">ancher 品牌画作 · 斯卡恩画派风格</figcaption></figure>
   </div>`, `
   <div class="scrim" id="manual"><div class="modal" role="dialog" aria-labelledby="mt" style="padding:22px">
@@ -100,7 +104,7 @@ const p1 = () => chrome('Ancher Scripter · 激活', `
     b.textContent='已激活'; const lg=document.getElementById('brand-logo'); lg.classList.remove('spin'); void lg.offsetWidth; lg.classList.add('spin'); }
   // ancher CTA reveal (ancher-website webgl-reveal-effect spec), done with clip-path: a spring-following circular window
   // onto the painting. Entrance: the window shrinks from full cover to its resting size (easeInOutExpo, ancher's choice).
-  (function(){ const fig=document.getElementById('reveal'), paint=document.getElementById('rv-paint'); if(!fig) return;
+  function cssReveal(){ const fig=document.getElementById('reveal'), paint=document.getElementById('rv-paint'); if(!fig) return;
     if(matchMedia('(prefers-reduced-motion: reduce)').matches){ paint.style.clipPath='none'; return; }
     const REST={x:.68,y:.5}, STIFF=.08, DAMP=.85, ENTER=1400; let pos={...REST}, vel={x:0,y:0}, target={...REST}, t0=null, raf=0;
     const expo=t=>t<=0?0:t>=1?1:t<.5?Math.pow(2,20*t-10)/2:(2-Math.pow(2,-20*t+10))/2;
@@ -115,7 +119,55 @@ const p1 = () => chrome('Ancher Scripter · 激活', `
     fig.addEventListener('pointerleave',()=>{ target={...REST}; wake(); });
     addEventListener('resize',wake); wake();
     // Watchdog: if the first frame never arrives (e.g. the document was loaded while invisible), restart the loop.
-    setTimeout(()=>{ if(!ticked){ raf=0; wake(); } },200); })();
+    setTimeout(()=>{ if(!ticked){ raf=0; wake(); } },200); }
+  // ── Opening film (three.js): 2.5D depth from a hand-painted depth map, ink-wash dissolve, slow push-in,
+  //    typewriter lines. First-run only (Emil: rare moment → delight is allowed), skippable, replayable;
+  //    reduced motion or no WebGL → static painting / the CSS reveal above.
+  (async function(){ const fig=document.getElementById('reveal'), canvas=document.getElementById('gl'), film=document.getElementById('film'), slug=document.getElementById('slug'), ctl=document.getElementById('film-ctl');
+    if(!fig) return; const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches; const SEEN='ancher-scripter-intro-seen';
+    const seen=(()=>{ try{ return localStorage.getItem(SEEN)==='1'; }catch(_){ return false; } })();
+    let THREE=null; for(let i=0;i<40&&!THREE;i++){ try{ THREE=(window.parent&&window.parent.THREE)||window.THREE; }catch(_){} if(!THREE) await wait(50); }
+    if(!THREE||REDUCED){ slug.classList.add('on'); ctl.hidden=true; if(REDUCED){ document.getElementById('rv-paint').style.clipPath='none'; } else cssReveal(); return; }
+    let renderer; try{ renderer=new THREE.WebGLRenderer({canvas,antialias:false,alpha:false,powerPreference:'low-power'}); }catch(_){ cssReveal(); slug.classList.add('on'); ctl.hidden=true; return; }
+    renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));
+    const artUrl=getComputedStyle(fig).getPropertyValue('--art').trim().replace(/^url\\(["']?/,'').replace(/["']?\\)$/,'');
+    const img=new Image(); img.src=artUrl; await img.decode();
+    const tex=new THREE.Texture(img); tex.colorSpace=THREE.SRGBColorSpace; tex.minFilter=THREE.LinearFilter; tex.needsUpdate=true;
+    // Hand-painted depth: window far, wall mid, floor rising, chair near, the reader nearest.
+    const dc=document.createElement('canvas'); dc.width=256; dc.height=192; const g=dc.getContext('2d'); const W=256,H=192; g.filter='blur(9px)';
+    g.fillStyle='#5c5c5c'; g.fillRect(-20,-20,W+40,H+40); g.fillStyle='#181818'; g.fillRect(.04*W,-20,.6*W,.55*H);
+    const fl=g.createLinearGradient(0,.62*H,0,H); fl.addColorStop(0,'#666'); fl.addColorStop(1,'#a0a0a0'); g.fillStyle=fl; g.fillRect(-20,.62*H,W+40,H);
+    const ell=(x,y,rx,ry,c)=>{ g.fillStyle=c; g.beginPath(); g.ellipse(x*W,y*H,rx*W,ry*H,0,0,Math.PI*2); g.fill(); };
+    ell(.8,.74,.1,.22,'#c8c8c8'); ell(.7,.62,.13,.3,'#fff'); ell(.74,.34,.06,.085,'#fff'); ell(.6,.47,.06,.05,'#eee');
+    const depth=new THREE.CanvasTexture(dc);
+    const paper=getComputedStyle(fig).backgroundColor.match(/[\d.]+/g)||[250,248,244]; const toLin=v=>Math.pow(v/255,2.2);
+    const U={uTex:{value:tex},uDepth:{value:depth},uRes:{value:new THREE.Vector2(1,1)},uMouse:{value:new THREE.Vector2()},uTime:{value:0},uReveal:{value:0},uDolly:{value:0},uImgAspect:{value:img.width/img.height},uPaper:{value:new THREE.Vector3(toLin(+paper[0]),toLin(+paper[1]),toLin(+paper[2]))}};
+    const mat=new THREE.ShaderMaterial({uniforms:U,vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }',fragmentShader:'uniform sampler2D uTex,uDepth; uniform vec2 uRes,uMouse; uniform float uTime,uReveal,uDolly,uImgAspect; uniform vec3 uPaper; varying vec2 vUv; float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); } float noise(vec2 p){ vec2 i=floor(p),f=fract(p),u=f*f*(3.-2.*f); return mix(mix(hash(i),hash(i+vec2(1,0)),u.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),u.x),u.y); } float fbm(vec2 p){ float v=0.,a=.5; for(int i=0;i<5;i++){ v+=a*noise(p); p*=2.03; a*=.5; } return v; } void main(){ float ca=uRes.x/uRes.y; vec2 sc=ca>uImgAspect?vec2(1.,uImgAspect/ca):vec2(ca/uImgAspect,1.); vec2 uv=(vUv-.5)*sc+.5; vec2 F=vec2(.71,.47); float d=texture2D(uDepth,uv).r; float breath=sin(uTime*.35)*.005; float z=mix(1.,1.08,uDolly)+breath; vec2 p=F+(uv-F)/(z*(1.+d*.055*uDolly)); p+=uMouse*(d-.45)*.022+vec2(sin(uTime*.23),cos(uTime*.19))*.004*(d-.45); vec3 col=texture2D(uTex,clamp(p,.002,.998)).rgb; col+=vec3(1.,.93,.8)*smoothstep(.5,0.,distance(p,vec2(.3,.76)))*(.045+.025*sin(uTime*.6)); col*=mix(.84,1.,smoothstep(.9,.3,distance(vUv,vec2(.5)))); col+=(hash(vUv*uRes+fract(uTime*7.)*91.)-.5)*.035; float n=fbm(vUv*3.+vec2(0.,uTime*.03)); float m=smoothstep(n-.07,n+.07,uReveal*1.3-.15); col=mix(uPaper,col,m); col*=1.-.22*m*(1.-m)*4.; gl_FragColor=vec4(col,1.); }'});
+    const scene=new THREE.Scene(); scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2,2),mat)); const cam=new THREE.Camera();
+    function size(){ const w=fig.clientWidth,h=fig.clientHeight; renderer.setSize(w,h,false); U.uRes.value.set(w,h); } size(); addEventListener('resize',size);
+    fig.classList.add('gl-on');
+    let mouse={x:0,y:0}, mv={x:0,y:0}, raf=0, t0=performance.now();
+    fig.addEventListener('pointermove',e=>{ const r=fig.getBoundingClientRect(); mouse={x:((e.clientX-r.left)/r.width-.5)*2,y:-((e.clientY-r.top)/r.height-.5)*2}; });
+    fig.addEventListener('pointerleave',()=>{ mouse={x:0,y:0}; });
+    function loop(now){ U.uTime.value=(now-t0)/1000; mv.x+=(mouse.x-mv.x)*.06; mv.y+=(mouse.y-mv.y)*.06; U.uMouse.value.set(mv.x,mv.y); renderer.render(scene,cam); raf=requestAnimationFrame(loop); }
+    raf=requestAnimationFrame(loop); setTimeout(()=>{ if(U.uTime.value===0){ cancelAnimationFrame(raf); raf=requestAnimationFrame(loop); } },200);
+    // timeline helpers (cancelled by "skip")
+    let run=0; const easeOut=t=>1-Math.pow(1-t,3), inOut=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+    const tween=(k,to,ms,ease,id)=>new Promise(res=>{ const from=U[k].value, s0=performance.now(); (function step(n){ if(id!==run) return res(); const t=Math.min(1,(n-s0)/ms); U[k].value=from+(to-from)*ease(t); t<1?requestAnimationFrame(step):res(); })(s0); });
+    const pause=(ms,id)=>new Promise(r=>setTimeout(r,ms)).then(()=>id===run);
+    async function type(text,cls,id){ const el=document.createElement('div'); el.className='fl '+cls; film.appendChild(el); requestAnimationFrame(()=>el.classList.add('on'));
+      for(let i=0;i<text.length;i++){ if(id!==run) return el; el.textContent=text.slice(0,i+1); await wait(/[，。：]/.test(text[i])?220:70); } return el; }
+    function end(){ run++; U.uReveal.value=1; U.uDolly.value=1; film.innerHTML=''; slug.classList.add('on'); ctl.textContent='重播'; try{ localStorage.setItem(SEEN,'1'); }catch(_){} }
+    async function play(){ const id=++run; film.innerHTML=''; slug.classList.remove('on'); U.uReveal.value=0; U.uDolly.value=0; ctl.textContent='跳过'; film.dataset.mode='paper';
+      await pause(500,id); const a=await type('淡入：','fl-small',id); if(id!==run) return; await pause(450,id);
+      const b=await type('内景　窗边　午后','fl-slug',id); if(id!==run) return; await pause(700,id);
+      [a,b].forEach(x=>x.classList.add('out')); tween('uReveal',1,2000,inOut,id); await pause(900,id); if(id!==run) return; film.innerHTML=''; film.dataset.mode='paint';
+      tween('uDolly',1,6000,easeOut,id); await pause(900,id); if(id!==run) return;
+      const c=await type('很久很久以前，有人在这扇窗下写下了第一句话。','fl-line',id); if(id!==run) return; await pause(2400,id); if(id!==run) return;
+      c.classList.add('out'); await pause(600,id); if(id===run) end(); }
+    ctl.onclick=()=>ctl.textContent==='跳过'?end():play();
+    if(seen){ U.uReveal.value=0; U.uDolly.value=1; ctl.textContent='重播'; slug.classList.add('on'); const id=++run; tween('uReveal',1,900,easeOut,id); }
+    else play(); })();
   async function checkKey(good){ const o=document.getElementById('key-out'); o.innerHTML='<div class="tool"><span class="spin"></span><span><b>连接 Ancher</b> · User.me()</span></div>'; await wait(700);
     o.innerHTML=good ? '<div class="tool"><span class="ok">✓</span><span><b>Ancher 已连接</b> · key 已存进系统钥匙串</span></div><button class="btn btn-primary" style="height:32px;margin-top:8px;width:100%" onclick="toast(\\'进入应用 → 第 02 页\\')">开始使用</button>'
       : '<div class="tool"><span class="fail">✕</span><span><b>key 无效或已被删除</b> · 请在 ancher.ai 重新复制</span></div>'; }
