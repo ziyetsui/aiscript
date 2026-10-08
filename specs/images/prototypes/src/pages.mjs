@@ -78,8 +78,7 @@ const p1 = () => chrome('Ancher Scripter · 激活', `
       <canvas class="film-gl" id="gl" aria-hidden="true"></canvas>
       <div class="film-lines" id="film" aria-live="polite"></div>
       <div class="film-slug" id="slug" aria-hidden="true">内景　窗边　午后</div>
-      <button class="film-ctl" id="film-ctl" type="button">跳过</button>
-      <figcaption class="rv-cap">ancher 品牌画作 · 斯卡恩画派风格</figcaption></figure>
+      <button class="film-ctl" id="film-ctl" type="button">跳过</button></figure>
   </div>`, `
   <div class="scrim" id="manual"><div class="modal" role="dialog" aria-labelledby="mt" style="padding:22px">
     <div class="display" id="mt" style="font-size:20px;margin-bottom:4px">手动激活（无法联网时）</div>
@@ -194,18 +193,76 @@ const p2 = () => chrome('Ancher Scripter', `
   <script>const idea=document.getElementById('idea'); idea.value=${JSON.stringify(IDEA)};
   async function go(b){b.disabled=true;const s=document.getElementById('status');s.innerHTML='<span style="display:inline-flex;gap:8px;align-items:center"><span class="spin"></span>正在创建项目，AI 会马上开始……</span>';await wait(1100);s.textContent='→ 跳转到工作区（见第 04 页，AI 自动开跑）';b.disabled=false;}</script>`);
 
-/* ═════ P3 创作首页（laper /app/new） ═════ */
+/* ═════ P3 创作首页（laper /app/new）：意图标签展开成建议面板 + 项目类型下拉 ═════ */
+const INTENTS = [
+  ['indent', '格式', '整理格式', ['把我贴的文字整理成标准剧本格式', '修正所有场景标题（内外景、地点、时间）', '把这段对白和动作排成规范格式', '把这段小说片段转成剧本场景', '统一全剧的人物名和对白缩进', '整理我的转场和镜头标记']],
+  ['bulb', '灵感', '临时想法', ['我有个一句话点子，帮我发展成完整故事', '把这个设定演成三种不同走向', '这个设定里能挖出什么戏剧冲突', '把我脑子里那个画面写成开场', '帮这个想法找一个钩子和主题', '这个题材适合什么类型和篇幅']],
+  ['pen', '写作', '写作', ['帮我写一场深夜便利店的戏', '给主角写一段有潜台词的对白', '把这场戏改写得更有张力', '给这场戏写一个意料之外的结尾', '用动作和细节展现情绪，少用台词', '给这段对白加一层潜台词']],
+  ['film', '剧情', '剧情', ['帮我搭一个三幕结构大纲', '用"救猫咪"节拍表列出关键节拍', '让中点反转更有冲击力', '检查我的剧情有没有逻辑漏洞', '在第二幕加一个推动主角的转折', '帮我把主线和副线交织起来']],
+  ['user', '角色', '角色', ['设计一个有秘密也有弱点的反派', '给主角写一份完整人物小传', '梳理这个角色的人物弧光', '让这两个角色的关系更丰富更紧张', '给一个配角一个让人记住的标志特征', '理清每个角色想要什么、害怕什么']],
+];
 const p3 = () => chrome('Ancher Scripter', `
   <div class="home" style="flex:1;display:flex;flex-direction:column;align-items:center;padding:14px 18px;position:relative">
     <div style="align-self:stretch;display:flex;justify-content:space-between;align-items:center"><button class="btn btn-quiet" style="width:34px;padding:0" aria-label="菜单">${icon('menu', 16)}</button><span class="chip" style="height:30px"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span> 已激活 · Ancher 已连接</span></div>
-    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;width:min(640px,100%)">
+    <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;width:min(680px,100%)">
       <div style="display:flex;align-items:center;gap:12px"><div class="logo" style="margin:0;width:36px;height:36px" aria-label="Ancher" role="img">${symbolSvg(36)}</div><h1 class="display" style="font-size:28px;margin:0">下午好，林</h1></div>
-      <div class="card" style="padding:14px;box-shadow:var(--shadow-pop)"><textarea style="width:100%;min-height:70px;border:0;outline:none;resize:none;background:transparent;font-size:16px" placeholder="写点什么，或者说说你想写的故事……"></textarea>
-        <div style="display:flex;gap:8px;align-items:center"><button class="btn btn-ghost" style="height:30px">${icon('plus', 13)} 添加文件</button><button class="btn btn-ghost" style="height:30px">${icon('doc', 13)} 剧本 ${icon('chev', 12)}</button><span style="flex:1"></span><button class="btn btn-primary" style="width:34px;height:34px;padding:0;border-radius:50%" aria-label="发送">${icon('send', 15)}</button></div></div>
-      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">${[['indent', '格式'], ['bulb', '灵感'], ['pen', '写作'], ['film', '情节'], ['user', '角色']].map(([ic, t]) => `<button class="btn btn-ghost" style="height:32px">${icon(ic, 14)} ${t}</button>`).join('')}</div>
+      <form class="card" id="ask-f" style="padding:16px;box-shadow:var(--shadow-pop)"><label for="ask" class="sr-only">输入</label>
+        <textarea id="ask" style="width:100%;min-height:84px;border:0;outline:none;resize:none;background:transparent;font-size:17px" placeholder="帮您处理剧本格式或从新点子开始？"></textarea>
+        <div style="display:flex;gap:8px;align-items:center"><button type="button" class="btn btn-ghost" style="height:34px">${icon('plus', 14)} 添加文件</button>
+          <span class="kind-wrap" style="position:relative"><button type="button" class="btn btn-ghost" style="height:34px" id="kind-btn" aria-haspopup="listbox" aria-expanded="false">${icon('doc', 14)} <span id="kind">剧本项目</span> ${icon('chev', 12)}</button>
+            <div class="kind-menu card" id="kind-menu" role="listbox" aria-label="项目类型">${[['doc', '剧本项目', '写出专业、结构清晰的剧本'], ['video', '快速视频', '为 AI 视频创作而生']].map(([ic, t, d], i) => `<button type="button" role="option" aria-selected="${i === 0}" class="kind-opt" data-t="${t}">${icon(ic, 15)}<span><b>${t}</b><br><span class="muted" style="font-size:12px">${d}</span></span></button>`).join('')}</div></span>
+          <span style="flex:1"></span><button class="btn btn-primary" style="width:38px;height:38px;padding:0;border-radius:50%" aria-label="发送">${icon('send', 16)}</button></div></form>
+      <div class="intents" id="intents">${INTENTS.map(([ic, t], i) => `<button type="button" class="btn btn-ghost intent" data-i="${i}" style="height:34px">${icon(ic, 14)} ${t}</button>`).join('')}</div>
+      <section class="sugg card" id="sugg" hidden aria-labelledby="sugg-t"><div class="sugg-hd"><span id="sugg-ic"></span><b id="sugg-t"></b><span style="flex:1"></span>
+        <button type="button" class="sugg-x" id="sugg-x" aria-label="关闭建议">${icon('x', 16)}</button></div><div class="sugg-list" id="sugg-list" role="listbox"></div></section>
     </div>
     <div class="muted" style="font-size:11.5px;display:flex;gap:16px">Ancher Scripter · 剧本博物馆 · 帮助与支持 · 服务条款 · 隐私政策</div>
-  </div>`);
+  </div>`, `
+  <style>
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .intents{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.intents[hidden],.sugg[hidden]{display:none}
+  /* Suggestion panel opens from under the input (origin top), 180ms ease-out; closing is faster (120ms). Switching category is instant. */
+  .sugg{padding:10px 10px 12px;transform-origin:top center}
+  .sugg.in{animation:suggIn 180ms var(--ease-out,cubic-bezier(.23,1,.32,1)) both}.sugg.leaving{animation:suggOut 120ms ease both}
+  @keyframes suggIn{from{opacity:0;transform:translateY(-4px) scale(.985)}}@keyframes suggOut{to{opacity:0;transform:translateY(-4px) scale(.985)}}
+  .sugg-hd{display:flex;align-items:center;gap:10px;padding:6px 8px 10px;font-size:15px}
+  .sugg-x{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;box-shadow:inset 0 0 0 1px var(--line);color:var(--ink-2);transition:transform 140ms var(--ease-enter),background-color 150ms ease}
+  .sugg-x:active{transform:scale(.95)}@media (hover:hover) and (pointer:fine){.sugg-x:hover{background:var(--hover)}}
+  .sugg-list{display:flex;flex-direction:column}
+  .sugg-it{display:block;width:100%;text-align:left;padding:12px 10px;border-radius:var(--r);font-size:15px;color:var(--ink-2)}
+  .sugg-it[aria-selected=true]{background:var(--hover);color:var(--ink)}
+  .sugg.in .sugg-it{animation:itIn 220ms var(--ease-out,cubic-bezier(.23,1,.32,1)) both}
+  @keyframes itIn{from{opacity:0;transform:translateY(3px)}}
+  .intent[aria-pressed=true]{background:var(--surface);box-shadow:inset 0 0 0 1.5px var(--ink);color:var(--ink)}
+  .kind-menu{position:absolute;left:0;top:calc(100% + 6px);z-index:20;width:250px;padding:6px;box-shadow:var(--shadow-pop);transform-origin:top left;opacity:0;transform:scale(.97);pointer-events:none;transition:opacity 150ms var(--ease-enter),transform 150ms var(--ease-enter)}
+  .kind-menu.open{opacity:1;transform:none;pointer-events:auto}
+  .kind-opt{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;padding:8px 10px;border-radius:var(--r-sm);font-size:13.5px}
+  .kind-opt[aria-selected=true]{background:var(--hover)}@media (hover:hover) and (pointer:fine){.kind-opt:hover{background:var(--hover)}}
+  </style>
+  <script>
+  const INT=${JSON.stringify(INTENTS)}, ICONS=${JSON.stringify(Object.fromEntries(INTENTS.map(([ic]) => [ic, icon(ic, 18)])))};
+  const sugg=document.getElementById('sugg'), list=document.getElementById('sugg-list'), intents=document.getElementById('intents'), ask=document.getElementById('ask'); let cur=-1, sel=0;
+  function mark(){ list.querySelectorAll('.sugg-it').forEach((b,i)=>b.setAttribute('aria-selected',i===sel)); }
+  function open(i, fromKey){ const [ic,,title,items]=INT[i]; const switching=!sugg.hidden; cur=i; sel=fromKey?0:-1;
+    document.getElementById('sugg-ic').innerHTML=ICONS[ic]; document.getElementById('sugg-t').textContent=title;
+    list.innerHTML=items.map((t,k)=>'<button type="button" role="option" class="sugg-it" style="animation-delay:'+(k*30)+'ms">'+t+'</button>').join('');
+    list.querySelectorAll('.sugg-it').forEach((b,k)=>{ b.onpointerenter=()=>{ sel=k; mark(); }; b.onclick=()=>pick(k); }); mark();
+    intents.hidden=true; sugg.hidden=false; sugg.classList.remove('in','leaving'); if(!switching&&!fromKey){ void sugg.offsetWidth; sugg.classList.add('in'); }
+    if(fromKey) list.querySelector('.sugg-it').focus(); }
+  function close(){ if(sugg.hidden) return; sugg.classList.remove('in'); sugg.classList.add('leaving'); setTimeout(()=>{ sugg.hidden=true; sugg.classList.remove('leaving'); intents.hidden=false; const b=intents.querySelector('[data-i="'+cur+'"]'); b&&b.focus(); },120); }
+  function pick(k){ ask.value=INT[cur][3][k]; close(); setTimeout(()=>{ ask.focus(); ask.setSelectionRange(ask.value.length,ask.value.length); },130); }
+  intents.querySelectorAll('.intent').forEach(b=>{ b.onclick=e=>open(+b.dataset.i, e.detail===0); });
+  document.getElementById('sugg-x').onclick=close;
+  sugg.addEventListener('keydown',e=>{ const n=list.children.length; if(e.key==='ArrowDown'){ sel=(sel+1)%n; mark(); list.children[sel].focus(); e.preventDefault(); } else if(e.key==='ArrowUp'){ sel=(sel-1+n)%n; mark(); list.children[sel].focus(); e.preventDefault(); } else if(e.key==='Escape'){ close(); e.preventDefault(); } });
+  // project type dropdown
+  const kb=document.getElementById('kind-btn'), km=document.getElementById('kind-menu');
+  const setKind=o=>{ km.classList.toggle('open',o); kb.setAttribute('aria-expanded',o); };
+  kb.onclick=()=>setKind(!km.classList.contains('open'));
+  km.querySelectorAll('.kind-opt').forEach(o=>o.onclick=()=>{ km.querySelectorAll('.kind-opt').forEach(x=>x.setAttribute('aria-selected',x===o)); document.getElementById('kind').textContent=o.dataset.t; setKind(false); kb.focus(); });
+  document.addEventListener('pointerdown',e=>{ if(!e.target.closest('.kind-wrap')) setKind(false); });
+  document.addEventListener('keydown',e=>{ if(e.key==='Escape') setKind(false); });
+  document.getElementById('ask-f').addEventListener('submit',e=>{ e.preventDefault(); if(ask.value.trim()) toast('已开始：'+ask.value.trim().slice(0,24)+'…'); else ask.focus(); });
+  </script>`);
 
 /* ═════ P4 工作区（laper 主流程：AI 自动开跑） ═════ */
 function nodes(list) {
@@ -584,7 +641,6 @@ const p8 = () => chrome('Ancher Scripter — 设置', `
 
 export const PAGES = [
   { id: 'p1', name: '激活（不登录）', render: p1 },
-  { id: 'p2', name: 'Onboarding · 一句话', render: p2 },
   { id: 'p3', name: '创作首页', render: p3 },
   { id: 'p4', name: '工作区 · AI 自动开写', render: () => ICONS_JS + workspace() },
   { id: 'p5', name: '角色画布', render: p5 },
