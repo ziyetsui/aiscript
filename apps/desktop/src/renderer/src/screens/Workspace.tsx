@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom';
 // and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScriptNode } from '@scripter/core/script';
-import type { ChatNoteAttachment, ClipboardImage, ActivityRow, AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
+import type { ChatNoteAttachment, ClipboardImage, ActivityRow, AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, ScriptRevision, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
+import { RevisionPopover } from '../components/RevisionPopover.tsx';
 import { RunCard, WF_MENU, WorkflowLauncher } from '../components/Workflows.tsx';
 import { Activity } from '../components/Activity.tsx';
 import { ChatImages, AssistantMessage, ChatHeader, Composer, EmptyChat, JumpPill, Thinking, UserBubble } from '../components/Chat.tsx';
@@ -44,6 +45,26 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
   const [exportOpen, setExportOpen] = useState(false);
   const [episodeDialog, setEpisodeDialog] = useState<{ action: 'create' | 'rename'; id?: string; title: string } | null>(null);
   const [view, setView] = useState<'script' | 'outline' | 'shots' | 'episodes' | 'beats' | 'cover' | 'scenes'>('script');
+  const [revisionPreview, setRevisionPreview] = useState<ScriptRevision | null>(null);
+  const [restoringRevision, setRestoringRevision] = useState(false);
+  const previewRequest = useRef(0);
+  useEffect(() => { previewRequest.current++; setRevisionPreview(null); }, [id, st?.activeEpisodeId, view]);
+  async function selectRevision(revision: number | null) {
+    const token = ++previewRequest.current;
+    if (revision === null) { setRevisionPreview(null); return; }
+    const data = await window.api.projects.revision(id, st!.activeEpisodeId, revision);
+    if (token === previewRequest.current) setRevisionPreview(data);
+  }
+  async function restoreRevision() {
+    if (!revisionPreview || restoringRevision) return;
+    setRestoringRevision(true);
+    try {
+      const state = await window.api.projects.restoreRevision(id, revisionPreview.episodeId, revisionPreview.revision);
+      setRevisionPreview(null); apply(state); lastFocus.current = null;
+      toast(`已恢复 v${revisionPreview.revision}，恢复前的内容已保留在版本历史中`);
+    } catch (e) { toast(String(e)); }
+    finally { setRestoringRevision(false); }
+  }
   const [launcher, setLauncher] = useState<{ id: WorkflowId; focusId: string | null; focusText: string | null } | null>(null);
   const lastFocus = useRef<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -336,9 +357,10 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
             <div className="ag-feed" ref={feed} onScroll={onFeedScroll} aria-live="polite">
               {st.chat.length === 0 && !running && !asking && (!pageContext || pageContext.page === 'write') && <EmptyChat onAction={onAction} />}
               {st.chat.map((m) => {
+                const staleTurn = !!m.turnId && st.turns.find((t) => t.id === m.turnId)?.stale;
                 const undone = !!m.turnId && st.turns.find((t) => t.id === m.turnId)?.undone;
                 const turnLine = m.turnId && (
-                      <div className="turn-line">{undone ? <span>已撤销本轮 {m.applied ?? 0} 处修改</span>
+                      <div className="turn-line">{staleTurn ? <span>已切换剧本版本，本轮修改保留在版本历史中</span> : undone ? <span>已撤销本轮 {m.applied ?? 0} 处修改</span>
                         : <><span className="tnum">本轮 {m.applied ?? 0} 处修改</span><span aria-hidden="true">·</span><button onClick={() => void undo(m.turnId!)}>撤销</button></>}</div>
                 );
                 const extras = (
@@ -375,10 +397,10 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
   const pageHeader = (
       <div className="topbar drag">
         <button className="btn btn-quiet no-drag" onClick={() => go({ name: 'home' })} aria-label="返回首页"><Icon name="home" size={15} /></button>
-        <b>{view === 'outline' ? '大纲' : view === 'beats' ? '故事节拍' : view === 'episodes' ? '分集看板' : view === 'shots' ? '分镜' : view === 'scenes' ? '场景' : '剧本'}</b><span className="grow" /><div className="seg no-drag"><button aria-pressed={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={12} />剧本</button><button aria-pressed={view === 'cover'} onClick={() => setView('cover')}>封面</button></div><span className="grow" />
-        <button className="btn btn-quiet no-drag" aria-label="撤销最近一轮修改" title="撤销最近一轮生成或笔记信息修改" disabled={!st.turns.some((t) => !t.undone)} onClick={() => { const t = [...st.turns].reverse().find((t) => !t.undone); if (t) void undo(t.id); }}><Icon name="undo" size={14} /></button><button className="btn btn-quiet no-drag" aria-label="批注" onClick={async () => { const newId = crypto.randomUUID().replaceAll('-', ''); setView('script'); await edit([{ op: 'insert', after: lastFocus.current ?? 'end', type: 'note', text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); }}><Icon name="chat" size={14} /></button>
+        <b>{view === 'outline' ? '大纲' : view === 'beats' ? '故事节拍' : view === 'episodes' ? '分集看板' : view === 'shots' ? '分镜' : view === 'scenes' ? '场景' : '剧本'}</b>{view === 'script' && <RevisionPopover key={`${id}:${st.activeEpisodeId}`} projectId={id} episodeId={st.activeEpisodeId} selected={revisionPreview?.revision ?? null} refresh={st.meta.updatedAt} onSelect={selectRevision} />}<span className="grow" /><div className="seg no-drag"><button aria-pressed={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={12} />剧本</button><button aria-pressed={view === 'cover'} onClick={() => setView('cover')}>封面</button></div><span className="grow" />
+        <button className="btn btn-quiet no-drag" aria-label="撤销最近一轮修改" title="撤销最近一轮生成或笔记信息修改" disabled={!!revisionPreview || !st.turns.some((t) => !t.undone && !t.stale)} onClick={() => { const t = [...st.turns].reverse().find((t) => !t.undone && !t.stale); if (t) void undo(t.id); }}><Icon name="undo" size={14} /></button><button className="btn btn-quiet no-drag" aria-label="批注" disabled={!!revisionPreview} onClick={async () => { const newId = crypto.randomUUID().replaceAll('-', ''); setView('script'); await edit([{ op: 'insert', after: lastFocus.current ?? 'end', type: 'note', text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); }}><Icon name="chat" size={14} /></button>
         <span className="no-drag" style={{ position: 'relative' }}>
-          <button className="btn btn-ghost" aria-haspopup="dialog" aria-expanded={exportOpen} onClick={() => setExportOpen((o) => !o)}><Icon name="export" size={14} />导出</button>
+          <button className="btn btn-ghost" disabled={!!revisionPreview} title={revisionPreview ? '返回当前版本后导出' : undefined} aria-haspopup="dialog" aria-expanded={exportOpen} onClick={() => setExportOpen((o) => !o)}><Icon name="export" size={14} />导出</button>
 
         </span>
       </div>
@@ -408,9 +430,14 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
         </aside>
         <div className="writing-center">
         {pageHeader}
-        <SelectionBar container={view === 'script' ? paperRef.current : null} />
+        <SelectionBar container={view === 'script' && !revisionPreview ? paperRef.current : null} />
+        {view === 'script' && revisionPreview && <div className="revision-preview-bar" role="region" aria-label="历史版本预览">
+          <Icon name="history" size={15} /><div><b>正在预览 v{revisionPreview.revision}</b><span>历史版本只读 · AI 修改仍写入当前版本</span></div><span className="grow" />
+          <button className="btn btn-quiet" disabled={restoringRevision} onClick={() => void selectRevision(null)}>返回当前版本</button>
+          <button className="btn btn-ghost" disabled={restoringRevision || !!running || externalBusy || st.runs.some(r => r.status === 'running' || r.status === 'waiting')} onClick={() => void restoreRevision()}>{restoringRevision ? '正在恢复…' : '恢复为当前'}</button>
+        </div>}
         <div ref={paperRef} className="paper-scroll" onFocus={(e) => { const nid = (e.target as HTMLElement).dataset?.id; if (nid) lastFocus.current = nid; }}>
-          {view === 'script' && <div className="script-toolbar" role="toolbar" aria-label="剧本格式">{([['heading','film','场景'], ['action','pen','动作'], ['character','user','角色'], ['parenthetical','indent','括号'], ['dialogue','chat','对白'], ['transition','export','转场'], ['shot','eye','镜头'], ['note','doc','注释'], ['subtitle','book','字幕']] as const).map(([type, icon, label]) => <button key={type} aria-label={`设为${label}`} onMouseDown={(e) => e.preventDefault()} onClick={async () => { const nodeId = lastFocus.current; if (nodeId && nodes.some((n) => n.id === nodeId)) { await edit([{ op: 'type', id: nodeId, type }]); placeCaret(document.querySelector(`[data-id="${nodeId}"]`), 'end'); } else { const newId = crypto.randomUUID().replaceAll('-', ''); await edit([{ op: 'insert', after: 'end', type, text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); } }}><Icon name={icon} size={14} /><span>{label}</span></button>)}</div>}
+          {view === 'script' && !revisionPreview && <div className="script-toolbar" role="toolbar" aria-label="剧本格式">{([['heading','film','场景'], ['action','pen','动作'], ['character','user','角色'], ['parenthetical','indent','括号'], ['dialogue','chat','对白'], ['transition','export','转场'], ['shot','eye','镜头'], ['note','doc','注释'], ['subtitle','book','字幕']] as const).map(([type, icon, label]) => <button key={type} aria-label={`设为${label}`} onMouseDown={(e) => e.preventDefault()} onClick={async () => { const nodeId = lastFocus.current; if (nodeId && nodes.some((n) => n.id === nodeId)) { await edit([{ op: 'type', id: nodeId, type }]); placeCaret(document.querySelector(`[data-id="${nodeId}"]`), 'end'); } else { const newId = crypto.randomUUID().replaceAll('-', ''); await edit([{ op: 'insert', after: 'end', type, text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); } }}><Icon name={icon} size={14} /><span>{label}</span></button>)}</div>}
           {view === 'cover' ? <article className="paper script-cover"><h1 className="cover-title" key={st.meta.title} contentEditable="plaintext-only" suppressContentEditableWarning role="textbox" aria-label="封面标题" aria-multiline="false" onBlur={(e) => {
             const title = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim();
             e.currentTarget.textContent = title || st.meta.title;
@@ -420,7 +447,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
             if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
             if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.textContent = st.meta.title; e.currentTarget.blur(); }
           }}>{st.meta.title}</h1><h2>{st.episodes.find((e) => e.id === st.activeEpisodeId)?.title}</h2>{([['author','作者'],['draft','稿次'],['date','日期']] as const).map(([field,label]) => <label key={field}>{label}<input className="input" aria-label={`封面${label}`} defaultValue={st.cover[field]} key={`${st.activeEpisodeId}:${field}`} onBlur={async (e) => setSt(await window.api.projects.setCover(id, { [field]: e.target.value }))} /></label>)}</article> : view === 'scenes' ? <div className="scene-board">{st.scenes.length ? st.scenes.map((s) => <button className="card" key={s.nodeId} onClick={() => jumpTo(s.nodeId)}><h3>{s.index}. {s.heading}</h3><p>{s.characters.join('、') || '暂无角色'} · {s.dialogueCount} 段对白</p></button>) : <div className="empty-state">写下场景标题后会出现在这里</div>}</div> : view === 'episodes' ? <div className="episode-board">{st.episodes.map((e, i) => <button className="card" key={e.id} onClick={() => void episode('select', e.id)}><small>第 {i + 1} 集</small><h2>{e.title}</h2><p>{e.scenes} 场 · {e.words} 字</p></button>)}<button className="card" onClick={() => void episode('create')}>＋ 新建一集</button></div> : view === 'script'
-            ? <Editor nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
+            ? revisionPreview ? <article className="paper revision-paper" aria-label={`剧本 v${revisionPreview.revision} 只读预览`}>{revisionPreview.nodes.length ? revisionPreview.nodes.map(n => <div className="node" data-type={n.type} key={n.id}>{n.text || '\u00a0'}</div>) : <p className="muted">这个版本还没有正文</p>}</article> : <Editor key={st.activeEpisodeId} nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
             : view === 'shots'
               ? <ShotsView st={st} projectId={id} setSt={apply} busy={!!running} onAI={(sc) => void send(shotInstruction(sc))}
                   onAll={() => void send(`给全部 ${st.scenes.length} 场拆分镜：每场一个 setShots（sceneId 用场景标题的节点 id），景别有变化，一句话写清画面和动作。只写分镜，不要改剧本。`)}

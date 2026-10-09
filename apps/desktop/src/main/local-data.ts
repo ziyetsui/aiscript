@@ -3,7 +3,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { chmodSync, closeSync, existsSync, fsyncSync, openSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-export interface Snapshot { meta: string; script: Uint8Array; legacy?: boolean }
+import { recordRevisions, revisionList, revisionRead, revisionExport, revisionImport, type RevisionSave } from './script-revisions.ts';
+export interface Snapshot { meta: string; script: Uint8Array; legacy?: boolean; revisions?: import('../shared/ipc.ts').ScriptRevision[] }
 export interface LocalBackup { name: string; at: number; reason: string }
 const filename = 'project.sqlite';
 function database(path: string, readOnly = false, initialize = false): DatabaseSync {
@@ -59,7 +60,7 @@ function copyBackup(dir: string, db: DatabaseSync, kind: string, name?: string):
   if (kind !== 'migration') for (const old of listBackups(dir).filter((b) => b.name.startsWith(`${kind}-`)).slice(keep)) rmSync(join(root, old.name));
   return file;
 }
-export function saveSnapshot(dir: string, snapshot: Snapshot, build: string): void {
+export function saveSnapshot(dir: string, snapshot: Snapshot, build: string, versions: RevisionSave[] = []): void {
   JSON.parse(snapshot.meta); // malformed metadata must never enter the database
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   const db = database(join(dir, filename), false, true);
@@ -70,10 +71,32 @@ export function saveSnapshot(dir: string, snapshot: Snapshot, build: string): vo
     db.exec('BEGIN IMMEDIATE');
     try {
       db.prepare('INSERT INTO snapshot(id,meta,script,build) VALUES(1,?,?,?) ON CONFLICT(id) DO UPDATE SET meta=excluded.meta,script=excluded.script,build=excluded.build').run(snapshot.meta, snapshot.script, build);
+      if (versions.length) recordRevisions(db, versions);
       db.exec('COMMIT');
     } catch (e) { db.exec('ROLLBACK'); throw e; }
     if (!old && existsSync(join(dir, 'meta.json'))) copyBackup(dir, db, 'migration');
     if (!old) copyBackup(dir, db, 'daily', `daily-${new Date().toISOString().slice(0, 10)}.sqlite`);
+  } finally { db.close(); }
+}
+export function listScriptRevisions(dir: string, episodeId: string) {
+  const db = database(join(dir, filename), true);
+  try { return revisionList(db, episodeId); } finally { db.close(); }
+}
+export function readScriptRevision(dir: string, episodeId: string, revision: number) {
+  const db = database(join(dir, filename), true);
+  try { return revisionRead(db, episodeId, revision); } finally { db.close(); }
+}
+export function exportScriptRevisions(dir: string) {
+  const db = database(join(dir, filename), true);
+  try { return revisionExport(db); } finally { db.close(); }
+}
+/** Import into a newly created project only; duplicate versions are rejected rather than overwritten. */
+export function importScriptRevisions(dir: string, versions: unknown): void {
+  const db = database(join(dir, filename), false, true);
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    try { revisionImport(db, versions); db.exec('COMMIT'); }
+    catch (e) { db.exec('ROLLBACK'); throw e; }
   } finally { db.close(); }
 }
 export function backupSnapshot(dir: string, kind = 'manual'): string {
@@ -84,6 +107,6 @@ export function backupSnapshot(dir: string, kind = 'manual'): string {
 export function readBackup(dir: string, name: string): Snapshot {
   if (!listBackups(dir).some((b) => b.name === name)) throw new Error('备份名称无效');
   const db = database(join(dir, 'backups', name), true);
-  try { return checked(db.prepare('SELECT meta,script FROM snapshot WHERE id=1').get()); }
+  try { return { ...checked(db.prepare('SELECT meta,script FROM snapshot WHERE id=1').get()), revisions: revisionExport(db) }; }
   finally { db.close(); }
 }

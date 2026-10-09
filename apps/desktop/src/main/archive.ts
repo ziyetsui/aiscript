@@ -10,6 +10,7 @@ import { flushAll, get, list, rename } from './projects.ts';
 import { encryptionAvailable, getSecret } from './secrets.ts';
 import { dataDir } from './store.ts';
 import { licenseStatus } from './license.ts';
+import { loadSnapshot, exportScriptRevisions, importScriptRevisions } from './local-data.ts';
 
 const FORMAT = 'ancher-scripter-project';
 const MAX_IMPORT = 1024 * 1024 * 1024; // 1 GB
@@ -21,12 +22,14 @@ export async function exportProject(win: BrowserWindow, id: string): Promise<{ o
   if (r.canceled || !r.filePath) return { ok: false };
   const dir = join(dataDir(), 'projects', id);
   // The Ancher conversation id belongs to this user's Ancher account; open previews are local state.
-  const { conversationId: _c, pending: _p, ...meta } = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')) as Record<string, unknown>;
+  const snapshot = loadSnapshot(dir);
+  const { conversationId: _c, pending: _p, ...meta } = JSON.parse(snapshot.meta) as Record<string, unknown>;
   cleanPortableMeta(meta);
   const files: Zippable = {
     'manifest.json': strToU8(JSON.stringify({ format: FORMAT, version: 1, app: app.getVersion(), exportedAt: new Date().toISOString(), title: p.meta.title })),
     'meta.json': strToU8(JSON.stringify(meta)),
-    'script.loro': new Uint8Array(readFileSync(join(dir, 'script.loro'))),
+    'script.loro': snapshot.script,
+    'script-revisions.json': strToU8(JSON.stringify(exportScriptRevisions(dir))),
   };
   const fdir = join(dir, 'files');
   if (existsSync(fdir)) for (const f of readdirSync(fdir)) files[`files/${f}`] = [new Uint8Array(readFileSync(join(fdir, f))), { level: 0 }];
@@ -60,6 +63,7 @@ export async function importProject(win: BrowserWindow, path?: string): Promise<
   const title = taken.has(meta.title) ? `${meta.title}（导入）` : meta.title;
   writeFileSync(join(dir, 'meta.json'), JSON.stringify({ ...meta, id, title, conversationId: null, pending: {}, updatedAt: Date.now() }));
   writeFileSync(join(dir, 'script.loro'), z['script.loro']);
+  if (z['script-revisions.json']) importScriptRevisions(dir, JSON.parse(strFromU8(z['script-revisions.json'])));
   for (const [name, bytes] of Object.entries(z)) {
     // Only flat files under files/ with generated-style names; anything else in the archive is ignored.
     const m = /^files\/([a-z0-9]+(?:\.[a-z0-9]{1,8})?)$/i.exec(name);

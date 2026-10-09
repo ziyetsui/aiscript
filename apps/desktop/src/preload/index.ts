@@ -19,6 +19,10 @@ const api: Api = {
     clear: call('keys:clear') as Api['keys']['clear'],
   },
   projects: {
+    revisions: call('projects:revisions') as Api['projects']['revisions'],
+    revision: call('projects:revision') as Api['projects']['revision'],
+    saveRevision: call('projects:saveRevision') as Api['projects']['saveRevision'],
+    restoreRevision: call('projects:restoreRevision') as Api['projects']['restoreRevision'],
     trashList: call('projects:trashList') as Api['projects']['trashList'],
     restore: call('projects:restore') as Api['projects']['restore'],
     purge: call('projects:purge') as Api['projects']['purge'],

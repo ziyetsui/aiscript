@@ -16,7 +16,7 @@ export interface KeyStatus { ancher: boolean; gemini: boolean; ancherAccount?: s
 export type KeyResult = { ok: true; account?: string } | { ok: false; message: string };
 
 export interface ProjectMeta { id: string; title: string; kind: 'script' | 'video'; createdAt: number; updatedAt: number; words: number; noteGroups?: string[] }
-export interface TurnInfo { id: string; label: string; undone: boolean }
+export interface TurnInfo { id: string; label: string; undone: boolean; stale?: boolean }
 /** One entry in the project's AI conversation, persisted with the project. */
 export interface ChatMsg {
   notes?: ChatNoteAttachment[];
@@ -41,6 +41,8 @@ export interface ChatMsg {
 /** An earlier conversation of this project (Ancher-style history under the title ⌄). */
 export interface ConversationInfo { id: string; title: string; at: number; messages: number }
 export interface EpisodeInfo { id: string; title: string; words: number; scenes: number }
+export interface ScriptRevisionInfo { episodeId: string; revision: number; at: number; label: string; words: number }
+export interface ScriptRevision extends ScriptRevisionInfo { nodes: ScriptNode[] }
 export interface ProjectState { meta: ProjectMeta; episodes: EpisodeInfo[]; activeEpisodeId: string; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string; beats: string; cover: { author: string; draft: string; date: string }; conversations: ConversationInfo[]; production: Production }
 export type WorkflowAction =
   | { type: 'direction'; index: number }
@@ -110,6 +112,10 @@ export interface Api {
     clear(which: 'ancher' | 'gemini'): Promise<void>;
   };
   projects: {
+    revisions(id: string, episodeId: string, capture?: boolean): Promise<ScriptRevisionInfo[]>;
+    revision(id: string, episodeId: string, revision: number): Promise<ScriptRevision>;
+    saveRevision(id: string, episodeId: string): Promise<ScriptRevisionInfo[]>;
+    restoreRevision(id: string, episodeId: string, revision: number): Promise<ProjectState>;
     list(): Promise<ProjectMeta[]>;
     create(title: string, kind: ProjectMeta['kind']): Promise<ProjectMeta>;
     open(id: string): Promise<ProjectState>;

@@ -120,6 +120,10 @@ function registerIpc(): void {
   ipcMain.handle('projects:list', gated(() => projects.list()));
   ipcMain.handle('projects:create', gated((title: string, kind: ProjectMeta['kind']) => projects.create(title, kind)));
   ipcMain.handle('projects:open', gated((id: string) => projects.state(projects.get(id))));
+  ipcMain.handle('projects:revisions', gated(projects.revisions));
+  ipcMain.handle('projects:revision', gated(projects.revision));
+  ipcMain.handle('projects:saveRevision', gated(projects.saveRevision));
+  ipcMain.handle('projects:restoreRevision', gated((id: string, episodeId: string, revision: number) => { if (ai.isBusy(id)) throw new Error('请先停止正在生成的内容'); return projects.restoreRevision(id, episodeId, revision); }));
   ipcMain.handle('projects:episode', gated((id: string, action: 'create' | 'select' | 'rename', episodeId?: string, title?: string) => { if (ai.isBusy(id)) throw new Error('请先停止正在生成的内容'); return projects.episode(id, action, episodeId, title); }));
   ipcMain.handle('projects:rename', gated((id: string, title: string) => projects.rename(id, title)));
   ipcMain.handle('projects:remove', gated((id: string) => { if (ai.isBusy(id) || projects.state(projects.get(id)).runs.some((r) => r.status === 'running')) throw new Error('请先停止正在生成的内容'); projects.remove(id); }));

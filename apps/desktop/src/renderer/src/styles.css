@@ -109,6 +109,21 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .recent:active { transform: scale(.98); }
 @media (hover: hover) and (pointer: fine) { .recent:hover { box-shadow: var(--shadow-pop); } }
 .menu { position: absolute; z-index: var(--z-pop); padding: 6px; min-width: 220px; box-shadow: var(--shadow-pop); transform-origin: top left; animation: popIn 150ms var(--ease-out) both; }
+.revision-picker { position: relative; }
+.revision-trigger { gap: 5px; padding: 5px 7px; color: var(--ink-2); font-size: 12px; }
+.revision-menu { position: fixed; width: 310px; max-width: calc(100vw - 16px); }
+.revision-menu-title { padding: 6px 10px; color: var(--ink-3); font-size: 12px; }
+.revision-list { max-height: 340px; overflow: auto; border-top: 1px solid var(--line); margin-top: 5px; padding-top: 5px; }
+.revision-number { width: 34px; flex-shrink: 0; font-weight: 600; }
+.revision-detail { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 3px; }
+.revision-detail > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.revision-detail small { color: var(--ink-3); font-size: 11px; }
+.revision-list button[aria-current="true"] { color: var(--brand); background: var(--hover); }
+.revision-preview-bar { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--surface); flex-wrap: wrap; font-size: 12px; }
+.revision-preview-bar > div { display: flex; flex-direction: column; gap: 3px; }
+.revision-preview-bar > div > span { color: var(--ink-3); font-size: 11px; }
+.revision-preview-bar .btn { font-size: 12px; }
+.revision-paper .node { white-space: pre-wrap; }
 @keyframes popIn { from { opacity: 0; transform: scale(.97); } }
 .menu button { display: flex; gap: 10px; width: 100%; text-align: left; padding: 8px 10px; border-radius: var(--r-sm); font-size: 13.5px; align-items: center; }
 .menu button[aria-selected="true"], .menu button:focus-visible { background: var(--hover); outline: none; }

@@ -1,5 +1,6 @@
 // Same glyphs as the prototype (24px grid, 1.8 stroke).
 export const PATHS = {
+ "history": "M3 12a9 9 0 1 0 3-6.7M3 3v6h6M12 7v5l3 2",
  "grid": "M3 3h7v7H3ZM14 3h7v7h-7ZM3 14h7v7H3ZM14 14h7v7h-7Z",
  "filter": "M4 6h16M7 12h10M10 18h4",
  "more": "M5 12h.01M12 12h.01M19 12h.01",
