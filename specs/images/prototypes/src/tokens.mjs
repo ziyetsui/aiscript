@@ -19,7 +19,7 @@ export const PRIMITIVES = `
   /* app.ancher.ai neutrals: n1 pure, n2 warm, n3 cool-violet */
   --color-n1-light-1:#fcfcfc; --color-n1-light-2:#f9f9f9; --color-n1-light-3:#f0f0f0; --color-n1-light-4:#e8e8e8; --color-n1-light-6:#d9d9d9; --color-n1-light-9:#8d8d8d; --color-n1-light-11:#646464; --color-n1-light-12:#202020;
   --color-n2-light-1:#fdfdfc; --color-n2-light-2:#f9f9f8; --color-n2-light-3:#f1f0ef; --color-n2-light-4:#e9e8e6; --color-n2-light-5:#e2e1de; --color-n2-light-6:#dad9d6; --color-n2-light-9:#8d8d86; --color-n2-light-10:#82827c; --color-n2-light-11:#63635e; --color-n2-light-12:#21201c;
-  --color-n2-dark-1:#111110; --color-n2-dark-2:#191918; --color-n2-dark-3:#222221; --color-n2-dark-4:#2a2a28; --color-n2-dark-5:#31312e; --color-n2-dark-6:#3b3a37; --color-n2-dark-8:#62605b; --color-n2-dark-10:#7c7b74; --color-n2-dark-11:#b5b3ad; --color-n2-dark-12:#eeeeec;
+  --color-n2-dark-1:#111110; --color-n2-dark-2:#191918; --color-n2-dark-3:#222221; --color-n2-dark-4:#2a2a28; --color-n2-dark-5:#31312e; --color-n2-dark-6:#3b3a37; --color-n2-dark-7:#494844; --color-n2-dark-8:#62605b; --color-n2-dark-10:#7c7b74; --color-n2-dark-11:#b5b3ad; --color-n2-dark-12:#eeeeec;
   --color-n3-light-1:#fdfcfd; --color-n3-light-2:#faf9fb; --color-n3-light-3:#f2eff3; --color-n3-light-4:#eae7ec; --color-n3-light-5:#e3dfe6; --color-n3-light-7:#d0cdd7; --color-n3-light-10:#84828e; --color-n3-light-11:#65636d; --color-n3-light-12:#211f26;
   /* ancher desktop agent "studio system" */
   --studio-paper: oklch(0.985 0.008 85); --studio-paper-deep: oklch(0.965 0.010 80); --studio-card: oklch(1 0 0);
@@ -60,17 +60,31 @@ export const DIRECTIONS = {
       --scrim: rgb(40 30 15 / .24); --glass: none; color-scheme: light;
       ${motion({ ease: 'var(--ease-strong-out)', press: 160, pop: 200, modal: 240, scale: 0.97, y: 6, spin: 600, hl: 600 })}`,
   },
+  d2: {
+    swatch: ['#f9f9f8', '#366fb6'],
+    name: '02 · Ancher 亮色', zh: 'Ancher 亮色',
+    note: 'app.ancher.ai 亮色原样（streamify-one-design-system packages/tokens semantics.css :root）：n2 暖灰面 + b1 蓝主色，侧栏 n2-3，边框 n2-4',
+    css: `--bg: var(--color-n2-light-2); --rail: var(--color-n2-light-3); --sidebar: var(--color-n2-light-3); --surface: var(--color-n2-light-1);
+      --muted: var(--color-n2-light-3); --line: var(--color-n2-light-4); --line-strong: var(--color-n2-light-6);
+      --ink: var(--color-n2-light-12); --ink-2: var(--color-n2-light-11); --ink-3: var(--color-n2-light-10);
+      --primary: var(--color-b1-500); --primary-hover: var(--color-b1-600); --primary-fg: var(--color-n2-light-1); --primary-soft: rgb(54 111 182 / .10);
+      --paper: var(--color-n2-light-1); --hl: rgb(54 111 182 / .10); --hover: rgb(233 232 230 / .7);
+      --font-ui: var(--ff-geist); --font-display: var(--ff-geist); --font-family-mono: var(--ff-geist-mono); --display-weight: 600; --display-track: -0.02em;
+      --radius-mult: 1; --type-scale: 1; --shadow-card: 0 1px 2px rgb(33 32 28 / .04), 0 0 0 1px var(--color-n2-light-4); --shadow-pop: 0 12px 32px rgb(33 32 28 / .10), 0 0 0 1px var(--color-n2-light-4);
+      --scrim: rgb(33 32 28 / .2); --glass: none; color-scheme: light;
+      ${motion({ ease: 'var(--ease-strong-out)', press: 150, pop: 150, modal: 200, scale: 0.97, y: 6, spin: 600, hl: 600 })}`,
+  },
   d3: {
     swatch: ['#111110', '#eb7514'],
-    name: '03 · App Ember', zh: '产品余烬',
-    note: 'app.ancher.ai 深色原样：n2 暗面 + b2 橙（白字），Lora 标题；夜间写作降低动效位移（4px），高亮延长到 700ms 方便追踪 AI 落笔',
-    css: `--bg: var(--color-n2-dark-1); --rail: var(--color-n2-dark-1); --sidebar: var(--color-n2-dark-3); --surface: var(--color-n2-dark-2);
-      --muted: var(--color-n2-dark-3); --line: var(--color-n2-dark-5); --line-strong: var(--color-n2-dark-6);
+    name: '03 · Ancher 暗色', zh: 'Ancher 暗色',
+    note: 'app.ancher.ai 暗色原样（semantics.css .dark）：n2 暗面 + b2 橙主色，卡片 n2-dark-2，边框 n2-dark-6；夜间写作降低动效位移（4px），高亮延长到 700ms',
+    css: `--bg: var(--color-n2-dark-1); --rail: var(--color-n2-dark-3); --sidebar: var(--color-n2-dark-3); --surface: var(--color-n2-dark-2);
+      --muted: var(--color-n2-dark-3); --line: var(--color-n2-dark-6); --line-strong: var(--color-n2-dark-7);
       --ink: var(--color-n2-dark-12); --ink-2: var(--color-n2-dark-11); --ink-3: var(--color-n2-dark-10);
       --primary: var(--color-b2-500); --primary-hover: var(--color-b2-400); --primary-fg: var(--color-n2-dark-12); --primary-soft: rgb(235 117 20 / .15);
-      --paper: var(--color-n2-dark-2); --hl: rgb(235 117 20 / .18); --hover: var(--color-n2-dark-4);
-      --font-ui: var(--ff-manrope); --font-display: var(--ff-lora); --font-family-mono: var(--ff-geist-mono); --display-weight: 500; --display-track: 0;
-      --radius-mult: .8; --type-scale: 1; --shadow-card: 0 0 0 1px var(--color-n2-dark-4); --shadow-pop: 0 0 0 1px var(--color-n2-dark-6), 0 24px 60px rgb(0 0 0 / .5);
+      --paper: var(--color-n2-dark-2); --hl: rgb(235 117 20 / .18); --hover: rgb(59 58 55 / .6);
+      --font-ui: var(--ff-geist); --font-display: var(--ff-geist); --font-family-mono: var(--ff-geist-mono); --display-weight: 600; --display-track: -0.02em;
+      --radius-mult: 1; --type-scale: 1; --shadow-card: 0 0 0 1px var(--color-n2-dark-6); --shadow-pop: 0 0 0 1px var(--color-n2-dark-6), 0 24px 60px rgb(0 0 0 / .5);
       --scrim: rgb(0 0 0 / .55); --glass: none; color-scheme: dark;
       ${motion({ ease: 'var(--ease-fast)', press: 150, pop: 180, modal: 250, scale: 0.97, y: 4, spin: 550, hl: 700 })}`,
   },
