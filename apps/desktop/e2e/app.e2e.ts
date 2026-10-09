@@ -108,8 +108,11 @@ try {
   await page.getByRole('button', { name: '关闭建议' }).click();
 
   step('send an idea → workspace → AI writes 4 nodes (+ registers a character and a location) as one turn, typed out');
+  fake.streamGate.paused = true; // hold stream until the workspace has subscribed to live activity
   await page.locator('#ask').fill('胡同里的小男孩发现自家门墩儿会说话，写第一场');
   await page.getByRole('button', { name: '开始' }).click();
+  await page.locator('.paper').waitFor();
+  fake.streamGate.paused = false;
   await page.locator('.act-row.is-running', { hasText: '联网搜索' }).waitFor({ timeout: 20_000 }); // live agent activity rows
   await shot(page, '03a-activity-live');
   await page.getByText('本轮 6 处修改').waitFor({ timeout: 20_000 });

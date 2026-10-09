@@ -85,6 +85,12 @@ export interface Api {
     getTheme(): Promise<'system' | 'light' | 'dark'>;
     setTheme(t: 'system' | 'light' | 'dark'): Promise<'system' | 'light' | 'dark'>;
   };
+  localData: {
+    info(): Promise<{ path: string; projects: { id: string; title: string; backups: { name: string; at: number; reason: string }[] }[] }>;
+    backup(projectId: string): Promise<string>;
+    recover(projectId: string, name: string): Promise<ProjectMeta>;
+    showFolder(): Promise<void>;
+  };
   update: {
     status(): Promise<UpdateStatus>;
     check(): Promise<void>;
