@@ -386,6 +386,46 @@ try {
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   // The writer's edit (appended under 锁定核心) is what got locked in.
   assert.match(await page.getByLabel('锁定核心', { exact: true }).inputValue(), /旧东西里有爱[\s\S]*大壮最后也借到了鞋/);
+
+  step('AI panel (Ancher agent UI): thinking + tip, 加入队列, long-bubble clamp, actions, save, new conversation + history');
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await page.locator('.ag-hd .ico-btn[aria-label="新对话"]').filter({ visible: true }).click();
+  await page.getByText('你的编剧搭档，随时待命').waitFor();
+  const ask = page.getByLabel('给 AI 的指令', { exact: true }).filter({ visible: true });
+  await ask.fill('__SLOW__ 第一条：写一场雨天的戏');
+  await ask.press('Enter');
+  await page.locator('.ag-thinking .shimmer', { hasText: 'Thinking' }).waitFor();
+  await page.locator('.wait-tip').waitFor();
+  assert.ok(await page.locator('.cmp-card.busy').count() === 1, 'running border while the agent works');
+  const longMsg = '第二条：' + '豆豆蹲在门墩儿旁边，用手指头戳石狮子的鼻子。'.repeat(12);
+  await ask.fill(longMsg);
+  await page.getByRole('button', { name: /加入队列/ }).waitFor();
+  await shot(page, '13-chat-running');
+  await ask.press('Enter');
+  await page.getByText('队列里还有 1 条').waitFor();
+  await page.waitForFunction(() => document.querySelectorAll('.turn-card').length >= 2 && !document.querySelector('.ag-thinking'), null, { timeout: 30_000 });
+  const firstChat = fake.prompts.find((x) => x.includes('用户：__SLOW__ 第一条'))!;
+  const secondChat = fake.prompts.find((x) => x.includes('用户：第二条'))!;
+  assert.ok(firstChat.includes('## 你怎么改剧本'), 'a new conversation starts with the full rules');
+  assert.ok(!secondChat.includes('## 你怎么改剧本') && secondChat.includes('继续按本对话开头约定的规则'), 'later turns send only a reminder');
+  const bubble = page.locator('.bubble', { hasText: '第二条' });
+  await bubble.getByRole('button', { name: '展开更多' }).click();
+  await bubble.getByRole('button', { name: '收起' }).waitFor();
+  const lastAi = page.locator('.ag-ai').last();
+  await lastAi.getByRole('button', { name: '好的回答', exact: true }).click();
+  await page.waitForFunction(() => [...document.querySelectorAll('.ag-ai')].at(-1)?.querySelector('[aria-label="好的回答"]')?.getAttribute('aria-pressed') === 'true');
+  await lastAi.getByRole('button', { name: '存为笔记' }).click();
+  await page.getByText(/已存进知识库：AI 回复/).waitFor();
+  await page.getByRole('button', { name: '保存', exact: true }).filter({ visible: true }).click();
+  await page.getByText(/已存进知识库：__SLOW__ 第一条/).waitFor();
+  await shot(page, '14-chat-done');
+  await page.locator('.ag-hd .ico-btn[aria-label="新对话"]').filter({ visible: true }).click();
+  await page.getByText('你的编剧搭档，随时待命').waitFor();
+  await page.locator('.ag-title').filter({ visible: true }).click();
+  await page.getByRole('menuitem', { name: /__SLOW__ 第一条/ }).click();
+  await page.locator('.bubble', { hasText: '__SLOW__ 第一条' }).waitFor();
+  await page.getByRole('button', { name: '知识库', exact: true }).click();
+  await page.getByText(/AI 回复 .*\.md/).waitFor();
   console.log('\nE2E passed');
 } catch (e) {
   await shot(page, 'failure').catch(() => {});

@@ -31,6 +31,11 @@ export const PATHS = {
  "chat": "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z",
  "upload": "M12 15V3M7 8l5-5 5 5M4 21h16",
  "zoom": "M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM21 21l-4.3-4.3M8 11h6M11 8v6",
- "expand": "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+ "expand": "M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7",
+ "thumbUp": "M7 10v11M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 18.4 21H7V10l4-8a3 3 0 0 1 4 3.9Z",
+ "thumbDown": "M17 14V3M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 5.6 3H17v11l-4 8a3 3 0 0 1-4-3.9Z",
+ "at": "M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm0 0v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1",
+ "mic": "M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM19 11a7 7 0 0 1-14 0M12 18v3",
+ "arrowDown": "M12 5v14M5 12l7 7 7-7"
 } as const;
 export type IconName = keyof typeof PATHS;

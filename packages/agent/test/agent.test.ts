@@ -115,3 +115,17 @@ describe('reference material and selection', async () => {
     expect(await selectionAction({ TextSelection: ts } as any, 'translate', '门墩儿')).toBe('T:English');
   });
 });
+
+describe('rules only on the first turn', async () => {
+  const { buildMessage, WRITE_SYSTEM, WRITE_REMINDER } = await import('../src/index.ts');
+  it('sends the full rules on the first message and a one-line reminder afterwards', () => {
+    const first = buildMessage('写第一场', 't', [], undefined, '角色：豆豆', '', '大纲', true);
+    const later = buildMessage('续写', 't', [], undefined, '角色：豆豆', '', '大纲', false);
+    expect(first.startsWith(WRITE_SYSTEM)).toBe(true);
+    expect(later).not.toContain(WRITE_SYSTEM);
+    expect(later.startsWith(WRITE_REMINDER)).toBe(true);
+    expect(later).toContain('项目设定：\n角色：豆豆'); // context still travels every turn
+    expect(later).toContain('当前大纲：\n大纲');
+    expect(later).toContain('用户：续写');
+  });
+});

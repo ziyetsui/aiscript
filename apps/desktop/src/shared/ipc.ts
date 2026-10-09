@@ -25,10 +25,14 @@ export interface ChatMsg {
   citations?: { url: string; title: string }[];
   /** A workflow run shown in the conversation. */
   runId?: string;
+  /** Thumbs feedback on an assistant message (kept locally). */
+  reaction?: 'like' | 'dislike';
   /** A rewrite waiting for the writer's decision (modification preview). */
   preview?: { items: PreviewItem[]; state: 'open' | 'accepted' | 'rejected' | 'stale' | 'failed' };
 }
-export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string }
+/** An earlier conversation of this project (Ancher-style history under the title ⌄). */
+export interface ConversationInfo { id: string; title: string; at: number; messages: number }
+export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string; conversations: ConversationInfo[] }
 export type WorkflowAction =
   | { type: 'direction'; index: number }
   | { type: 'preview' }
@@ -127,6 +131,15 @@ export interface Api {
     /** Accept or reject a pending modification preview. */
     resolve(projectId: string, msgId: string, accept: boolean): Promise<{ ok: boolean; message?: string; turn?: TurnInfo; state: ProjectState }>;
     onDelta(cb: (e: { reqId: string; text: string }) => void): () => void;
+  };
+  chat: {
+    /** Archive the current conversation and start a fresh one (new Ancher conversation too). */
+    newConversation(projectId: string): Promise<ProjectState>;
+    /** Switch to an earlier conversation; the current one is archived. */
+    openConversation(projectId: string, convId: string): Promise<ProjectState>;
+    react(projectId: string, msgId: string, reaction: 'like' | 'dislike' | null): Promise<ProjectState>;
+    /** Save one message (or the whole conversation when msgId is null) as a knowledge-base note. */
+    saveAsNote(projectId: string, msgId: string | null): Promise<{ state: ProjectState; name: string }>;
   };
   exporter: { save(id: string, format: ExportFormat): Promise<{ ok: boolean; path?: string; message?: string }> };
 }

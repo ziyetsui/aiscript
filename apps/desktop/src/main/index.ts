@@ -128,6 +128,10 @@ function registerIpc(): void {
     return ai.write(req, e.sender);
   });
   ipcMain.handle('ai:cancel', (_e, reqId: string) => ai.cancel(reqId));
+  ipcMain.handle('chat:new', gated((id: string) => projects.newConversation(id)));
+  ipcMain.handle('chat:open', gated((id: string, convId: string) => projects.openConversation(id, convId)));
+  ipcMain.handle('chat:react', gated((id: string, msgId: string, r: 'like' | 'dislike' | null) => projects.react(id, msgId, r)));
+  ipcMain.handle('chat:saveNote', gated((id: string, msgId: string | null) => files.saveNote(id, msgId)));
   ipcMain.handle('ai:reverse', gated((projectId: string, kind: 'characters' | 'locations', itemId: string) => ai.reverse(projectId, kind, itemId)));
   ipcMain.handle('ai:selection', gated((kind: 'explain' | 'summarize' | 'translate', text: string) => ai.selection(kind, text)));
   ipcMain.handle('files:pin', (e, id: string, fileId: string, on: boolean) => { active(); return files.pin(id, fileId, on, () => { if (!e.sender.isDestroyed()) e.sender.send('project:changed', { projectId: id }); }); });

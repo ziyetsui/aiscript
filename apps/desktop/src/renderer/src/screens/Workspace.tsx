@@ -1,9 +1,10 @@
 // Workspace (prototype P4): scenes outline · script page · AI panel. AI edits arrive as one undoable turn
 // and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScriptNode } from '@scripter/core/script';
 import type { AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
 import { RunCard, WF_MENU, WorkflowLauncher, WorkflowMenu } from '../components/Workflows.tsx';
+import { AssistantMessage, ChatHeader, Composer, JumpPill, Thinking, UserBubble } from '../components/Chat.tsx';
 import { SelectionBar } from '../components/SelectionBar.tsx';
 import type { Route } from '../App.tsx';
 import { bell, carriageReturn, keyClick, onSound, setSound, soundOn } from '../lib/typewriter.ts';
@@ -37,13 +38,45 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
   const [outlineKey, setOutlineKey] = useState(0);
   const toast = useToast();
   const sent = useRef(false);
-  const logEnd = useRef<HTMLDivElement>(null);
+  const feed = useRef<HTMLDivElement>(null);
+  const stick = useRef(true); // follow the bottom only while the reader is there (Ancher use-conversation-scroll)
+  const [unread, setUnread] = useState(0);
+  const [awayFromBottom, setAway] = useState(false);
+  const [queue, setQueue] = useState<string[]>([]);
 
   const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); }, []);
   useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, apply]);
   useEffect(() => onSound(setSoundState), []);
   useEffect(() => window.api.ai.onDelta((d) => { if (d.reqId === running) setStream((s) => s + d.text); }), [running]);
-  useEffect(() => { logEnd.current?.scrollIntoView({ block: 'end' }); }, [st?.chat.length, stream, asking]);
+  const chatLen = st?.chat.length ?? 0;
+  const prevLen = useRef(chatLen);
+  useEffect(() => {
+    const el = feed.current;
+    if (!el) return;
+    if (stick.current) el.scrollTop = el.scrollHeight;
+    else if (chatLen > prevLen.current) setUnread((u) => u + (chatLen - prevLen.current));
+    prevLen.current = chatLen;
+  }, [chatLen, stream, asking, running, st?.runs]);
+  function onFeedScroll() {
+    const el = feed.current!;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    stick.current = near;
+    setAway(!near);
+    if (near) setUnread(0);
+  }
+  function toLatest() {
+    const el = feed.current!;
+    el.scrollTo({ top: el.scrollHeight, behavior: reduced() ? 'auto' : 'smooth' });
+    stick.current = true;
+    setUnread(0);
+  }
+  // 加入队列: messages typed while a reply runs are sent one by one after it finishes.
+  useEffect(() => {
+    if (running || !queue.length) return;
+    const [next, ...rest] = queue;
+    setQueue(rest);
+    void send(next!);
+  }, [running, queue]);
   // Remount the outline editor only when the outline changed from outside (e.g. 「写进大纲」), never while typing.
   useEffect(() => {
     if (st && st.outline !== outlineSent.current) { outlineSent.current = st.outline; setOutlineKey((k) => k + 1); }
@@ -93,8 +126,10 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
 
   async function send(text: string) {
     const t = text.trim();
-    if (!t || running) return;
+    if (!t) return;
     if (!keys.ancher) { toast('先到设置里填写 Ancher key'); return; }
+    if (running) { setQueue((q) => [...q, t]); setInput(''); return; }
+    stick.current = true;
     const reqId = crypto.randomUUID();
     setAsking(t);
     setInput('');
@@ -124,6 +159,17 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     if (pending) { sent.current = true; void send(pending); }
     else if (pendingEpisode !== undefined) { sent.current = true; void startWorkflow('episode', { text: pendingEpisode }); }
   }, [pending, pendingEpisode, st]);
+
+  /** + in the composer: add files to the knowledge base and turn on 写作时参考 for them. */
+  async function attach() {
+    const before = new Set(st?.bible.files.map((f) => f.id));
+    const r = await window.api.files.pick(id);
+    if (!r) return;
+    let s = r.state;
+    for (const f of s.bible.files.filter((x) => !before.has(x.id))) s = await window.api.files.pin(id, f.id, true);
+    setSt(s);
+    toast(r.added ? `已添加 ${r.added} 个参考文件，AI 写作时会参考` : '没有添加文件');
+  }
 
   async function undo(turnId: string) {
     apply(await window.api.projects.undoTurn(id, turnId));
@@ -181,8 +227,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     if (st && title.trim() && title !== st.meta.title) setSt(await window.api.projects.rename(id, title));
   }
 
-  function submit(e: FormEvent) { e.preventDefault(); void send(input); }
-
+  
   if (!st) return null;
   const shown = nodes
     .filter((n) => !hidden.has(n.id))
@@ -233,54 +278,51 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
                 placeholder={'写下这一集的故事大纲：起、承、转、合，重场戏，人物动机。\n「写飘检查」会对照这里检查剧本有没有跑偏。'} />}
         </div>
         <section className="agent" aria-label="AI 编剧">
-          <div className="topbar" style={{ height: 44 }}><b style={{ fontSize: 13.5 }}>AI 编剧</b><span style={{ flex: 1 }} /><span className="chip">{keys.ancher ? 'Ancher' : '未连接'}</span></div>
-          <div className="agent-log" aria-live="polite">
-            {st.chat.length === 0 && !running && (
-              <div className="muted" style={{ fontSize: 13 }}>说说你想写什么。AI 会直接写进剧本，每一轮都可以单独撤销。</div>
-            )}
-            {st.chat.map((m) => {
-              const undone = !!m.turnId && st.turns.find((t) => t.id === m.turnId)?.undone;
-              return (
-              <div key={m.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {m.text && <div className={`msg ${m.role}`}>{m.text}</div>}
-                {m.runId && (() => { const run = st.runs.find((r) => r.id === m.runId); return run ? <RunCard run={run} projectId={id} onApplied={(s) => apply(s)} onJump={jumpTo} /> : null; })()}
-                {m.preview && <PreviewCard m={m} onResolve={(a) => void resolve(m, a)} />}
-                {m.turnId && (
-                  <div className="turn-card"><Icon name="pen" size={13} /><span style={{ flex: 1 }}>{undone ? '已撤销' : `写入 ${m.applied ?? 0} 处修改`}</span>
-                    {!undone && <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void undo(m.turnId!)}><Icon name="undo" size={13} />撤销</button>}</div>
-                )}
-                {m.citations && m.citations.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{m.citations.slice(0, 5).map((c) => <a key={c.url} className="chip" href={c.url} target="_blank" rel="noreferrer">{c.title || new URL(c.url).hostname}</a>)}</div>
-                )}
-                {m.error && <div className="err" role="alert">{m.error}</div>}
-              </div>
-              );
-            })}
-            {asking && <div className="msg user">{asking}</div>}
-            {running && <div className="msg ai muted"><span className="spinner" style={{ display: 'inline-block', verticalAlign: -2, marginRight: 6 }} />{visibleReply(stream) || '正在思考…'}</div>}
-            <div ref={logEnd} />
-          </div>
-          <div className="composer">
-            {launcher && <WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} />}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
-              <WorkflowMenu onPick={openWorkflow} disabled={!!running} />
-              {QUICK.map((q) => <button key={q} className="chip" disabled={!!running} onClick={() => void send(q)}>{q}</button>)}
+          <ChatHeader title={chatTitle(st.chat)} conversations={st.conversations} disabled={!!running}
+            onNew={async () => { apply(await window.api.chat.newConversation(id)); setQueue([]); toast('已开始新对话'); }}
+            onOpen={async (cid) => { apply(await window.api.chat.openConversation(id, cid)); stick.current = true; }}
+            onSave={async () => { try { const r = await window.api.chat.saveAsNote(id, null); setSt(r.state); toast(`已存进知识库：${r.name}`); } catch (e) { toast(cleanErr(e)); } }} />
+          <div className="ag-body">
+            <div className="ag-feed" ref={feed} onScroll={onFeedScroll} aria-live="polite">
+              {st.chat.length === 0 && !running && (
+                <div className="ag-empty"><b>你的编剧搭档，随时待命</b><span>说说你想写什么。AI 新写的内容直接进剧本，改写会先给你预览，每一轮都能单独撤销。</span></div>
+              )}
+              {st.chat.map((m) => {
+                const undone = !!m.turnId && st.turns.find((t) => t.id === m.turnId)?.undone;
+                const extras = (
+                  <>
+                    {m.runId && (() => { const run = st.runs.find((r) => r.id === m.runId); return run ? <RunCard run={run} projectId={id} onApplied={(s) => apply(s)} onJump={jumpTo} /> : null; })()}
+                    {m.preview && <PreviewCard m={m} onResolve={(a) => void resolve(m, a)} />}
+                    {m.turnId && (
+                      <div className="turn-card"><Icon name="pen" size={13} /><span style={{ flex: 1 }}>{undone ? '已撤销' : `写入 ${m.applied ?? 0} 处修改`}</span>
+                        {!undone && <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void undo(m.turnId!)}><Icon name="undo" size={13} />撤销</button>}</div>
+                    )}
+                    {m.citations && m.citations.length > 0 && (
+                      <div className="chipset">{m.citations.slice(0, 5).map((c) => <a key={c.url} className="chip" href={c.url} target="_blank" rel="noreferrer">{c.title || new URL(c.url).hostname}</a>)}</div>
+                    )}
+                    {m.error && <div className="err" role="alert">{m.error}</div>}
+                  </>
+                );
+                return m.role === 'user'
+                  ? <UserBubble key={m.id} text={m.text} />
+                  : <AssistantMessage key={m.id} m={m} onReact={async (r) => setSt(await window.api.chat.react(id, m.id, r))}
+                      onSave={async () => { try { const r = await window.api.chat.saveAsNote(id, m.id); setSt(r.state); toast(`已存进知识库：${r.name}`); } catch (e) { toast(cleanErr(e)); } }}>{extras}</AssistantMessage>;
+              })}
+              {asking && <UserBubble text={asking} />}
+              {running && <Thinking partial={visibleReply(stream)} />}
             </div>
-            <form className="card box" onSubmit={submit}>
-              <label htmlFor="agent-in" className="sr-only">给 AI 的指令</label>
-              <textarea id="agent-in" value={input} onChange={(e) => setInput(e.target.value)} placeholder="比如：写第一场，豆豆发现门墩儿会说话"
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(input); } }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label className="toggle"><input type="checkbox" checked={web} onChange={(e) => setWeb(e.target.checked)} />联网搜索</label>
-                <span style={{ flex: 1 }} />
-                {running ? (
-                  <button type="button" className="btn btn-ghost" onClick={() => void window.api.ai.cancel(running)}><Icon name="stop" size={13} />停止</button>
-                ) : (
-                  <button className="btn btn-primary btn-icon" style={{ borderRadius: '50%' }} aria-label="发送" disabled={!input.trim()}><Icon name="send" size={15} /></button>
-                )}
-              </div>
-            </form>
+            <JumpPill show={awayFromBottom || unread > 0} unread={unread} onClick={toLatest} />
           </div>
+          <Composer value={input} onChange={setInput} onSend={() => void send(input)} onStop={() => { if (running) void window.api.ai.cancel(running); }}
+            running={!!running} queued={queue.length} web={web} onWeb={setWeb} onAttach={() => void attach()}
+            mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' }))]}
+            chips={<>
+              {launcher && <WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} />}
+              <div className="cmp-chips">
+                <WorkflowMenu onPick={openWorkflow} disabled={!!running} />
+                {QUICK.map((q) => <button key={q} className="chip" disabled={!!running} onClick={() => void send(q)}>{q}</button>)}
+              </div>
+            </>} />
         </section>
       </div>
     </>
@@ -320,3 +362,9 @@ function PreviewCard({ m, onResolve }: { m: ChatMsg; onResolve: (accept: boolean
     </div>
   );
 }
+
+const chatTitle = (chat: ChatMsg[]) => {
+  const first = chat.find((m) => m.role === 'user')?.text.replace(/\s+/g, ' ').trim() ?? '';
+  return first ? (first.length > 24 ? `${first.slice(0, 24)}…` : first) : '新对话';
+};
+const cleanErr = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': Error: /, '');
