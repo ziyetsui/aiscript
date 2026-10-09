@@ -1,6 +1,6 @@
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
 import type { ExportSelection, PreviewItem } from '@scripter/core';
-import type { ActivityRow, RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
+import type { ActivityRow, AncherLibrary, AncherNoteContent, RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
 export type { ActivityRow };
 import type { Bible, KnowledgeFile, BibleItem, BibleKind, ElementType, Production, ScriptNode, SceneSummary } from '@scripter/core/script';
 
@@ -127,6 +127,11 @@ export interface Api {
     update<K extends BibleKind>(id: string, kind: K, itemId: string, patch: Partial<BibleItem<K>>): Promise<ProjectState>;
     remove(id: string, kind: BibleKind, itemId: string): Promise<ProjectState>;
     move(id: string, kind: BibleKind, itemId: string, to: number): Promise<ProjectState>;
+  };
+  ancherNotes: {
+    list(): Promise<AncherLibrary>;
+    read(noteId: string): Promise<AncherNoteContent>;
+    import(projectId: string, noteId: string): Promise<{ state: ProjectState; fileId: string }>;
   };
   files: {
     update(id: string, fileId: string, patch: Partial<Pick<KnowledgeFile, 'title' | 'tags' | 'memo' | 'group' | 'starred'>>): Promise<ProjectState>;

@@ -75,6 +75,11 @@ const api: Api = {
     remove: call('bible:remove') as Api['bible']['remove'],
     move: call('bible:move') as Api['bible']['move'],
   },
+  ancherNotes: {
+    list: call('ancherNotes:list') as Api['ancherNotes']['list'],
+    read: call('ancherNotes:read') as Api['ancherNotes']['read'],
+    import: call('ancherNotes:import') as Api['ancherNotes']['import'],
+  },
   files: {
     collection: call('files:collection') as Api['files']['collection'],
     exportNote: call('files:exportNote') as Api['files']['exportNote'],

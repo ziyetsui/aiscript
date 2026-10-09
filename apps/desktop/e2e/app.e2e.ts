@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { strFromU8, unzipSync } from 'fflate';
 import { _electron as electron, type ElectronApplication, type Page } from 'playwright-core';
 import { generateKeypair, issueOfflineCode } from '../../../packages/license/src/offline.ts';
-import { GOOD_KEY, startFakeAncher } from './fake-ancher.ts';
+import { cloudNote, GOOD_KEY, startFakeAncher } from './fake-ancher.ts';
 
 const here = import.meta.dirname;
 const shots = join(here, 'shots');
@@ -308,6 +308,40 @@ try {
   writeFileSync(doc, '第一集：笑点要来自孩子的视角，不要大人式的抖机灵。');
   await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [p] })) as typeof dialog.showOpenDialog; }, doc);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
+  step('Ancher website notes, collections and pins appear at the knowledge entry');
+  await page.locator('.note-all').getByRole('button', { name: '官网保存的视频笔记', exact: true }).waitFor();
+  await page.getByRole('button', { name: '官网参考资料', exact: true }).waitFor();
+  await page.locator('.note-page').getByText('豆豆：这是在官网保存的笔记正文。', { exact: true }).waitFor();
+  assert.equal(await page.locator('.note-group').first().getByRole('button', { name: '官网保存的视频笔记', exact: true }).count(), 1);
+  fake.cloudNotes.push({ ...cloudNote('cloud-n2'), title: '官网刚保存的转写', status: 'processing' });
+  await page.getByRole('button', { name: '刷新 Ancher 笔记', exact: true }).click();
+  await page.locator('.note-all').getByRole('button', { name: /官网刚保存的转写/ }).click();
+  await page.getByText('转写完成后这里会自动显示正文。', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('button', { name: '保存到项目', exact: true }).isDisabled(), true);
+  fake.cloudNotes[1]!.status = 'ready';
+  await page.locator('.note-page').getByText('豆豆：这是在官网保存的笔记正文。', { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByRole('button', { name: '保存到项目', exact: true }).click();
+  await page.getByLabel('笔记标题', { exact: true }).waitFor();
+  const cloudPid = await page.evaluate(async () => (await window.api.projects.list())[0]!.id);
+  await page.evaluate(async (id) => window.api.files.saveBody(id, 'ancher-cloud-n2', '本地编辑内容'), cloudPid);
+  const imported = await page.evaluate(async (id) => window.api.ancherNotes.import(id, 'cloud-n2'), cloudPid);
+  assert.equal(imported.state.bible.files.filter((f) => f.id === 'ancher-cloud-n2').length, 1);
+  assert.equal(await page.evaluate(async (id) => window.api.files.readBody(id, 'ancher-cloud-n2'), cloudPid), '本地编辑内容');
+  await page.getByRole('tab', { name: 'Ancher 笔记', exact: true }).click();
+  await page.getByRole('button', { name: '官网参考资料', exact: true }).click();
+  await page.locator('.note-all').getByRole('button', { name: /官网刚保存的转写/ }).waitFor();
+  await shot(page, '09a-ancher-knowledge');
+  await page.evaluate(async () => window.api.app.setTheme('dark'));
+  await page.waitForFunction(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  await shot(page, '09b-ancher-knowledge-dark');
+  await page.evaluate(async () => window.api.app.setTheme('light'));
+  await page.waitForFunction(() => !matchMedia('(prefers-color-scheme: dark)').matches);
+  step('a temporary cloud body failure recovers without user interaction');
+  fake.cloudFailures.body = 1;
+  await page.locator('.note-all').getByRole('button', { name: '官网刚保存的转写', exact: true }).click();
+  await page.locator('.note-page').getByRole('alert').waitFor();
+  await page.locator('.note-page').getByText('豆豆：这是在官网保存的笔记正文。', { exact: true }).waitFor({ timeout: 18000 });
+  await page.getByRole('tab', { name: '项目笔记', exact: true }).click();
   await page.getByRole('button', { name: '添加文件' }).click();
   await page.getByText('导演意见.txt', { exact: true }).first().waitFor();
   await page.getByRole('button', { name: '写作时参考' }).click();
@@ -396,6 +430,7 @@ try {
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   assert.match(await page.getByLabel('世界规则', { exact: true }).inputValue(), /只能“借”/);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
+  await page.getByRole('tab', { name: '项目笔记', exact: true }).click();
   await page.getByText('导演意见.txt', { exact: true }).first().waitFor();
   await page.getByRole('button', { name: '写作', exact: true }).click();
   await page.locator('.run', { hasText: '已加入规则库 1 条' }).waitFor(); // workflow runs are kept with the project
@@ -439,6 +474,7 @@ try {
   await page.locator('.paper .node').first().waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), original);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
+  await page.getByRole('tab', { name: '项目笔记', exact: true }).click();
   await page.getByText('导演意见.txt', { exact: true }).first().waitFor(); // files travel with the project
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
@@ -535,6 +571,7 @@ try {
   await page.getByRole('menuitem', { name: /__SLOW__ 第一条/ }).click();
   await page.locator('.bubble', { hasText: '__SLOW__ 第一条' }).waitFor();
   await page.getByRole('button', { name: '知识库', exact: true }).click();
+  await page.getByRole('tab', { name: '项目笔记', exact: true }).click();
   await page.locator('.note-all').getByRole('button', { name: /AI 回复 .*\.md/ }).waitFor();
 
   step('Tab takes the ghost suggestion; an empty-chat tile prefills; 外观 → 暗色 switches to Ancher dark');
@@ -633,6 +670,7 @@ try {
   await page.getByRole('button', { name: '最近', exact: true }).click();
   await page.locator(`[data-project-id="${pid}"]`).getByRole('button').first().click();
   await page.getByRole('button', { name: '知识库', exact: true }).click();
+  await page.getByRole('tab', { name: '项目笔记', exact: true }).click();
   await page.locator('.note-all').getByRole('button', { name: '客户参考笔记' }).click();
   assert.equal(await page.getByLabel('笔记备注').inputValue(), '客户导演意见');
   assert.equal(await page.getByRole('button', { name: '删除标签 Prompting' }).count(), 1);
