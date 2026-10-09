@@ -12,15 +12,14 @@ import { Props } from './screens/Props.tsx';
 import { Settings } from './screens/Settings.tsx';
 import { Workspace } from './screens/Workspace.tsx';
 import { Topics } from './screens/Topics.tsx';
-import type { IconName } from './lib/icon-paths.ts';
+import { PROJECT_NAV, type Tab } from './lib/project-navigation.ts';
+export type { Tab } from './lib/project-navigation.ts';
 import { Icon, Logo } from './lib/ui.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 
-export type Tab = 'write' | 'production' | 'characters' | 'locations' | 'props' | 'topics' | 'knowledge';
-export type Route = { name: 'home' } | { name: 'recents'; trash?: boolean } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingSkillActionId?: string; pendingEpisode?: string };
+export type Route = { name: 'home' } | { name: 'recents'; trash?: boolean; tab?: Tab } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingSkillActionId?: string; pendingEpisode?: string };
 
-// Same order as the prototype rail (laper): 写作 · 制作 · 角色 · 地点 · 道具 · 选题池 · 知识库.
-const TABS: [Tab, IconName, string][] = [['write', 'pen', '写作'], ['production', 'film', '制作'], ['characters', 'users', '角色'], ['locations', 'map', '地点'], ['props', 'box', '道具'], ['topics', 'bulb', '选题池'], ['knowledge', 'book', '知识库']];
+const TABS = PROJECT_NAV;
 
 export function App() {
   const [platform, setPlatform] = useState('');
@@ -75,7 +74,7 @@ export function App() {
       {route.name !== 'home' && route.name !== 'recents' && route.name !== 'settings' && nav}
       <div className="main">
         {route.name === 'home' && <Home keys={keys} go={setRoute} />}
-        {route.name === 'recents' && <Recents trash={!!route.trash} go={setRoute} />}
+        {route.name === 'recents' && <Recents trash={!!route.trash} tab={route.tab} go={setRoute} />}
         {route.name === 'settings' && <Settings license={lic} keys={keys} onChange={refresh} go={setRoute} back={route.back} />}
         {/* The writing tab stays mounted while its project is open, so the AI conversation and its undo buttons survive tab switches. */}
         {project && (
