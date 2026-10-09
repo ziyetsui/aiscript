@@ -7,7 +7,8 @@ import type { ScriptDoc } from './doc.ts';
 
 const Type = z.enum(ELEMENT_TYPES);
 export const Op = z.discriminatedUnion('op', [
-  z.object({ op: z.literal('insertNode'), after: z.string().nullable().default('end'), type: Type, text: z.string().max(4000) }),
+  // `id` lets the model name a new node so later ops can point at it.
+  z.object({ op: z.literal('insertNode'), after: z.string().nullable().default('end'), type: Type, text: z.string().max(4000), id: z.string().max(40).optional() }),
   z.object({ op: z.literal('updateNode'), id: z.string(), text: z.string().max(4000) }),
   z.object({ op: z.literal('setType'), id: z.string(), type: Type }),
   z.object({ op: z.literal('deleteNode'), id: z.string() }),
@@ -43,23 +44,50 @@ export function parseReply(reply: string): ParsedReply {
 }
 
 /** Apply ops in one undoable turn. Ids the model invents for new nodes ("$1") can be referenced by later ops. */
+/**
+ * Models refer to nodes they just inserted in several ways: "$n" counted over inserts or over all ops, an `id`
+ * they chose on the insert, or a slip. All of them resolve here; an `after` that still can't be found falls back
+ * to "right after the previous insert" (or the end) instead of failing the whole turn.
+ */
+class Refs {
+  private alias = new Map<string, string>();
+  private inserts = 0;
+  last: string | 'end' = 'end';
+  constructor(private readonly exists: (id: string) => boolean) {}
+  inserted(opIndex: number, realId: string, own?: string): void {
+    this.inserts++;
+    this.alias.set(`$${this.inserts}`, realId);
+    if (!this.alias.has(`$op${opIndex + 1}`)) this.alias.set(`$op${opIndex + 1}`, realId);
+    if (own) this.alias.set(own, realId);
+    this.last = realId;
+  }
+  resolve(ref: string): string | null {
+    const r = this.alias.get(ref) ?? this.alias.get(ref.replace(/^\$/, '$op')) ?? ref;
+    return this.exists(r) ? r : null;
+  }
+  after(ref: string | null): string | null | 'end' {
+    if (ref === null) return null;
+    if (ref === 'end') return this.last;
+    return this.resolve(ref) ?? this.last;
+  }
+}
+
+/** Apply ops in one undoable turn. Targets of update / delete that no longer exist are skipped, not fatal. */
 export function applyOps(doc: ScriptDoc, ops: readonly Op[], label: string) {
-  const alias = new Map<string, string>();
-  const resolve = (id: string) => alias.get(id) ?? id;
-  let last: string | 'end' = 'end';
   return doc.turn(label, (d) => {
+    const ids = new Set(d.nodes().map((n) => n.id));
+    const refs = new Refs((id) => ids.has(id));
     ops.forEach((op, i) => {
       switch (op.op) {
         case 'insertNode': {
-          const after = op.after === null ? null : op.after === 'end' ? last : resolve(op.after);
-          const id = d.insert(after, op.type, op.text);
-          alias.set(`$${i + 1}`, id);
-          last = id;
+          const id = d.insert(refs.after(op.after), op.type, op.text);
+          ids.add(id);
+          refs.inserted(i, id, op.id);
           break;
         }
-        case 'updateNode': d.setText(resolve(op.id), op.text); break;
-        case 'setType': d.setType(resolve(op.id), op.type); break;
-        case 'deleteNode': d.remove(resolve(op.id)); break;
+        case 'updateNode': { const t = refs.resolve(op.id); if (t) d.setText(t, op.text); break; }
+        case 'setType': { const t = refs.resolve(op.id); if (t) d.setType(t, op.type); break; }
+        case 'deleteNode': { const t = refs.resolve(op.id); if (t) { d.remove(t); ids.delete(t); } break; }
         case 'upsertCharacter': {
           const { op: _o, ...data } = op;
           const c = d.bible('characters');
@@ -103,6 +131,7 @@ export function previewOps(doc: ScriptDoc, ops: readonly Op[]): { items: Preview
   const byId = new Map(doc.nodes().map((n) => [n.id, n]));
   const items: PreviewItem[] = [];
   const missing: string[] = [];
+  const own = new Set(ops.flatMap((o) => (o.op === 'insertNode' && o.id ? [o.id] : [])));
   for (const o of ops) {
     if (o.op === 'insertNode') items.push({ kind: 'insert', type: o.type, text: o.text });
     else if (o.op === 'upsertCharacter') items.push({ kind: 'bible', text: `登记角色：${o.name}` });
@@ -110,7 +139,7 @@ export function previewOps(doc: ScriptDoc, ops: readonly Op[]): { items: Preview
     else if (o.op === 'setWorld') items.push({ kind: 'bible', text: `世界观「${o.title}」` });
     else {
       const n = byId.get(o.id);
-      if (!n) { if (!/^\$\d+$/.test(o.id)) missing.push(o.id); continue; }
+      if (!n) { if (!/^\$\d+$/.test(o.id) && !own.has(o.id)) missing.push(o.id); continue; }
       if (o.op === 'updateNode') items.push({ kind: 'update', id: n.id, type: n.type, before: n.text, after: o.text });
       else if (o.op === 'deleteNode') items.push({ kind: 'delete', id: n.id, type: n.type, before: n.text });
       else items.push({ kind: 'retype', id: n.id, text: n.text, from: n.type, to: o.type });

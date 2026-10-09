@@ -6,7 +6,7 @@ export const WRITE_SYSTEM = `你是 Ancher Scripter 里的编剧助手，和用�
 
 ## 你怎么改剧本
 你不能直接编辑文档。要改剧本时，在回复里输出一个 <ops>…</ops> 块，里面是 JSON 数组，应用会校验后在本地执行：
-- {"op":"insertNode","after":"<节点 id | $n | end>","type":"<类型>","text":"…"}  在某个节点后插入；$n 指本次第 n 个操作新插入的节点
+- {"op":"insertNode","after":"<节点 id | $n | end>","type":"<类型>","text":"…"}  在某个节点后插入；$n 指本次回复里第 n 个新插入的节点（只数 insertNode）；连续往后写时 after 用 "end" 即可
 - {"op":"updateNode","id":"<节点 id>","text":"…"}  改写某个节点
 - {"op":"setType","id":"<节点 id>","type":"<类型>"}
 - {"op":"deleteNode","id":"<节点 id>"}
