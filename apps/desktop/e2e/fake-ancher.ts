@@ -47,7 +47,8 @@ function replyFor(prompt: string): string {
 /** Prompts containing __SLOW__ stall before streaming, so the E2E can cancel a workflow mid-step. */
 export const isSlow = (prompt: string) => prompt.includes('__SLOW__');
 
-export function startFakeAncher(): Promise<{ url: string; server: Server; prompts: string[]; cloudNotes: ReturnType<typeof cloudNote>[]; cloudFailures: { body: number } }> {
+export function startFakeAncher(): Promise<{ url: string; server: Server; prompts: string[]; cloudNotes: ReturnType<typeof cloudNote>[]; cloudFailures: { body: number }; streamGate: { paused: boolean } }> {
+  const streamGate = { paused: false };
   const prompts: string[] = [];
   const cloudNotes = [cloudNote()];
   const cloudFailures = { body: 0 };
@@ -101,6 +102,7 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
       const delay = isSlow(prompts.at(-1) ?? '') ? 2500 : 0;
       let t: NodeJS.Timeout | undefined;
       const go = () => { t = setInterval(() => {
+        if (streamGate.paused) return;
         if (pre.length) res.write(`data: ${JSON.stringify(pre.shift())}\n\n`);
         else if (i < chunks.length) res.write(`data: ${JSON.stringify(ev(chunks[i++]!))}\n\n`);
         else { res.write(`data: ${JSON.stringify({ type: 'done', conversation_id: 'c1', message_id: 'm1', finish_reason: 'stop' })}\n\n`); res.end(); clearInterval(t); }
@@ -121,6 +123,6 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
   });
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
     const a = server.address();
-    resolve({ url: `http://127.0.0.1:${typeof a === 'object' && a ? a.port : 0}`, server, prompts, cloudNotes, cloudFailures });
+    resolve({ url: `http://127.0.0.1:${typeof a === 'object' && a ? a.port : 0}`, server, prompts, cloudNotes, cloudFailures, streamGate });
   }));
 }

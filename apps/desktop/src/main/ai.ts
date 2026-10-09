@@ -35,6 +35,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
     return { name: image.name, file };
   });
   pushChat(p, msg({ role: 'user', text: req.instruction, ...(noteInput.notes.length ? { notes: noteInput.notes } : {}), ...(storedImages.length ? { images: storedImages } : {}) }));
+  saveNow(p); // persist the user message before any remote request or upload can be interrupted
   // Agent activity: rows stream to the renderer live and are kept on the reply, finished (a cancelled call stays as a row).
   let rows: ActivityRow[] = [];
   const labels = new Map<string, string>();

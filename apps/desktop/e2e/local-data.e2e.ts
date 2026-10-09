@@ -66,5 +66,15 @@ try {
  assert.ok((await page.evaluate(() => window.api.projects.trashList())).some((p) => p.id === copy.id), 'SQLite-only projects must remain visible in recycle bin');
  await page.evaluate((id) => window.api.projects.restore(id), copy.id);
  assert.equal((await page.evaluate((id) => window.api.projects.open(id), copy.id)).conversations.length, 62);
+ const inFlight = page.evaluate((id) => window.api.ai.write({ reqId: 'pending-prompt', projectId: id, instruction: '__SLOW__ 客户尚在等待的提问', webSearch: false }), copy.id).catch(() => {});
+ let persisted = false;
+ for (let n = 0; n < 40 && !persisted; n++) {
+   await page.waitForTimeout(50);
+   const pendingDb = new DatabaseSync(join(userData, 'projects', copy.id, 'project.sqlite'), { readOnly: true });
+   try { persisted = String(pendingDb.prepare('SELECT meta FROM snapshot WHERE id=1').get()?.meta).includes('客户尚在等待的提问'); } finally { pendingDb.close(); }
+ }
+ assert.equal(persisted, true, 'a user prompt must reach disk before the remote model returns');
+ await app.close(); await inFlight; await launch(); await page.locator('#ask').waitFor();
+ assert.ok((await page.evaluate((id) => window.api.projects.open(id), copy.id)).chat.some((m) => m.text === '__SLOW__ 客户尚在等待的提问'));
  console.log('SQLite E2E passed: migration, >400 messages, >50 conversations, build update, mirror repair, corrupt DB and settings recovery as copy.');
 } finally { await app.close().catch(() => {}); fake.server.closeAllConnections(); fake.server.close(); rmSync(tmp, { recursive: true, force: true }); }

@@ -50,7 +50,7 @@ function copyBackup(dir: string, db: DatabaseSync, kind: string, name?: string):
     try {
       db.prepare('VACUUM INTO ?').run(temp); chmodSync(temp, 0o600);
       const verify = database(temp, true); try { checked(verify.prepare('SELECT meta,script FROM snapshot WHERE id=1').get()); } finally { verify.close(); }
-      const fd = openSync(temp, 'r'); try { fsyncSync(fd); } finally { closeSync(fd); }
+      const fd = openSync(temp, 'r+'); try { fsyncSync(fd); } finally { closeSync(fd); }
       renameSync(temp, final);
       if (process.platform !== 'win32') { const folder = openSync(root, 'r'); try { fsyncSync(folder); } finally { closeSync(folder); } }
     } finally { rmSync(temp, { force: true }); }
