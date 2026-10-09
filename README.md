@@ -2,7 +2,7 @@
 
 AI 编剧桌面客户端（Windows + macOS），AI 能力来自用户自己的 Ancher API key。规格见 [`specs/0002-desktop-client-spec.md`](specs/0002-desktop-client-spec.md)，原型见 [`specs/images/prototypes/Ancher-Scripter-Prototype.html`](specs/images/prototypes/Ancher-Scripter-Prototype.html)。
 
-第一次使用请阅读[从零安装依赖与运行客户端](docs/delivery/从零安装依赖与运行客户端.md)：包括安装包使用、macOS / Windows 环境准备、所有依赖、激活、源码运行、打包、备份和排错。
+客户第一次使用请阅读[新用户安装指南](docs/delivery/新用户安装指南.md)：下载、安装、激活、连接 AI、首次写作、笔记、转写、备份和更新。需要从源码运行时，阅读[从零安装依赖与运行客户端](docs/delivery/从零安装依赖与运行客户端.md)。
 
 ## 开发
 
