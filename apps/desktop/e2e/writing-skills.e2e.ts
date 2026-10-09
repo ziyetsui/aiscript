@@ -27,7 +27,10 @@ const { port } = server.address() as { port: number };
 const tmp = mkdtempSync(join(tmpdir(), 'scripter-skills-'));
 const { privatePem, publicPem } = generateKeypair(); writeFileSync(join(tmp, 'pub.pem'), publicPem);
 const app = await electron.launch({ args: [join(import.meta.dirname, '..')], env: { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: join(tmp, 'data'), SCRIPTER_LICENSE_PUBKEY: join(tmp, 'pub.pem'), SCRIPTER_ANCHER_BASE_URL: `http://127.0.0.1:${port}` } });
-const page = await app.firstWindow(); await app.evaluate(({ BrowserWindow }) => { for (const w of BrowserWindow.getAllWindows()) w.hide(); }); page.setDefaultTimeout(15000);
+const page = await app.firstWindow();
+// Hidden native windows cannot complete Playwright actionability checks on Windows.
+if (process.platform === 'darwin') await app.evaluate(({ BrowserWindow }) => { for (const w of BrowserWindow.getAllWindows()) w.hide(); });
+page.setDefaultTimeout(15000);
 async function choose(query: string, title: string) {
   await page.locator('#plus').click();
   await page.getByRole('menuitem', { name: '快捷指令', exact: true }).click();
