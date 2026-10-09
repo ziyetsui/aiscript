@@ -11,16 +11,17 @@ import { Locations } from './screens/Locations.tsx';
 import { Props } from './screens/Props.tsx';
 import { Settings } from './screens/Settings.tsx';
 import { Workspace } from './screens/Workspace.tsx';
+import { Topics } from './screens/Topics.tsx';
 import { World } from './screens/World.tsx';
 import type { IconName } from './lib/icon-paths.ts';
 import { Icon, Logo } from './lib/ui.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 
-export type Tab = 'write' | 'production' | 'characters' | 'locations' | 'props' | 'world' | 'knowledge';
+export type Tab = 'write' | 'production' | 'characters' | 'locations' | 'props' | 'world' | 'topics' | 'knowledge';
 export type Route = { name: 'home' } | { name: 'recents'; trash?: boolean } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingSkillActionId?: string; pendingEpisode?: string };
 
-// Same order as the prototype rail (laper): 写作 · 制作 · 角色 · 地点 · 道具 · 世界观 · 知识库.
-const TABS: [Tab, IconName, string][] = [['write', 'pen', '写作'], ['production', 'film', '制作'], ['characters', 'users', '角色'], ['locations', 'map', '地点'], ['props', 'box', '道具'], ['world', 'globe', '世界观'], ['knowledge', 'book', '知识库']];
+// Same order as the prototype rail (laper): 写作 · 制作 · 角色 · 地点 · 道具 · 世界观 · 选题池 · 知识库.
+const TABS: [Tab, IconName, string][] = [['write', 'pen', '写作'], ['production', 'film', '制作'], ['characters', 'users', '角色'], ['locations', 'map', '地点'], ['props', 'box', '道具'], ['world', 'globe', '世界观'], ['topics', 'bulb', '选题池'], ['knowledge', 'book', '知识库']];
 
 export function App() {
   const [platform, setPlatform] = useState('');
@@ -88,6 +89,7 @@ export function App() {
         {route.name === 'project' && route.tab === 'locations' && <Locations key={route.id} id={route.id} />}
         {route.name === 'project' && route.tab === 'props' && <Props key={route.id} id={route.id} />}
         {route.name === 'project' && route.tab === 'world' && <World key={route.id} id={route.id} />}
+        {route.name === 'project' && route.tab === 'topics' && <Topics key={route.id} id={route.id} />}
         {route.name === 'project' && route.tab === 'knowledge' && <Knowledge key={route.id} id={route.id} onSelect={setFileId} dockOpen={!dockHidden.knowledge} toggleDock={() => setDockHidden((x) => { const n = { ...x, knowledge: !x.knowledge }; localStorage.setItem('dock-hidden', JSON.stringify(n)); return n; })} />}
         {route.name === 'project' && route.tab === 'production' && <Production key={route.id} id={route.id} />}</div>
           <button hidden={route.tab === 'production' || route.tab === 'knowledge'} className="dock-toggle btn btn-quiet" aria-label="切换 AI 对话" onClick={() => setDockHidden((x) => { const n = { ...x, [route.tab]: !x[route.tab] }; try { localStorage.setItem('dock-hidden', JSON.stringify(n)); } catch {} return n; })}><Icon name="chat" size={15} /></button>

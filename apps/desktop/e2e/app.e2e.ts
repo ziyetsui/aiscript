@@ -324,6 +324,8 @@ try {
   await page.getByRole('button', { name: '保存到项目', exact: true }).click();
   await page.getByLabel('笔记标题', { exact: true }).waitFor();
   const cloudPid = await page.evaluate(async () => (await window.api.projects.list())[0]!.id);
+  // The local notes pane can mount before its asynchronous cloud import completes.
+  await page.waitForFunction(async (id) => (await window.api.projects.open(id)).bible.files.some((f) => f.id === 'ancher-cloud-n2'), cloudPid);
   await page.evaluate(async (id) => window.api.files.saveBody(id, 'ancher-cloud-n2', '本地编辑内容'), cloudPid);
   const imported = await page.evaluate(async (id) => window.api.ancherNotes.import(id, 'cloud-n2'), cloudPid);
   assert.equal(imported.state.bible.files.filter((f) => f.id === 'ancher-cloud-n2').length, 1);
@@ -428,8 +430,33 @@ try {
   assert.match(fake.prompts.at(-1)!, /<reference>[\s\S]*《导演意见\.txt》[\s\S]*不要大人式的抖机灵[\s\S]*<\/reference>/, 'pinned knowledge goes along as reference material');
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
-  await page.locator('.setting', { hasText: '门墩儿想修好姥爷的旧鞋' }).waitFor();
   await shot(page, '11-library');
+  await page.getByRole('button', { name: '选题池', exact: true }).click();
+  const shoeTopic = page.getByRole('article', { name: '修鞋铺', exact: true });
+  await shoeTopic.getByText('门墩儿想修好姥爷的旧鞋', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('article').count(), 3);
+  await page.getByRole('button', { name: '关于这些选题', exact: true }).waitFor();
+  await shoeTopic.getByRole('button', { name: '选这个', exact: true }).click();
+  await shoeTopic.getByText('已选', { exact: true }).waitFor();
+  await page.getByRole('tab', { name: '已选', exact: true }).click();
+  assert.equal(await page.getByRole('article').count(), 1);
+  await page.getByRole('tab', { name: '全部', exact: true }).click();
+  const rainTopic = page.getByRole('article', { name: '雨天', exact: true });
+  await rainTopic.getByLabel('否掉的原因').fill('不符合这集的主题');
+  await rainTopic.getByRole('button', { name: '否掉', exact: true }).click();
+  await rainTopic.getByText('已否', { exact: true }).waitFor();
+  await rainTopic.getByRole('button', { name: '恢复待定', exact: true }).click();
+  await rainTopic.getByText('待定', { exact: true }).waitFor();
+  assert.equal(await rainTopic.getByLabel('否掉的原因').inputValue(), '');
+  await rainTopic.getByLabel('否掉的原因').fill('不符合这集的主题');
+  await rainTopic.getByLabel('否掉的原因').press('Enter');
+  await rainTopic.getByText('已否', { exact: true }).waitFor();
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate(async (t) => window.api.app.setTheme(t), theme);
+    await page.waitForFunction((t) => matchMedia('(prefers-color-scheme: dark)').matches === (t === 'dark'), theme);
+    await page.evaluate(async () => { await Promise.all(document.getAnimations().filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime)).map((a) => a.finished.catch(() => {}))); });
+    await shot(page, `topics-panel-${theme}`);
+  }
 
   step('restart again: the whole bible persisted');
   await app.close();
@@ -446,6 +473,11 @@ try {
   await page.locator('.prop-card', { hasText: '白球鞋' }).waitFor();
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   assert.match(await page.getByLabel('世界规则', { exact: true }).inputValue(), /只能“借”/);
+  await page.getByRole('button', { name: '选题池', exact: true }).click();
+  await page.getByRole('article', { name: '修鞋铺', exact: true }).getByText('已选', { exact: true }).waitFor();
+  await page.getByRole('article', { name: '雨天', exact: true }).getByText('否掉的原因：不符合这集的主题', { exact: true }).waitFor();
+  await page.getByRole('button', { name: '世界观', exact: true }).click();
+  assert.equal(await page.locator('.content-main').getByText('门墩儿想修好姥爷的旧鞋', { exact: true }).count(), 0);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
   await page.getByRole('tab', { name: '项目笔记', exact: true }).click();
   await page.getByText('导演意见.txt', { exact: true }).first().waitFor();

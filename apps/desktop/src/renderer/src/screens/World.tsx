@@ -81,7 +81,7 @@ export function World({ id }: { id: string }) {
   );
 }
 
-/** Rules, topics and humor examples gathered by the ⚡ workflows (spec §1.1: 规则库 / 选题池 / 正反例库). */
+/** Rules and humor examples gathered by the ⚡ workflows (spec §1.1: 规则库 / 正反例库). */
 function Library({ p }: { p: ReturnType<typeof useProject> }) {
   const b = p.st!.bible;
   return (
@@ -98,23 +98,6 @@ function Library({ p }: { p: ReturnType<typeof useProject> }) {
             </tr>
           ))}
         </tbody></table></div>
-      )}
-      <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>选题池</div>
-      {b.topics.length === 0 ? <div className="card empty">还没有选题。用「⚡ 今日热点选题」找一些。</div> : (
-        <div className="sets">
-          {b.topics.map((t) => (
-            <div key={t.id} className="card setting" style={{ opacity: t.status === 'dropped' ? 0.6 : 1 }}>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}><b style={{ flex: 1 }}>{t.title}</b><span className="chip">{{ idea: '待定', picked: '已选', dropped: '已否' }[t.status]}</span></div>
-              <span>{t.logline}</span><span className="muted" style={{ fontSize: 12 }}>{t.why}</span>
-              {t.status === 'dropped' && t.reason && <span className="muted" style={{ fontSize: 12 }}>否掉的原因：{t.reason}</span>}
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button className="btn btn-ghost" style={{ height: 26 }} onClick={() => void p.update('topics', t.id, { status: 'picked' })}>选这个</button>
-                <input className="input" style={{ height: 26, fontSize: 12 }} placeholder="否掉的原因（会进反例库）" aria-label={`否掉 ${t.title} 的原因`} defaultValue={t.reason}
-                  onKeyDown={(e) => { if (e.key === 'Enter') void p.update('topics', t.id, { status: 'dropped', reason: e.currentTarget.value.trim() }); }} />
-              </div>
-            </div>
-          ))}
-        </div>
       )}
       {b.jokes.length > 0 && (
         <>
