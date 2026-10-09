@@ -303,11 +303,12 @@ try {
   const moved = (await card.boundingBox())!;
   assert.ok(Math.abs(moved.x - box.x - 160) < 6 && Math.abs(moved.y - box.y - 120) < 6, 'prop card follows the drag');
   await shot(page, '08-props');
-  await page.getByRole('button', { name: '世界观', exact: true }).click();
-  await page.getByRole('button', { name: /系列动画/ }).click();
-  await page.getByLabel('世界规则', { exact: true }).fill('门墩儿只能“借”胡同里的老物件，不能凭空变出东西');
-  await page.getByLabel('世界规则', { exact: true }).blur();
-  await shot(page, '09-world');
+  assert.equal(await page.getByRole('button', { name: '世界观', exact: true }).count(), 0);
+  // Existing setting data still survives even though its dedicated panel was removed.
+  await page.evaluate(async () => {
+    const id = (await window.api.projects.list())[0]!.id;
+    await window.api.bible.add(id, 'world', { title: '世界规则', value: '门墩儿只能“借”胡同里的老物件，不能凭空变出东西' });
+  });
   const doc = join(tmp, '导演意见.txt');
   writeFileSync(doc, '第一集：笑点要来自孩子的视角，不要大人式的抖机灵。');
   await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [p] })) as typeof dialog.showOpenDialog; }, doc);
@@ -431,8 +432,7 @@ try {
   assert.ok(fake.prompts.at(-1)!.includes('笑点要来自孩子的视角'), 'confirmed rules are sent with the next writing request');
   assert.ok(!fake.prompts.at(-1)!.includes('不要出现手机'), 'unconfirmed rules are not');
   assert.match(fake.prompts.at(-1)!, /<reference>[\s\S]*《导演意见\.txt》[\s\S]*不要大人式的抖机灵[\s\S]*<\/reference>/, 'pinned knowledge goes along as reference material');
-  await page.getByRole('button', { name: '世界观', exact: true }).click();
-  await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
+  assert.ok(await page.evaluate(async () => { const id = (await window.api.projects.list())[0]!.id; return (await window.api.projects.open(id)).bible.rules.some(r => r.text.includes('笑点要来自孩子的视角')); }));
   await shot(page, '11-library');
   await page.getByRole('button', { name: '选题池', exact: true }).click();
   const shoeTopic = page.getByRole('article', { name: '修鞋铺', exact: true });
@@ -474,13 +474,11 @@ try {
   assert.equal(await page.getByLabel('门墩儿 的配音').inputValue(), '老年男声 · 京腔 · 慢');
   await page.getByRole('button', { name: '道具', exact: true }).click();
   await page.locator('.prop-card', { hasText: '白球鞋' }).waitFor();
-  await page.getByRole('button', { name: '世界观', exact: true }).click();
-  assert.match(await page.getByLabel('世界规则', { exact: true }).inputValue(), /只能“借”/);
+  assert.ok(await page.evaluate(async () => { const id = (await window.api.projects.list())[0]!.id; return (await window.api.projects.open(id)).bible.world.some(s => s.value.includes('只能“借”')); }));
   await page.getByRole('button', { name: '选题池', exact: true }).click();
   await page.getByRole('article', { name: '修鞋铺', exact: true }).getByText('已选', { exact: true }).waitFor();
   await page.getByRole('article', { name: '雨天', exact: true }).getByText('否掉的原因：不符合这集的主题', { exact: true }).waitFor();
-  await page.getByRole('button', { name: '世界观', exact: true }).click();
-  assert.equal(await page.locator('.content-main').getByText('门墩儿想修好姥爷的旧鞋', { exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: '世界观', exact: true }).count(), 0);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
   await page.getByRole('tab', { name: '项目笔记', exact: true }).click();
   await page.getByText('导演意见.txt', { exact: true }).first().waitFor();
@@ -528,8 +526,7 @@ try {
   await page.getByRole('button', { name: '知识库', exact: true }).click();
   await page.getByRole('tab', { name: '项目笔记', exact: true }).click();
   await page.getByText('导演意见.txt', { exact: true }).first().waitFor(); // files travel with the project
-  await page.getByRole('button', { name: '世界观', exact: true }).click();
-  await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
+  assert.ok(await page.evaluate(async () => { const id = (await window.api.projects.list())[0]!.id; return (await window.api.projects.open(id)).bible.rules.some(r => r.text.includes('笑点要来自孩子的视角')); }));
 
   step('⚡ 写一整集: confirm the story (edited), confirm the scenes, preview, accept — 13 scenes land in the script');
   await page.getByRole('button', { name: '返回首页' }).last().click();
@@ -552,9 +549,9 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('.paper .node[data-type="heading"]').length === 13, null, { timeout: 30_000 });
   await page.getByRole('tab', { name: '大纲' }).click();
   assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /【故事】\n豆豆想要一双会发光的鞋/);
-  await page.getByRole('button', { name: '世界观', exact: true }).click();
-  // The writer's edit (appended under 锁定核心) is what got locked in.
-  assert.match(await page.getByLabel('锁定核心', { exact: true }).inputValue(), /旧东西里有爱[\s\S]*大壮最后也借到了鞋/);
+  // The writer's edit remains in project settings without a dedicated world panel.
+  const lockedCore = await page.evaluate(async () => { const id = (await window.api.projects.list())[0]!.id; return (await window.api.projects.open(id)).bible.world.find(s => s.title === '锁定核心')?.value; });
+  assert.match(lockedCore ?? '', /旧东西里有爱[\s\S]*大壮最后也借到了鞋/);
 
   step('制作: AI 分镜 for scene 1 (one undoable turn), cycle a shot size, image prompt, 制作设置 → 9:16, export the shot list; 分镜 view in the workspace');
   await page.getByRole('button', { name: '制作', exact: true }).click();
@@ -803,7 +800,7 @@ try {
   assert.deepEqual(await page.evaluate(() => [innerWidth, innerHeight]), [...size]);
   for (const theme of ['亮色', '暗色']) {
     await page.getByRole('button', { name: '设置', exact: true }).click(); await page.getByRole('radio', { name: theme }).click();
-    for (const tab of ['写作', '角色', '地点', '道具', '世界观', '知识库', '制作']) {
+    for (const tab of ['写作', '角色', '地点', '道具', '知识库', '制作']) {
       await page.getByRole('button', { name: tab, exact: true }).click();
       await page.locator(tab === '写作' ? '.writing-center' : '.content-main > *').first().waitFor({ state: 'visible' });
       await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
