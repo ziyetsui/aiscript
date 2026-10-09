@@ -79,19 +79,42 @@ export async function transcribeWithGoogleCloud(key: string, audio: Uint8Array, 
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [
         { inlineData: { mimeType: 'audio/mpeg', data: Buffer.from(audio).toString('base64') } },
-        { text: '逐字转写这段音频中的所有对白和旁白，保留原语言、口头语和说话人。只输出 SRT 字幕，时间从本段 00:00:00,000 开始。不要摘要或翻译。没有人声时只输出 NO_SPEECH。' },
+        { text: '逐字转写这段音频中的所有对白和旁白，保留原语言、口头语；只标注能够确认的说话人，不猜测姓名。返回 segments 数组，每项 startMs 和 endMs 是相对本段音频起点的整数毫秒时间，text 是逐字原文。按开始时间升序排列，不要摘要或翻译。没有人声时返回空的 segments 数组。' },
       ] }],
-      generationConfig: { maxOutputTokens: 32768, thinkingConfig: { thinkingBudget: 0 } },
+      generationConfig: {
+        maxOutputTokens: 32768, thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'OBJECT', required: ['segments'],
+          properties: { segments: { type: 'ARRAY', items: {
+            type: 'OBJECT', required: ['startMs', 'endMs', 'text'],
+            properties: { startMs: { type: 'INTEGER' }, endMs: { type: 'INTEGER' }, text: { type: 'STRING' } },
+          } } },
+        },
+      },
     }),
   });
   if (!r.ok) throw new Error(apiError(r.status));
   const out = await r.json() as { candidates?: { finishReason?: string; content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
   const candidate = out.candidates?.[0];
   if (candidate?.finishReason !== 'STOP') throw new Error('Gemini 转写未完整结束，请重试或缩短音频');
-  const srt = (candidate.content?.parts ?? []).filter(p => !p.thought).map(p => p.text ?? '').join('').replace(/^```(?:srt)?\s*|```\s*$/g, '').trim();
-  if (srt === 'NO_SPEECH') return { text: '', srt: '' };
-  // Fail visibly instead of saving a summary or truncated transcript as subtitles.
-  return mergeTranscriptSegments([{ srt, offsetSeconds: 0 }]);
+  const raw = (candidate.content?.parts ?? []).filter(p => !p.thought).map(p => p.text ?? '').join('').trim();
+  let result: unknown;
+  try { result = JSON.parse(raw); } catch { throw new Error('Gemini 返回的转写数据无法解析，请重试'); }
+  if (!result || typeof result !== 'object' || !('segments' in result) || !Array.isArray(result.segments)) throw new Error('Gemini 返回的转写数据不完整，请重试');
+  const blocks: string[] = [];
+  const text: string[] = [];
+  let previousStart = -1;
+  for (const segment of result.segments) {
+    if (!segment || typeof segment !== 'object' || !Number.isSafeInteger(segment.startMs) || !Number.isSafeInteger(segment.endMs) || segment.startMs < 0 || segment.endMs <= segment.startMs || segment.startMs < previousStart) throw new Error('Gemini 返回的转写时间无效，请重试');
+    if (typeof segment.text !== 'string' || !segment.text.trim()) throw new Error('Gemini 返回的转写内容为空，请重试');
+    // A blank line separates SRT cues; it cannot occur inside a cue's text.
+    const line = segment.text.replace(/\r\n?/g, '\n').split('\n').filter((line: string) => line.trim()).join('\n').trim();
+    previousStart = segment.startMs;
+    blocks.push(`${blocks.length + 1}\n${formatTime(segment.startMs)} --> ${formatTime(segment.endMs)}\n${line}`);
+    text.push(line);
+  }
+  return { srt: blocks.join('\n\n'), text: text.join('\n') };
 }
 
 const timestamp = '(\\d{2,}):(\\d{2}):(\\d{2}),(\\d{3})';
