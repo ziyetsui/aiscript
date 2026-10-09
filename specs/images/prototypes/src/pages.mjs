@@ -427,10 +427,28 @@ const nearBottom=()=>feed.scrollHeight-feed.scrollTop-feed.clientHeight<48;
 function pill(){ const j=$('jump'), n=$('jump-n'); j.classList.toggle('show',unread>0||!nearBottom()); n.hidden=!unread; n.textContent=unread>99?'99+':unread; }
 feed.addEventListener('scroll',()=>{ if(nearBottom()) unread=0; pill(); });
 function toLatest(){ feed.scrollTo({top:feed.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); unread=0; pill(); }
-const add=h=>{ const stick=nearBottom(); const th=$('thinking'); const d=document.createElement('div'); d.className='enter'; d.innerHTML=h;
+const add=h=>{ actClose(); const stick=nearBottom(); const th=$('thinking'); const d=document.createElement('div'); d.className='enter'; d.innerHTML=h;
   if(th) feed.insertBefore(d,th); else feed.appendChild(d);
   if(stick) feed.scrollTop=feed.scrollHeight; else { unread++; pill(); } return d; };
-async function tool(name,obj,ms){const t=add('<div class="tool"><span class="spin"></span><span><b>'+name+'</b>'+(obj?'：'+obj:'')+' — <span class="st">进行中</span></span></div>');await wait(ms||420);t.querySelector('.spin').outerHTML='<span class="ok">✓</span>';t.querySelector('.st').textContent='完成';}
+// Agent activity, after Ancher's ActivityTree: muted 28px rows, no cards; consecutive calls of the same tool
+// merge into ×N; when the agent starts talking (or the turn ends) the block folds into one 「› 完成 N 个步骤」 line.
+let actGroup=null; const DOTS='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'; let dotI=0;
+setInterval(()=>{ dotI++; document.querySelectorAll('.act-row.run .ai').forEach(e=>e.textContent=DOTS[dotI%DOTS.length]); },90);
+function actStart(name,obj){
+  if(!actGroup){ const g=document.createElement('div'); g.className='act'; g.innerHTML='<button class="act-sum" aria-expanded="true" hidden>'+ICON.chevR+'<span></span></button><div class="act-rows"></div>';
+    g.querySelector('.act-sum').onclick=e=>{ const o=e.currentTarget.getAttribute('aria-expanded')!=='true'; e.currentTarget.setAttribute('aria-expanded',o); g.querySelector('.act-rows').hidden=!o; };
+    const th=$('thinking'); if(th) feed.insertBefore(g,th); else feed.appendChild(g); actGroup=g; }
+  const rows=actGroup.querySelector('.act-rows'), last=rows.lastElementChild;
+  if(last&&last.dataset.name===name&&!last.classList.contains('run')){ last.dataset.n=+last.dataset.n+1; last.classList.add('run'); last.querySelector('.ai').textContent=DOTS[0]; last.querySelector('.ao').textContent=obj?' · '+obj:''; last.querySelector('.an').textContent='×'+last.dataset.n; return last; }
+  const r=document.createElement('div'); r.className='act-row run'; r.dataset.name=name; r.dataset.n=1;
+  r.innerHTML='<span class="ai" aria-hidden="true">'+DOTS[0]+'</span><span class="al"><span></span><span class="ao"></span></span><span class="an"></span>';
+  r.querySelector('.al span').textContent=name; r.querySelector('.ao').textContent=obj?' · '+obj:''; rows.appendChild(r);
+  if(nearBottom()) feed.scrollTop=feed.scrollHeight; return r; }
+function actDone(r,count){ r.classList.remove('run'); r.querySelector('.ai').innerHTML=ICON.check; if(count) { r.dataset.n=count; r.querySelector('.an').textContent='×'+count; } }
+function actClose(){ if(!actGroup) return; const rows=[...actGroup.querySelectorAll('.act-row')], n=rows.reduce((a,r)=>a+ +r.dataset.n,0);
+  const sum=actGroup.querySelector('.act-sum'); sum.hidden=false; sum.setAttribute('aria-expanded','false'); actGroup.querySelector('.act-rows').hidden=true;
+  sum.querySelector('span').textContent='完成 '+n+' 个步骤 · '+rows.slice(-2).map(r=>r.dataset.name).join('、'); actGroup=null; }
+async function tool(name,obj,ms){ const r=actStart(name,obj); await wait(ms||420); actDone(r); }
 const VT={script:'剧本',outline:'大纲',shots:'分镜',scn:'场景'};
 function view(v){ ['page','outline','shots','scn'].forEach(id=>$(id).hidden=(id==='page'?'script':id)!==v); $('tb').hidden=v!=='script';$('hd-seg').hidden=v!=='script';$('hd-title').textContent=VT[v];
   ['script','outline','shots','scn'].forEach(k=>$('nv-'+k).classList.toggle('on',k===v)); if(v==='shots') renderShots(); if(v==='scn') renderScn(); }
@@ -482,6 +500,7 @@ const TIPS=['把参考剧本放进知识库并打开「写作时参考」，AI �
 let dotsT, tipT;
 function lock(on){ busy=on; ghost(''); const s=$('send'); s.innerHTML=on?ICON.square:ICON.send; s.classList.toggle('stop',on); s.setAttribute('aria-label',on?'停止':'发送'); $('cmp-card').classList.toggle('busy',on);
   clearInterval(dotsT); clearInterval(tipT); $('thinking')&&$('thinking').remove();
+  if(!on) actClose();
   composerInput();
   if(!on){ // turn over: send the next queued message, else offer a suggestion
     if(queue.length){ const next=queue.shift(); renderQueue(); setTimeout(()=>{ $('ask').value=next; sendTyped(); },400); }
@@ -509,15 +528,15 @@ async function turn1(){ if(busy) return; lock(true); $('welcome')&&$('welcome').
   for(const c of DATA.CHARS){ await tool('创建角色',c,300); $('c-chars').textContent=+$('c-chars').textContent+1; stat('s-chars',$('c-chars').textContent); } step(3);
   for(const [l] of DATA.LOCS){ await tool('创建地点',l,300); $('c-locs').textContent=+$('c-locs').textContent+1; stat('s-locs',$('c-locs').textContent); } step(4);
   add('<div class="narr">现在写前三场。第一场：</div>'); view('script');
-  const t=add('<div class="tool"><span class="spin"></span><span><b>插入剧本节点</b> — <span class="st">进行中</span></span></div>');
-  await insertNodes(DATA.SCRIPT1); t.querySelector('.spin').outerHTML='<span class="ok">✓</span>'; t.querySelector('.st').textContent='完成 × '+DATA.SCRIPT1.length; TW.ding(); step(2); stat('s-rel',2);
+  const t=actStart('插入剧本节点');
+  await insertNodes(DATA.SCRIPT1); actDone(t,DATA.SCRIPT1.length); TW.ding(); step(2); stat('s-rel',2);
   add('<div class="narr">《门墩儿》前三场落好了。<br><br>项目改名为《门墩儿》，第二集已经建好，暂定叫《借来的东西》。两集大纲都写了：第一集立住"只有豆豆看得见门墩儿"这条规矩，第二集往"借来的东西会想家"的方向走。<br><br>正文只写了第一集前三场：门墩儿开口、饭桌上的心不在焉、操场上的亮灯鞋。第三场书包里那块会动的石头碎屑，是我埋的线。<br><br>要不要往下想：豆豆第一次求门墩儿帮忙，会求什么？</div>'+actions());
   inserted=[]; lock(false); $('ask').value='他会求一双会亮灯的鞋。按大纲把第一集剩下的写完，结尾留个钩子接第二集。'; }
 
 async function turn2(text){ lock(true); turn=2; inserted=[]; userSay(text);
   await tool('读取剧本大纲'); await tool('查看地点'); await tool('创建地点','姥爷修车铺',300); $('c-locs').textContent=+$('c-locs').textContent+1; stat('s-locs',$('c-locs').textContent);
-  const t=add('<div class="tool"><span class="spin"></span><span><b>插入剧本节点</b> — <span class="st">进行中</span></span></div>');
-  await insertNodes(DATA.SCRIPT2); t.querySelector('.spin').outerHTML='<span class="ok">✓</span>'; t.querySelector('.st').textContent='完成 × '+DATA.SCRIPT2.length; TW.ding();
+  const t=actStart('插入剧本节点');
+  await insertNodes(DATA.SCRIPT2); actDone(t,DATA.SCRIPT2.length); TW.ding();
   add('<div class="narr">第一集写完了，五场。鞋底那个"建"字就是钩子——第二集一开场，姥爷就得回答"这鞋你从哪儿拿的"。<br><br>要不要想想：姥爷是会追问，还是假装没看见？</div>'+actions());
   const n=inserted.length+1;
   add('<div class="turn"><span class="tnum">本轮 '+n+' 处修改</span><button class="btn btn-ghost" style="height:26px;padding:0 10px" onclick="undo(this)">'+ICON.undo+' 撤销</button></div>');
@@ -610,7 +629,9 @@ renderModelMenu();
 // when the turn ends. After a turn, a ghost suggestion sits in the empty box — Tab takes it.
 const queue=[];
 const SUGG=['写第二场：豆豆第一次求门墩儿帮忙','把第一场的对白改得更像孩子说话','给第一集加一个意料之外的结尾'];
-function ghost(t){ const g=$('ghost'); g.querySelector('span').textContent=t||''; g.hidden=!t||!!$('ask').value; }
+function ghost(t){ const g=$('ghost'); g.querySelector('span').textContent=t||''; const sync=()=>{ g.hidden=!g.querySelector('span').textContent||!!$('ask').value; }; sync(); setTimeout(sync,0); }
+// Text can land in the box without an input event (prefill, demo); never let the hint sit under real text.
+setInterval(()=>{ const a=$('ask'), g=$('ghost'); if(a&&g&&!g.hidden&&a.value) g.hidden=true; },250);
 function composerInput(){ const has=!!$('ask').value.trim(); $('qpill').hidden=!(busy&&has); $('send').hidden=busy&&has; ghost(has?'':$('ghost').querySelector('span').textContent); }
 function composerKey(e){
   if(e.key==='Tab'&&!$('ask').value&&!$('ghost').hidden){ e.preventDefault(); $('ask').value=$('ghost').querySelector('span').textContent; ghost(''); composerInput(); return; }

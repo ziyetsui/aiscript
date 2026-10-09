@@ -397,3 +397,25 @@ body[data-dark] .nt-tag[data-c="b3"] { color: var(--color-b3-400); } body[data-d
 .ag-hints div { display: flex; align-items: center; gap: 10px; }
 .ag-hints kbd { width: 26px; height: 26px; border-radius: 8px; background: var(--muted); display: grid; place-items: center; font: 500 12px var(--font-ui); color: var(--ink-2); }
 @media (prefers-reduced-motion: reduce) { .plus-menu { animation: none; } }
+/* agent activity (Ancher ActivityTree): muted rows, no cards; folds into one summary line */
+.act { display: flex; flex-direction: column; margin: -4px 0 -4px -6px; }
+.act-row, .act-sum { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 6px; border-radius: 8px; font-size: 13.5px; color: var(--ink-3); min-width: 0; transition: background-color 150ms ease, color 150ms ease; }
+.act-row .ai { width: 14px; flex: none; display: grid; place-items: center; font-family: var(--font-family-mono); font-size: 11px; }
+.act-row .ai svg { width: 12px; height: 12px; }
+.act-row .al { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.act-row .ao { color: color-mix(in srgb, var(--ink-3) 75%, transparent); }
+.act-row .an { flex: none; font-size: 11.5px; color: color-mix(in srgb, var(--ink-3) 75%, transparent); font-variant-numeric: tabular-nums; }
+.act-row.run .al > span:first-child { background: linear-gradient(90deg, var(--ink-3) 0%, var(--ink) 45%, var(--ink-3) 90%); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: agShimmer 1.8s linear infinite; }
+.act-sum { align-self: flex-start; text-align: left; }
+.act-sum svg { width: 12px; height: 12px; flex: none; transition: transform 150ms var(--ease-enter); }
+.act-sum[aria-expanded="true"] svg { transform: rotate(90deg); }
+.act-sum span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.act-sum[hidden] { display: none; }
+.act-sum:not([hidden])[aria-expanded="true"] + .act-rows { margin-left: 13px; padding-left: 8px; border-left: 1px solid color-mix(in srgb, var(--line) 80%, transparent); }
+.act-rows[hidden] { display: none; }
+@media (hover: hover) and (pointer: fine) { .act-row:hover, .act-sum:hover { background: color-mix(in srgb, var(--muted) 70%, transparent); color: var(--ink); } }
+/* per-turn edits: a quiet line under the reply instead of a card */
+.turn { background: none; padding: 0; justify-content: flex-start; gap: 4px; font-size: 12.5px; color: var(--ink-3); margin-top: -6px; }
+.turn .btn { height: 24px !important; padding: 0 6px !important; box-shadow: none; background: none; color: var(--ink-3); font-size: 12.5px; gap: 4px; }
+@media (hover: hover) and (pointer: fine) { .turn .btn:hover { background: var(--hover); color: var(--ink); } }
+@media (prefers-reduced-motion: reduce) { .act-row.run .al > span:first-child { animation: none; color: var(--ink-3); } }
