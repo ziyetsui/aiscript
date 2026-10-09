@@ -701,3 +701,14 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
   .writing-center > .topbar > b,.writing-center > .topbar .toggle span { display:none; }
   .writing-center > .topbar .btn { padding:0 6px; }
 }
+
+/* Ancher source viewer: official Original preview card and file picker proportions. */
+.ancher-knowledge .cloud-note-image{display:block;max-width:100%;height:auto;border-radius:var(--r);margin:20px 0}
+.ancher-knowledge .cloud-file-picker{display:flex;align-items:center;gap:12px;margin-bottom:16px;font-size:13px;color:var(--ink-3)}
+.ancher-knowledge .cloud-file-picker select{flex:1;min-width:0}
+.ancher-knowledge .cloud-original-card{border:1px solid var(--line);border-radius:12px;overflow:hidden;padding:16px}
+.ancher-knowledge .cloud-original-card video,.ancher-knowledge .cloud-original-card img{display:block;width:100%;max-height:640px;object-fit:contain}
+.ancher-knowledge .cloud-original-card audio{width:100%}
+.ancher-knowledge .cloud-original-card iframe{width:100%;height:640px;border:0}
+.ancher-knowledge .cloud-original-text{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.8;margin:0}
+.ancher-knowledge .cloud-original-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--line);margin-top:16px;padding-top:12px;font-size:12px;color:var(--ink-3);overflow-wrap:anywhere}

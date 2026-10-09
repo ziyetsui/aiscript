@@ -18,3 +18,11 @@
 本地已有原型：`specs/images/prototypes/src/pages.mjs` 的 p11，以及 `src/base.css` 的 nt 系列样式；保留 256px 侧栏、圆角正文面板、现有右侧对话布局。
 
 本轮接入官网笔记读取、筛选、刷新和显式保存本地副本。官网编辑、远程删除、拖拽排序、图片/视频嵌入及云端双向同步尚未接入。客户端已有的项目笔记编辑和写作参考继续在「项目笔记」中使用。
+
+### 原文与摘要修正
+
+官网 `NoteContentSection` 的 Summary 使用 `getContent` 生成内容，Original 交给 `OriginFileViewer`，读取 `getNoteOriginalFiles`：顶层或旧版 article 的 origin_files，加上服务器公开给当前用户的顶层 downloaded_files。客户端现在遵循这一结构，追加可用的 transcript_file / files.transcript 字幕入口，不从 article 恢复隐藏下载文件。
+
+摘要中的 streamify-file 图片引用通过 note-scoped filePresignedUrl 解析。原文文本、字幕在主进程限长读取；视频、音频、图片与 PDF 使用临时签名地址预览。账户 API key 仍只在主进程，临时预览 URL 不持久化；保存到项目保留生成内容及原始图片引用。原文与生成摘要独立，fetched 阶段也可查看源文件。
+
+参考组件：apps/web/src/components/product/notes/origin-file-viewer.tsx、packages/product-runtime/src/notes/model.ts、apps/sdk/src/contracts/file-slots.ts。

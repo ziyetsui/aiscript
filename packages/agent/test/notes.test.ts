@@ -5,6 +5,41 @@ const note = (id: string, extra = {}) => ({ id, title: `官网笔记 ${id}`, sta
 const sdkFor = (route: (url: URL) => Response) => createAncher('test-key', { baseUrl: 'https://api.example.com', fetch: (async (input) => route(new URL(String(input)))) as typeof fetch });
 
 describe('Ancher account knowledge', () => {
+  it('preserves readable original text when the generated summary is temporarily unavailable', async () => {
+    const sdk = sdkFor((url) => {
+      if (url.pathname === '/api/v1/notes/n1') return Response.json(note('n1', { origin_files: [{ id: 'original', mimetype: 'text/plain' }] }));
+      if (url.pathname.endsWith('/files/original/content/presigned-urls')) return Response.json({ download_url: 'https://cdn.example.com/original' });
+      if (url.pathname.endsWith('/content/presigned-urls')) return new Response('unavailable', { status: 503 });
+      return new Response('完整原文', { headers: { 'content-type': 'text/plain' } });
+    });
+    expect(await readAncherNote(sdk, 'n1')).toMatchObject({ body: null, summaryError: expect.any(String), needsRetry: true, originals: [{ body: '完整原文' }] });
+  });
+  it('keeps generated summary separate from source text in flattened and legacy payloads', async () => {
+    for (const extra of [{ origin_files: [{ id: 'original', filename: '原文.md', mimetype: 'text/markdown' }] }, { article: { origin_files: [{ id: 'original', filename: '原文.md', mimetype: 'text/markdown' }] } }]) {
+      const sdk = sdkFor((url) => {
+        if (url.pathname === '/api/v1/notes/n1') return Response.json(note('n1', extra));
+        if (url.pathname.endsWith('/files/original/content/presigned-urls')) return Response.json({ download_url: 'https://cdn.example.com/original' });
+        if (url.pathname.endsWith('/content/presigned-urls')) return Response.json({ download_url: 'https://cdn.example.com/summary' });
+        return new Response(url.pathname === '/original' ? '原始逐字稿' : 'AI 详细摘要', { headers: { 'content-type': 'text/markdown' } });
+      });
+      expect(await readAncherNote(sdk, 'n1')).toMatchObject({ body: 'AI 详细摘要', originals: [{ id: 'original', body: '原始逐字稿' }] });
+    }
+  });
+
+  it('makes source video and transcript available while AI summary is generating, without downloading the video', async () => {
+    const sdk = createAncher('test-key', { baseUrl: 'https://api.example.com', fetch: (async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/api/v1/notes/n1') return Response.json(note('n1', { status: 'fetched', downloaded_files: [{ id: 'video', filename: '源视频.mp4', mimetype: 'video/mp4' }], transcript_file: { id: 'transcript', filename: '字幕.srt', mimetype: 'application/x-subrip' } }));
+      if (url.pathname.endsWith('/files/video/content/presigned-urls')) return Response.json({ download_url: 'https://cdn.example.com/video' });
+      if (url.pathname.endsWith('/files/transcript/content/presigned-urls')) return Response.json({ download_url: 'https://cdn.example.com/transcript' });
+      if (url.pathname === '/transcript') {
+        expect(new Headers(init?.headers).has('authorization')).toBe(false);
+        return new Response('1\n00:00:00,000 --> 00:00:01,000\n你好', { headers: { 'content-type': 'application/x-subrip' } });
+      }
+      throw new Error(`unexpected download ${url}`);
+    }) as typeof fetch });
+    expect(await readAncherNote(sdk, 'n1')).toMatchObject({ body: null, originals: [{ id: 'video', url: 'https://cdn.example.com/video' }, { id: 'transcript', body: expect.stringContaining('你好') }] });
+  });
   it('includes notes across pages, empty collections and server-owned pins', async () => {
     const sdk = sdkFor((url) => {
       if (url.pathname === '/api/v1/notes/') return Response.json(url.searchParams.has('cursor')
@@ -60,6 +95,6 @@ describe('Ancher account knowledge', () => {
       if (url.pathname.endsWith('/content/presigned-urls')) return Response.json({ download_url: 'https://cdn.example.com/image', expires_in: 300 });
       return new Response(new Uint8Array([255, 216, 255]), { headers: { 'content-type': 'image/jpeg' } });
     });
-    await expect(readAncherNote(sdk, 'n1')).rejects.toThrow('此笔记的正文不是文本');
+    expect(await readAncherNote(sdk, 'n1')).toMatchObject({ body: null, summaryError: expect.stringContaining('此笔记的正文不是文本') });
   });
 });
