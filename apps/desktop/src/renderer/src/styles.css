@@ -756,3 +756,12 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .ancher-knowledge .cloud-memo{padding:16px;border-radius:12px;background:var(--muted);margin:24px 0}
 .ancher-knowledge .cloud-memo>span{font-size:12px;font-weight:500;color:var(--ink-3)}
 .ancher-knowledge .cloud-memo p{margin:12px 0 0;font-size:14px;color:var(--ink)}
+
+.recent-project-popup { position: fixed; z-index: 100; width: 300px; max-width: calc(100vw - 72px); max-height: calc(100vh - 140px); padding: 10px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--shadow-pop); }
+.recent-project-heading { display: flex; align-items: center; justify-content: space-between; padding-left: 6px; }
+.recent-project-list { overflow-y: auto; min-height: 0; }
+.recent-project-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 8px; text-align: left; border-radius: 8px; }
+.recent-project-item:hover, .recent-project-item[aria-current] { background: var(--hover); }
+.recent-project-item > span { flex: 1; min-width: 0; }
+.recent-project-item b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.recent-project-item small { display: block; margin-top: 4px; }
