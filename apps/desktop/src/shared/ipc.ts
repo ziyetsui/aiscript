@@ -58,6 +58,7 @@ export type Edit =
   | { op: 'remove'; id: string };
 
 export interface AiWriteRequest {
+  skillActionId?: string;
   notes?: ChatNoteAttachment[];
   target?: 'outline';
   images?: ClipboardImage[];

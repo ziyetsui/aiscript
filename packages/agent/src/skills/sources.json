@@ -1,0 +1,523 @@
+[
+  {
+    "id": "chekhov-dramaturgy",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/chekhov-dramaturgy/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "ozu-screenplay-style",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/ozu-screenplay-style/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "succession-series-writing",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/succession-series-writing/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-american-case-studies",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-american-case-studies/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-character-conflict",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-character-conflict/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-chinese-opera-banqiang",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-chinese-opera-banqiang/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-chinese-opera-banqiang-cases",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-chinese-opera-banqiang-cases/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-chinese-opera-qupai",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-chinese-opera-qupai/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-chinese-opera-qupai-cases",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-chinese-opera-qupai-cases/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-chinese-series-practice",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-chinese-series-practice/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-dialogue",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-dialogue/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-format-adaptation",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-format-adaptation/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-genre-anatomy",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-genre-anatomy/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-industry-business",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-industry-business/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-japanese-screenwriting",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-japanese-screenwriting/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-korean-french-screenwriting",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-korean-french-screenwriting/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-premise-theme",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-premise-theme/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-scene-craft",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-scene-craft/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-series-case-studies",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-series-case-studies/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-series-engine-bible",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-series-engine-bible/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-series-structure",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-series-structure/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-sitcom-comedy",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-sitcom-comedy/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-story-structure",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-story-structure/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-truby-anatomy",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-truby-anatomy/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-workflow",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-workflow/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "sw-writers-room",
+    "repo": "jtydhr88/screenwriting-skills",
+    "commit": "51115f18d160aa8b2ac5813e4432b6f0b425358f",
+    "url": "https://github.com/jtydhr88/screenwriting-skills/blob/51115f18d160aa8b2ac5813e4432b6f0b425358f/plugins/screenwriting/skills/sw-writers-room/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "character-refs",
+    "repo": "eternityspring/shuohao-skills",
+    "commit": "c27ea0e49c009a2b3c43dec40b702597ab56e1d9",
+    "url": "https://github.com/eternityspring/shuohao-skills/blob/c27ea0e49c009a2b3c43dec40b702597ab56e1d9/skills/character-refs/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "novel-art",
+    "repo": "eternityspring/shuohao-skills",
+    "commit": "c27ea0e49c009a2b3c43dec40b702597ab56e1d9",
+    "url": "https://github.com/eternityspring/shuohao-skills/blob/c27ea0e49c009a2b3c43dec40b702597ab56e1d9/skills/novel-art/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "novel-characters",
+    "repo": "eternityspring/shuohao-skills",
+    "commit": "c27ea0e49c009a2b3c43dec40b702597ab56e1d9",
+    "url": "https://github.com/eternityspring/shuohao-skills/blob/c27ea0e49c009a2b3c43dec40b702597ab56e1d9/skills/novel-characters/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "novel-outline",
+    "repo": "eternityspring/shuohao-skills",
+    "commit": "c27ea0e49c009a2b3c43dec40b702597ab56e1d9",
+    "url": "https://github.com/eternityspring/shuohao-skills/blob/c27ea0e49c009a2b3c43dec40b702597ab56e1d9/skills/novel-outline/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "novel-script",
+    "repo": "eternityspring/shuohao-skills",
+    "commit": "c27ea0e49c009a2b3c43dec40b702597ab56e1d9",
+    "url": "https://github.com/eternityspring/shuohao-skills/blob/c27ea0e49c009a2b3c43dec40b702597ab56e1d9/skills/novel-script/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "novel-storyboard",
+    "repo": "eternityspring/shuohao-skills",
+    "commit": "c27ea0e49c009a2b3c43dec40b702597ab56e1d9",
+    "url": "https://github.com/eternityspring/shuohao-skills/blob/c27ea0e49c009a2b3c43dec40b702597ab56e1d9/skills/novel-storyboard/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "short-drama-project",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-assets",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-assets/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-develop",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-develop/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-edit",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-edit/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-image-prompts",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-image-prompts/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-novel-analyze",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-novel-analyze/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-produce",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-produce/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-review",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-review/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-storyboard",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-storyboard/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-video-prompts",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-video-prompts/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "short-drama-write",
+    "repo": "zenstory-ai/drama-skills",
+    "commit": "c2426e03c0e7722bebcc6a488b6658dc38c65ac3",
+    "url": "https://github.com/zenstory-ai/drama-skills/blob/c2426e03c0e7722bebcc6a488b6658dc38c65ac3/skills/short-drama-write/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "character-sim",
+    "repo": "haowjy/creative-writing-skills",
+    "commit": "254d4bb9b3b2e50a47def955b6461c06057eedae",
+    "url": "https://github.com/haowjy/creative-writing-skills/blob/254d4bb9b3b2e50a47def955b6461c06057eedae/skills/character-sim/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "creative-writing-craft",
+    "repo": "haowjy/creative-writing-skills",
+    "commit": "254d4bb9b3b2e50a47def955b6461c06057eedae",
+    "url": "https://github.com/haowjy/creative-writing-skills/blob/254d4bb9b3b2e50a47def955b6461c06057eedae/skills/creative-writing-craft/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "story-memory",
+    "repo": "haowjy/creative-writing-skills",
+    "commit": "254d4bb9b3b2e50a47def955b6461c06057eedae",
+    "url": "https://github.com/haowjy/creative-writing-skills/blob/254d4bb9b3b2e50a47def955b6461c06057eedae/skills/story-memory/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "story-planning",
+    "repo": "haowjy/creative-writing-skills",
+    "commit": "254d4bb9b3b2e50a47def955b6461c06057eedae",
+    "url": "https://github.com/haowjy/creative-writing-skills/blob/254d4bb9b3b2e50a47def955b6461c06057eedae/skills/story-planning/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "story-review",
+    "repo": "haowjy/creative-writing-skills",
+    "commit": "254d4bb9b3b2e50a47def955b6461c06057eedae",
+    "url": "https://github.com/haowjy/creative-writing-skills/blob/254d4bb9b3b2e50a47def955b6461c06057eedae/skills/story-review/SKILL.md",
+    "license": "Apache-2.0"
+  },
+  {
+    "id": "beat-sheet-builder",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/development/beat-sheet-builder/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "character-profile-writer",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/development/character-profile-writer/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "logline-writer",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/development/logline-writer/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "treatment-writer",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/development/treatment-writer/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "one-pager-writer",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/production/one-pager-writer/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "coverage-report-writer",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/revision/coverage-report-writer/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "script-notes-writer",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/revision/script-notes-writer/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "dialogue-polisher",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/scripting/dialogue-polisher/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "scene-writer",
+    "repo": "ur-grue/autopunk-media-skills",
+    "commit": "39e119bfef25957223d6c44fccab0329e936d2f6",
+    "url": "https://github.com/ur-grue/autopunk-media-skills/blob/39e119bfef25957223d6c44fccab0329e936d2f6/skills/screenwriting/scripting/scene-writer/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "browser-cdp",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/browser-cdp/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-cover",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-cover/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-deslop",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-deslop/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-import",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-import/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-long-analyze",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-long-analyze/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-long-scan",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-long-scan/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-long-write",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-long-write/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "oh-story-review",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-review/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-setup",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-setup/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-short-analyze",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-short-analyze/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-short-scan",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-short-scan/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "story-short-write",
+    "repo": "zenstory-ai/oh-story-claudecode",
+    "commit": "87f2e7e223077023e0b0c0796d5704c1b0b02088",
+    "url": "https://github.com/zenstory-ai/oh-story-claudecode/blob/87f2e7e223077023e0b0c0796d5704c1b0b02088/skills/story-short-write/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "commercial-short-drama",
+    "repo": "0xsline/short-drama",
+    "commit": "8979a428c31a865421d661bdb606e24314b683a0",
+    "url": "https://github.com/0xsline/short-drama/blob/8979a428c31a865421d661bdb606e24314b683a0/SKILL.md",
+    "license": "MIT"
+  },
+  {
+    "id": "full-format-adapter",
+    "repo": "Shanyin-ai/shanyin-screenwriting-master",
+    "commit": "application-original",
+    "url": "https://github.com/Shanyin-ai/shanyin-screenwriting-master",
+    "license": "Application-original",
+    "adapted": true
+  },
+  {
+    "id": "seedance-adapter",
+    "repo": "liangdabiao/Seedance2-Storyboard-Generator",
+    "commit": "application-original",
+    "url": "https://github.com/liangdabiao/Seedance2-Storyboard-Generator",
+    "license": "Application-original",
+    "adapted": true
+  },
+  {
+    "id": "timing-adapter",
+    "repo": "gaojesse999/ai-scripts",
+    "commit": "application-original",
+    "url": "https://github.com/gaojesse999/ai-scripts/tree/main/skills/screenwriter-skill",
+    "license": "Application-original",
+    "adapted": true
+  }
+]

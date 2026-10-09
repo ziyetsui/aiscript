@@ -1,0 +1,573 @@
+[
+  {
+    "id": "format",
+    "title": "润色格式",
+    "description": "整理成标准剧本格式",
+    "category": "常用",
+    "prompt": "把这一场润色成标准格式。",
+    "skills": [
+      "sw-format-adaptation",
+      "short-drama-write"
+    ],
+    "keywords": "format|整理格式|场景标题|对白缩进|转场标记"
+  },
+  {
+    "id": "outline",
+    "title": "总结大纲",
+    "description": "从当前剧本整理本集大纲",
+    "category": "常用",
+    "prompt": "总结一下现在的大纲。",
+    "skills": [
+      "sw-story-structure",
+      "short-drama-develop"
+    ],
+    "keywords": "总结大纲|写大纲|三幕|救猫咪|节拍表|中点反转|第二幕"
+  },
+  {
+    "id": "dialogue",
+    "title": "润色对白",
+    "description": "口语、人物声音与潜台词",
+    "category": "常用",
+    "prompt": "润色对白：",
+    "skills": [
+      "sw-dialogue",
+      "dialogue-polisher"
+    ],
+    "keywords": "对白|台词|潜台词"
+  },
+  {
+    "id": "scene",
+    "title": "续写场景",
+    "description": "接着往下写一场",
+    "category": "常用",
+    "prompt": "续写场景：",
+    "skills": [
+      "sw-scene-craft",
+      "scene-writer"
+    ],
+    "keywords": "场景|写第一场|写一场|开场|动作和细节|动作表达"
+  },
+  {
+    "id": "consistency",
+    "title": "检查人物一致性",
+    "description": "名字、性格、声音与知识边界",
+    "category": "常用",
+    "prompt": "检查人物一致性：",
+    "skills": [
+      "story-review",
+      "story-memory",
+      "short-drama-review"
+    ],
+    "keywords": "人物一致性|角色一致性|连续性|逻辑漏洞|写飘"
+  },
+  {
+    "id": "premise",
+    "title": "主题与戏核",
+    "description": "从点子提炼主题和一句话故事",
+    "category": "灵感与结构",
+    "prompt": "帮这个想法找一个钩子、戏核和主题：",
+    "skills": [
+      "sw-premise-theme",
+      "logline-writer"
+    ],
+    "keywords": "主题|戏核|钩子|一句话点子|一句话故事"
+  },
+  {
+    "id": "brainstorm",
+    "title": "灵感与冲突探索",
+    "description": "探索设定中的不同戏剧冲突",
+    "category": "灵感与结构",
+    "prompt": "探索这个设定能产生的戏剧冲突，先讨论再定稿：",
+    "skills": [
+      "story-planning",
+      "sw-premise-theme"
+    ],
+    "keywords": "灵感|探索|不同走向"
+  },
+  {
+    "id": "beats",
+    "title": "三幕结构与节拍",
+    "description": "情节点、十五节拍与中段诊断",
+    "category": "灵感与结构",
+    "prompt": "用三幕结构和救猫咪节拍表规划这个故事：",
+    "skills": [
+      "sw-story-structure",
+      "beat-sheet-builder"
+    ],
+    "keywords": "三幕|救猫咪|十五节拍"
+  },
+  {
+    "id": "organic",
+    "title": "有机结构诊断",
+    "description": "人物弱点、对手与揭露抉择",
+    "category": "灵感与结构",
+    "prompt": "用特鲁比有机结构诊断这个故事：",
+    "skills": [
+      "sw-truby-anatomy"
+    ],
+    "keywords": "特鲁比|有机结构|四角对立"
+  },
+  {
+    "id": "genre",
+    "title": "类型与混合类型",
+    "description": "选择类型、篇幅和类型节拍",
+    "category": "灵感与结构",
+    "prompt": "分析这个题材适合的类型、篇幅与混合类型：",
+    "skills": [
+      "sw-genre-anatomy"
+    ],
+    "keywords": "类型|篇幅|恐怖|爱情节拍"
+  },
+  {
+    "id": "treatment",
+    "title": "故事梗概与处理稿",
+    "description": "将结构展开为完整故事处理稿",
+    "category": "灵感与结构",
+    "prompt": "把已确定的大纲展开成故事处理稿：",
+    "skills": [
+      "treatment-writer"
+    ],
+    "keywords": "处理稿|treatment|故事梗概"
+  },
+  {
+    "id": "full-format-adapter",
+    "title": "全格式创作规划",
+    "description": "概念短片、叙事短片、长片与剧集",
+    "category": "灵感与结构",
+    "prompt": "先根据故事目标选择概念超短片、叙事短片、电影长片或剧集，再规划创作步骤：",
+    "skills": [
+      "full-format-adapter"
+    ],
+    "keywords": "全格式|概念超短片|叙事短片"
+  },
+  {
+    "id": "characters",
+    "title": "角色小传与弧光",
+    "description": "欲望、恐惧、缺陷与成长",
+    "category": "人物与对白",
+    "prompt": "给角色写人物小传，梳理想要什么、害怕什么和人物弧光：",
+    "skills": [
+      "sw-character-conflict",
+      "character-profile-writer",
+      "novel-characters"
+    ],
+    "keywords": "角色|人物|反派|弧光|关系"
+  },
+  {
+    "id": "character-sim",
+    "title": "角色对话测试",
+    "description": "模拟人物声音和关系压力",
+    "category": "人物与对白",
+    "prompt": "根据现有设定模拟这两个角色的对话，测试声音和关系：",
+    "skills": [
+      "character-sim"
+    ],
+    "keywords": "模拟角色|角色模拟|对话测试"
+  },
+  {
+    "id": "memory",
+    "title": "故事设定与连续性台账",
+    "description": "归纳既定事实、时间线与待解决问题",
+    "category": "人物与对白",
+    "prompt": "整理当前故事的既定事实、人物状态、时间线和连续性问题：",
+    "skills": [
+      "story-memory"
+    ],
+    "keywords": "台账|时间线|故事记忆"
+  },
+  {
+    "id": "craft",
+    "title": "动作与细节润色",
+    "description": "用可见动作表达情绪",
+    "category": "人物与对白",
+    "prompt": "用动作和细节展现情绪，检查场景节奏：",
+    "skills": [
+      "creative-writing-craft",
+      "sw-scene-craft"
+    ],
+    "keywords": "动作细节|情绪表达"
+  },
+  {
+    "id": "series",
+    "title": "单集与整季结构",
+    "description": "冷开场、集尾悬念与主副线交织",
+    "category": "剧集与改编",
+    "prompt": "规划单集和整季结构，把主线、副线与集尾悬念交织起来：",
+    "skills": [
+      "sw-series-structure"
+    ],
+    "keywords": "主线|副线|整季|集尾悬念|冷开场"
+  },
+  {
+    "id": "bible",
+    "title": "剧集引擎与圣经",
+    "description": "系列承诺、人物网与持续故事来源",
+    "category": "剧集与改编",
+    "prompt": "设计能持续产生故事的剧集引擎、人物网和剧集圣经：",
+    "skills": [
+      "sw-series-engine-bible"
+    ],
+    "keywords": "剧集引擎|剧集圣经|系列设定"
+  },
+  {
+    "id": "writers-room",
+    "title": "编剧室与改稿意见",
+    "description": "拆故事、提出 notes 与制作改稿",
+    "category": "剧集与改编",
+    "prompt": "按编剧室方法拆故事，整理分场与改稿意见：",
+    "skills": [
+      "sw-writers-room",
+      "script-notes-writer"
+    ],
+    "keywords": "编剧室|改稿意见|notes"
+  },
+  {
+    "id": "chinese-series",
+    "title": "国产剧开发与 IP 改编",
+    "description": "人物小传、分集与分场大纲",
+    "category": "剧集与改编",
+    "prompt": "按国产剧创作体系整理改编方案、人物小传和分集分场大纲：",
+    "skills": [
+      "sw-chinese-series-practice"
+    ],
+    "keywords": "国产剧|IP改编"
+  },
+  {
+    "id": "novel-adaptation",
+    "title": "小说改编短剧",
+    "description": "原著分析、改编说明与分集钩子",
+    "category": "剧集与改编",
+    "prompt": "分析原著并规划短剧改编大纲，保留人物动机、关键情节和分集钩子：",
+    "skills": [
+      "short-drama-novel-analyze",
+      "novel-outline",
+      "short-drama-develop",
+      "story-import"
+    ],
+    "keywords": "小说改编|小说转|原著|改编大纲"
+  },
+  {
+    "id": "commercial",
+    "title": "商业微短剧规划",
+    "description": "开篇钩子、爽点与付费卡点",
+    "category": "剧集与改编",
+    "prompt": "规划商业微短剧的开篇钩子、爽点、分集节奏和付费卡点：",
+    "skills": [
+      "commercial-short-drama"
+    ],
+    "keywords": "微短剧|付费卡点|爽点"
+  },
+  {
+    "id": "short-write",
+    "title": "短剧单集写作",
+    "description": "可表演的动作节拍和逐句对白",
+    "category": "剧集与改编",
+    "prompt": "根据现有分集大纲写这一集短剧，先明确目标、转折和结尾钩子：",
+    "skills": [
+      "short-drama-write",
+      "novel-script"
+    ],
+    "keywords": "写短剧|短剧单集|逐句对白"
+  },
+  {
+    "id": "project",
+    "title": "创作项目规划",
+    "description": "阶段、交付物与下一步",
+    "category": "剧集与改编",
+    "prompt": "整理当前创作项目的阶段、交付物、已定事实和下一步：",
+    "skills": [
+      "sw-workflow",
+      "short-drama-project",
+      "story",
+      "story-setup"
+    ],
+    "keywords": "项目规划|项目进度|下一步"
+  },
+  {
+    "id": "assets",
+    "title": "场景与道具设定",
+    "description": "造型、地点、道具状态与一致性",
+    "category": "分镜与制作",
+    "prompt": "从剧本拆出角色造型、场景和道具设定，明确跨场状态与复用关系：",
+    "skills": [
+      "short-drama-assets",
+      "novel-art"
+    ],
+    "keywords": "道具|视觉设定|场景设定|美术设定"
+  },
+  {
+    "id": "storyboard",
+    "title": "剧本拆分镜",
+    "description": "镜头职责、轴线、站位与关键帧",
+    "category": "分镜与制作",
+    "prompt": "给当前场景拆分镜，检查镜头职责、轴线、站位和连续性：",
+    "skills": [
+      "short-drama-storyboard",
+      "novel-storyboard"
+    ],
+    "keywords": "分镜|镜头表|轴线|关键帧"
+  },
+  {
+    "id": "image-prompts",
+    "title": "角色与场景图片提示词",
+    "description": "参考图、造型与一致性锚点",
+    "category": "分镜与制作",
+    "prompt": "为角色、场景和道具写图片提示词与参考图方案，只输出提示词：",
+    "skills": [
+      "short-drama-image-prompts",
+      "character-refs",
+      "story-cover"
+    ],
+    "keywords": "图片提示词|角色参考图|三视图|定妆照"
+  },
+  {
+    "id": "video-prompts",
+    "title": "视频与声音提示词",
+    "description": "动作、表演、运镜与声音意图",
+    "category": "分镜与制作",
+    "prompt": "把已确认分镜转成视频和声音提示词，注明目标模型与时长：",
+    "skills": [
+      "short-drama-video-prompts"
+    ],
+    "keywords": "视频提示词|运镜|声音提示词"
+  },
+  {
+    "id": "production",
+    "title": "媒体制作计划",
+    "description": "生成任务、输入依赖与交付规格",
+    "category": "分镜与制作",
+    "prompt": "根据已确认素材整理图片、视频、配音制作计划，列出工具和输入依赖：",
+    "skills": [
+      "short-drama-produce"
+    ],
+    "keywords": "制作计划|媒体生产"
+  },
+  {
+    "id": "edit",
+    "title": "剪辑与交付方案",
+    "description": "镜序、字幕、声音和导出规格",
+    "category": "分镜与制作",
+    "prompt": "整理已有镜头的剪辑、字幕、声音与交付方案：",
+    "skills": [
+      "short-drama-edit"
+    ],
+    "keywords": "剪辑|字幕|交付方案"
+  },
+  {
+    "id": "seedance-adapter",
+    "title": "Seedance 视频分镜方案",
+    "description": "时间段、参考资产与跨段衔接",
+    "category": "分镜与制作",
+    "prompt": "为已确定的剧本设计 Seedance 视频分镜提示词，注明目标版本、时长和参考资产，只输出方案：",
+    "skills": [
+      "seedance-adapter"
+    ],
+    "keywords": "Seedance|seedance"
+  },
+  {
+    "id": "review",
+    "title": "剧本专业评估",
+    "description": "结构、人物、对白与可拍摄性",
+    "category": "审稿与提案",
+    "prompt": "评估当前剧本，按结构、人物、对白和可拍摄性列问题与修订优先级：",
+    "skills": [
+      "coverage-report-writer",
+      "short-drama-review",
+      "story-review",
+      "oh-story-review"
+    ],
+    "keywords": "专业评估|审稿|剧本医生"
+  },
+  {
+    "id": "pitch",
+    "title": "项目提案与行业定位",
+    "description": "一句话故事、卖点和一页提案",
+    "category": "审稿与提案",
+    "prompt": "为这个剧本整理一句话故事、卖点与一页项目提案：",
+    "skills": [
+      "one-pager-writer",
+      "sw-industry-business"
+    ],
+    "keywords": "提案|pitch|行业定位"
+  },
+  {
+    "id": "timing-adapter",
+    "title": "分场时长预算",
+    "description": "对白、动作与删减优先级",
+    "category": "审稿与提案",
+    "prompt": "按场估算对白和动作时长，列出目标差额和删减方案，先给预览：",
+    "skills": [
+      "timing-adapter"
+    ],
+    "keywords": "分场时长|时长预算|时长估算"
+  },
+  {
+    "id": "american",
+    "title": "美国电影结构案例",
+    "description": "研究结构、人物与主题方法",
+    "category": "经典案例与风格",
+    "prompt": "用美国电影案例分析可迁移的结构方法，为自己的故事提出方案：",
+    "skills": [
+      "sw-american-case-studies"
+    ],
+    "keywords": "美国电影|好莱坞案例"
+  },
+  {
+    "id": "tv-cases",
+    "title": "经典剧集结构案例",
+    "description": "分析单集节拍、出幕与季弧",
+    "category": "经典案例与风格",
+    "prompt": "参考经典剧集案例分析单集结构、人物网和季弧：",
+    "skills": [
+      "sw-series-case-studies"
+    ],
+    "keywords": "经典剧集|白宫风云|黑道家族|唐顿庄园"
+  },
+  {
+    "id": "japanese",
+    "title": "日本编剧方法",
+    "description": "小素材、人物缺陷与非好莱坞结构",
+    "category": "经典案例与风格",
+    "prompt": "用日本编剧方法发展这个故事，讨论结构与人物缺陷：",
+    "skills": [
+      "sw-japanese-screenwriting"
+    ],
+    "keywords": "日本编剧"
+  },
+  {
+    "id": "korean-french",
+    "title": "韩法编剧方法",
+    "description": "情绪、调研、类型承诺与反转",
+    "category": "经典案例与风格",
+    "prompt": "用韩国和法国编剧方法分析故事的情绪、调研和反转：",
+    "skills": [
+      "sw-korean-french-screenwriting"
+    ],
+    "keywords": "韩国编剧|法国编剧|韩法"
+  },
+  {
+    "id": "ozu",
+    "title": "小津式家庭戏",
+    "description": "克制对白、画外事件与物件呼应",
+    "category": "经典案例与风格",
+    "prompt": "借鉴小津的结构方法设计一场原创家庭戏：",
+    "skills": [
+      "ozu-screenplay-style"
+    ],
+    "keywords": "小津|日常家庭戏"
+  },
+  {
+    "id": "chekhov",
+    "title": "契诃夫式群像",
+    "description": "错位对白、潜台词与反高潮",
+    "category": "经典案例与风格",
+    "prompt": "借鉴契诃夫的群像和潜台词方法分析这场戏：",
+    "skills": [
+      "chekhov-dramaturgy"
+    ],
+    "keywords": "契诃夫|反高潮"
+  },
+  {
+    "id": "succession",
+    "title": "权力关系群像",
+    "description": "压力场景、人物联盟与仪式型单集",
+    "category": "经典案例与风格",
+    "prompt": "借鉴继承之战的戏剧方法设计原创权力群像：",
+    "skills": [
+      "succession-series-writing"
+    ],
+    "keywords": "继承之战|权力群像"
+  },
+  {
+    "id": "banqiang",
+    "title": "板腔体戏曲创作",
+    "description": "角色行当、排场、唱词与板式意图",
+    "category": "戏曲创作",
+    "prompt": "按板腔体方法规划戏曲，先明确剧种、行当和表演体制：",
+    "skills": [
+      "sw-chinese-opera-banqiang"
+    ],
+    "keywords": "板腔体|京剧|豫剧|越剧"
+  },
+  {
+    "id": "qupai",
+    "title": "曲牌体戏曲创作",
+    "description": "折与出、曲牌、宫调和套数",
+    "category": "戏曲创作",
+    "prompt": "按曲牌体方法规划戏曲，先明确剧种、宫调和排场：",
+    "skills": [
+      "sw-chinese-opera-qupai"
+    ],
+    "keywords": "曲牌体|昆曲|元杂剧|传奇"
+  },
+  {
+    "id": "banqiang-cases",
+    "title": "板腔体经典案例",
+    "description": "从案例研究改编与排场方法",
+    "category": "戏曲创作",
+    "prompt": "分析板腔体经典案例的创作和改编方法，不复刻原剧：",
+    "skills": [
+      "sw-chinese-opera-banqiang-cases"
+    ],
+    "keywords": "板腔案例|锁麟囊|沙家浜"
+  },
+  {
+    "id": "qupai-cases",
+    "title": "曲牌体经典案例",
+    "description": "研究折出、曲牌与排场结构",
+    "category": "戏曲创作",
+    "prompt": "分析曲牌体经典案例的结构和排场方法，不复刻原剧：",
+    "skills": [
+      "sw-chinese-opera-qupai-cases"
+    ],
+    "keywords": "曲牌案例|牡丹亭|桃花扇|窦娥冤"
+  },
+  {
+    "id": "scan",
+    "title": "网文榜单与题材研究",
+    "description": "联网研究网文市场趋势",
+    "category": "网文素材与改编",
+    "prompt": "联网研究当前网文榜单的热门题材和可改编故事方向：",
+    "skills": [
+      "story-long-scan",
+      "story-short-scan",
+      "browser-cdp"
+    ],
+    "keywords": "网文榜单|网文扫榜"
+  },
+  {
+    "id": "analyze",
+    "title": "网文拆解与素材研究",
+    "description": "结构、反转、情绪与写作手法",
+    "category": "网文素材与改编",
+    "prompt": "拆解提供的网文素材，分析结构、反转和情绪推进：",
+    "skills": [
+      "story-long-analyze",
+      "story-short-analyze"
+    ],
+    "keywords": "网文拆解|拆文|黄金三章"
+  },
+  {
+    "id": "fiction",
+    "title": "长短篇故事素材写作",
+    "description": "规划或扩写可供改编的故事",
+    "category": "网文素材与改编",
+    "prompt": "规划或扩写供剧本改编使用的故事素材：",
+    "skills": [
+      "story-long-write",
+      "story-short-write"
+    ],
+    "keywords": "小说写作|写长篇|写短篇"
+  },
+  {
+    "id": "deai",
+    "title": "去模板感与 AI 味",
+    "description": "保留作者声音、去除泛化表达",
+    "category": "网文素材与改编",
+    "prompt": "检查并润色这段故事素材的模板感与 AI 味：",
+    "skills": [
+      "story-deslop"
+    ],
+    "keywords": "去AI|AI味|模板感"
+  }
+]

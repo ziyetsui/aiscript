@@ -5,6 +5,8 @@
 import type { Bible, Op, ScriptNode } from '@scripter/core';
 import { z } from 'zod';
 import type { NewsNowDigest } from '../newsnow.ts';
+import { WORKFLOW_SKILLS } from '../skills/catalog.ts';
+import { skillContext } from '../skills/runtime.ts';
 
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped' | 'waiting';
 export type RunStatus = 'running' | 'waiting' | 'done' | 'failed' | 'cancelled';
@@ -78,6 +80,9 @@ export function newRun(def: WorkflowDef, input: WorkflowInput, id: string): RunS
 
 /** Run (or resume) from the first step that isn't done. `save` is called after every state change. */
 export async function execute(def: WorkflowDef, run: RunState, env: WorkflowEnv, signal: AbortSignal, save: (r: RunState) => void): Promise<RunState> {
+  const chat = env.chat;
+  const craft = skillContext(WORKFLOW_SKILLS[def.id] ?? []);
+  env = { ...env, chat: (prompt, options) => chat(`${craft}\n\n${prompt}`, options) };
   run.status = 'running';
   run.error = undefined;
   run.waiting = undefined;
