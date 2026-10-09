@@ -42,3 +42,10 @@
 - 已请求用户完成 `gh auth refresh -h github.com -s workflow`；因此远端落盘及 Windows 原生 CI 安装冒烟当前待授权。
 - 最终复跑发现工作流表单打开后 composer 的延迟 focus 抢焦点，已对 workflow/video 分支提前 return，避免将导演意见输入主输入框。修复后 typecheck、70 单测与完整 Electron E2E 再次通过。
 - 客户收件人/发送渠道/各机器码、Developer ID 公证与 Windows 分发签名仍待输入，不能记为已发送或正式签名交付。
+
+## GitHub 授权后的原生验证
+
+- 2026-10-09 用户完成授权；已确认活动账号具备 workflow scope，`34b68d7` 成功推送到新仓库 main，权限阻塞解除。
+- 首轮 CI 37889576878：原型格式、typecheck/70 单测、gitleaks 通过；E2E 的 End 键没有建立 macOS 行尾光标前提，在对白中间分行，断言失败。测试改为明确设置折叠到行尾的 selection，并等待新角色行获得焦点；不改变编辑器产品行为。
+- 首轮 Release 37889573433：macOS 读取空 CSC_LINK 时解析为工作目录，报 not a file。已根据本地 electron-builder 证书读取实现确认原因，构建前清理为空的可选签名环境变量，保留实际已有凭证。
+- 修复后本机完整 E2E 与云端原生打包继续验证；结果按实际 run 回写。

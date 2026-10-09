@@ -39,6 +39,7 @@ jobs:
           test -s apps/desktop/resources/license-public.pem || { echo "::error::Missing license public key"; exit 1; }
       - name: Build and publish (draft)
         working-directory: apps/desktop
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN || github.token }} # write access to ziyeprompttheworld/aiscript
           KEYGEN_ACCOUNT_ID: ${{ vars.KEYGEN_ACCOUNT_ID }}
@@ -54,7 +55,12 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-        run: pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.target }} --publish always
+        run: |
+          # An absent secret becomes an empty env value; builder treats empty CSC_LINK as a path.
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID AZURE_TENANT_ID AZURE_CLIENT_ID AZURE_CLIENT_SECRET; do
+            if [ -z "${!name}" ]; then unset "$name"; fi
+          done
+          pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.target }} --publish always
 
       - name: Installed Windows package smoke
         if: runner.os == 'Windows'

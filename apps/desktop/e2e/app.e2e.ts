@@ -100,8 +100,16 @@ try {
   step('writer types: Enter after dialogue → character line; Tab / Shift+Tab cycle the format');
   const last = page.locator('.paper .node').last();
   await last.click();
-  await page.keyboard.press('End');
+  // macOS End scrolls the viewport; explicitly establish the end-of-dialogue precondition.
+  await last.evaluate((el) => {
+    const range = document.createRange(); range.selectNodeContents(el); range.collapse(false);
+    const selection = window.getSelection()!; selection.removeAllRanges(); selection.addRange(range);
+  });
   await page.keyboard.press('Enter');
+  await page.waitForFunction(() => {
+    const line = document.querySelector('.paper .node:last-child');
+    return line?.getAttribute('data-type') === 'character' && document.activeElement === line;
+  });
   await page.keyboard.type('豆豆');
   assert.equal(await page.locator('.paper .node').last().getAttribute('data-type'), 'character');
   await page.keyboard.press('Enter');
