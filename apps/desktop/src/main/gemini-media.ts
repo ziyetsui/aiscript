@@ -12,7 +12,7 @@ export async function transcribeCloudMedia(
   path: string,
   signal: AbortSignal,
   transcribe: (audio: Uint8Array) => Promise<Transcript>,
-  options: { ffmpegPath?: string; tempRoot?: string; segmentSeconds?: number } = {},
+  options: { ffmpegPath?: string; tempRoot?: string; segmentSeconds?: number; onSegment?: (index: number, total: number) => void } = {},
 ): Promise<Transcript> {
   signal.throwIfAborted();
   const dir = await mkdtemp(join(options.tempRoot ?? tmpdir(), 'scripter-audio-'));
@@ -39,10 +39,12 @@ export async function transcribeCloudMedia(
     signal.throwIfAborted();
     const list = await readFile(join(dir, 'segments.csv'), 'utf8');
     const segments: { srt: string; offsetSeconds: number }[] = [];
-    for (const row of list.trim().split(/\r?\n/)) {
+    const rows = list.trim().split(/\r?\n/);
+    for (const [index, row] of rows.entries()) {
       const match = /^(chunk-\d+\.mp3),(\d+(?:\.\d+)?),(\d+(?:\.\d+)?)$/.exec(row);
       if (!match) throw new Error('音频分段失败，请重试');
       signal.throwIfAborted();
+      options.onSegment?.(index + 1, rows.length);
       const result = await transcribe(await readFile(join(dir, match[1]!)));
       signal.throwIfAborted();
       if (result.srt) segments.push({ srt: result.srt, offsetSeconds: Number(match[2]) });

@@ -6,6 +6,7 @@ AI 编剧桌面客户端（Windows + macOS），AI 能力来自用户自己的 A
 
 ```bash
 pnpm install
+node apps/desktop/scripts/pack-youtube.cjs # 首次开发 YouTube 转写时准备本机下载工具
 pnpm dev          # 启动桌面端（热更新）
 pnpm test         # 单元测试
 pnpm typecheck

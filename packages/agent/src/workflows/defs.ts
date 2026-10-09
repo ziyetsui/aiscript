@@ -1,5 +1,6 @@
 // The eight pain-point workflows from spec 0002 §5.6, in the same order as ⌥1–⌥8.
 import { bibleBrief, parseReply, scenes, wordCount, type Op } from '@scripter/core';
+import { youtubeVideoUrl } from '../youtube.ts';
 import { z } from 'zod';
 import { packScript, WRITE_SYSTEM } from '../prompt.ts';
 import { parseResult, type WorkflowDef, type WorkflowEnv, type WorkflowId, type WorkflowInput } from './engine.ts';
@@ -428,6 +429,23 @@ ${script(env, undefined, 14000)}`, signal);
       } },
     ],
     finish: (ctx) => ({ kind: 'transcript', fileName: String(ctx.fileName), text: String(ctx.text), srt: String(ctx.srt ?? ''), provider: String(ctx.provider) }),
+  },
+  {
+    id: 'youtube', key: 0, title: 'YouTube 视频 → 逐字稿', desc: '粘贴链接，优先获取字幕，无字幕时调用 Gemini，存进知识库',
+    input: 'url', inputHint: 'https://www.youtube.com/watch?v=… 或 https://youtu.be/…',
+    steps: [
+      { id: 'check', label: '检查视频链接', async run(ctx, _env, input) {
+        ctx.url = youtubeVideoUrl(input.url ?? '');
+      } },
+      { id: 'transcribe', label: '获取字幕或下载音轨并转写', async run(ctx, env, _input, signal) {
+        if (!env.youtube) throw new Error('请更新客户端以使用 YouTube 转写');
+        const result = await env.youtube(String(ctx.url), signal);
+        need(result.text.trim(), '没有识别出文字');
+        Object.assign(ctx, result);
+        return { note: `${result.provider} · ${result.text.length} 字` };
+      } },
+    ],
+    finish: ctx => ({ kind: 'transcript', fileName: String(ctx.fileName), text: String(ctx.text), srt: String(ctx.srt), provider: String(ctx.provider) }),
   },
   {
     id: 'topics', key: 8, title: '今日热点选题', desc: 'NewsNow 聚合热点，整理带来源的简报，筛成最多 5 个动画选题',

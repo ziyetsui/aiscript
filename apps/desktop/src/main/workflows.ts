@@ -6,12 +6,13 @@ import { app, type WebContents } from 'electron';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdirSync, openAsBlob, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { confirm, execute, fetchNewsNow, stopNewsNowProcesses, geminiService, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, transcribeWithGoogleCloud, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
+import { confirm, execute, fetchNewsNow, stopNewsNowProcesses, geminiService, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, transcribeWithGoogleCloud, transcribeGeminiAudio, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
 import { ancher, propose } from './ai.ts';
 import { filePath, filesDir, get, pushChat, saveNow, state } from './projects.ts';
 import { getSecret } from './secrets.ts';
 import { readJson } from './store.ts';
 import { transcribeCloudMedia } from './gemini-media.ts';
+import { transcribeYouTube, youtubeTools } from './youtube.ts';
 import type { ProjectState, WorkflowAction } from '../shared/ipc.ts';
 
 type Open = ReturnType<typeof get>;
@@ -51,6 +52,17 @@ function envFor(p: Open, run: RunState): WorkflowEnv {
       baseUrl: process.env.SCRIPTER_E2E === '1' ? process.env.SCRIPTER_NEWSNOW_BASE_URL : undefined,
     }, signal),
     hasGemini: () => !!getSecret('gemini'),
+    async youtube(url, signal) {
+      const key = getSecret('gemini');
+      const service = geminiService(readJson<{ geminiService?: string }>('settings.json', {}).geminiService);
+      const root = app.isPackaged ? join(process.resourcesPath, 'youtube') : join(app.getAppPath(), 'buildres', 'youtube', `${process.platform}-${process.arch}`);
+      const progress = (note: string) => { const step = run.steps.find(step => step.id === 'transcribe'); if (step) step.note = note; saveNow(p); emit(p.meta.id, run); };
+      return transcribeYouTube(url, signal, {
+        run: youtubeTools(root, run.input.browser),
+        progress,
+        transcribe: key ? (path, signal) => transcribeCloudMedia(path, signal, audio => transcribeGeminiAudio(key, audio, signal, service), { onSegment: (index, total) => progress(`Gemini 转写中（第 ${index}/${total} 段）`), ffmpegPath: app.isPackaged ? join(process.resourcesPath, 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg') : undefined }) : undefined,
+      });
+    },
     // One Ancher conversation per run, separate from the writing chat.
     async chat(prompt, { webSearch, signal }) {
       const r = await runChat(ancher(key()), { conversationId: (run.ctx.conversationId as string | undefined) ?? null, content: prompt, webSearch, signal });
@@ -93,7 +105,8 @@ function saveTranscript(p: Open, run: RunState): void {
   if (r?.kind !== 'transcript') return;
   mkdirSync(filesDir(p.meta.id), { recursive: true });
   const base = r.fileName.replace(/\.[^.]+$/, '');
-  const files: [string, string][] = [[`${base} 逐字稿.txt`, r.text]];
+  const text = run.wf === 'youtube' ? `来源：${run.ctx.url ?? run.input.url}\n获取方式：${r.provider}\n\n${r.text}` : r.text;
+  const files: [string, string][] = [[`${base} 逐字稿.txt`, text]];
   if (r.srt) files.push([`${base}.srt`, r.srt]);
   for (const [name, content] of files) {
     const file = `${randomBytes(8).toString('hex')}.${name.split('.').pop()}`;

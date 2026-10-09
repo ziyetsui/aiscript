@@ -72,9 +72,13 @@ export function srtToText(srt: string): string {
 
 /** Cloud express mode accepts inline media, rather than AI Studio Files API handles. */
 export async function transcribeWithGoogleCloud(key: string, audio: Uint8Array, signal: AbortSignal, f: typeof fetch = fetch): Promise<{ text: string; srt: string }> {
+  return transcribeGeminiAudio(key, audio, signal, 'google-cloud', f);
+}
+
+export async function transcribeGeminiAudio(key: string, audio: Uint8Array, signal: AbortSignal, service: GeminiService, f: typeof fetch = fetch): Promise<{ text: string; srt: string }> {
   signal.throwIfAborted();
   if (audio.byteLength > 14 * 1024 * 1024) throw new Error('音频分段过大，请缩短后重试');
-  const r = await f(CLOUD, {
+  const r = await f(service === 'google-cloud' ? CLOUD : `${BASE}/v1beta/models/${GEMINI_MODEL}:generateContent`, {
     method: 'POST', signal, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [

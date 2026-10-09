@@ -141,7 +141,8 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
       const m = /^Digit([1-9])$/.exec(e.code);
       if (!e.altKey || e.metaKey || e.ctrlKey || !m || !root.current?.offsetParent) return;
       e.preventDefault();
-      openWorkflow(WF_MENU[+m[1]! - 1]!.id);
+      const workflow = WF_MENU.find(workflow => workflow.key === +m[1]!);
+      if (workflow) openWorkflow(workflow.id);
     };
     document.addEventListener('keydown', k);
     return () => document.removeEventListener('keydown', k);
@@ -265,7 +266,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
   }
 
   function openWorkflow(wf: WorkflowId) {
-    if (!keys.ancher) { toast('工作流需要 Ancher key，请到设置里填写'); return; }
+    if (!keys.ancher && wf !== 'youtube') { toast('工作流需要 Ancher key，请到设置里填写'); return; }
     const w = WF_MENU.find((x) => x.id === wf)!;
     const focusId = lastFocus.current;
     const focusText = focusId ? nodes.find((n) => n.id === focusId)?.text ?? null : null;

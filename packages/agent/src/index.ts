@@ -10,3 +10,5 @@ export * from './outline-summary.ts';
 export * from './chat-notes.ts';
 
 export * from "./newsnow.ts";
+
+export * from './youtube.ts';

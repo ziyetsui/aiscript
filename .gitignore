@@ -22,6 +22,7 @@ node_modules/
 apps/desktop/out/
 apps/desktop/release/
 apps/desktop/buildres/ffmpeg/
+apps/desktop/buildres/youtube/
 apps/desktop/e2e/shots/
 /delivery/
 *.log

@@ -25,7 +25,7 @@ extraResources:
   - from: resources/license-public.pem
     to: license-public.pem
 asar: true
-afterPack: scripts/pack-ffmpeg.cjs
+afterPack: scripts/pack-youtube.cjs
 mac:
   artifactName: Ancher-Scripter-${version}-mac-${arch}.${ext}
   category: public.app-category.productivity
