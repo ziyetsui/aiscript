@@ -1,10 +1,23 @@
-import { useEffect, useState, type DragEvent } from 'react';
+import { useEffect, useState, type DragEvent, type ReactNode } from 'react';
 import { useProject } from '../lib/project.ts';
 import { Markdown } from '../lib/markdown.tsx';
 import { Icon, useToast } from '../lib/ui.tsx';
+import { AncherKnowledge } from './AncherKnowledge.tsx';
 
 type Group = 'all' | 'pinned' | 'chat' | 'upload';
-export function Knowledge({ id, onSelect, toggleDock, dockOpen }: { id: string; toggleDock?: () => void; dockOpen?: boolean; onSelect?: (fileId?: string) => void }) {
+type KnowledgeProps = { id: string; toggleDock?: () => void; dockOpen?: boolean; onSelect?: (fileId?: string) => void };
+export function Knowledge(props: KnowledgeProps) {
+  const [source, setSource] = useState(() => sessionStorage.getItem(`scripter-knowledge-source-${props.id}`) || 'ancher');
+  const choose = (next: string) => { sessionStorage.setItem(`scripter-knowledge-source-${props.id}`, next); setSource(next); };
+  const switcher = <div className="seg note-source" role="tablist" aria-label="笔记来源">
+    <button role="tab" aria-selected={source === 'ancher'} onClick={() => choose('ancher')}>Ancher 笔记</button>
+    <button role="tab" aria-selected={source === 'local'} onClick={() => choose('local')}>项目笔记</button>
+  </div>;
+  return source === 'ancher' ? <AncherKnowledge {...props} switcher={switcher} onImported={(fileId) => {
+    sessionStorage.setItem(`scripter-note-${props.id}`, fileId); choose('local');
+  }} /> : <LocalKnowledge {...props} switcher={switcher} />;
+}
+function LocalKnowledge({ id, onSelect, toggleDock, dockOpen, switcher }: KnowledgeProps & { switcher: ReactNode }) {
   const p = useProject(id);
   const [group, setGroup] = useState<Group>('all');
   const [selected, setSelected] = useState<string | undefined>(() => sessionStorage.getItem(`scripter-note-${id}`) || undefined);
@@ -40,16 +53,17 @@ export function Knowledge({ id, onSelect, toggleDock, dockOpen }: { id: string; 
   };
   async function pick() {
     const r = await window.api.files.pick(id);
-    if (r) { p.setSt(r.state); setGroup('all'); if (r.skipped.length) toast(`没有添加：${r.skipped.join('、')}`); }
+    if (r) { p.setSt(r.state); setGroup('all'); setCollection(''); setQuery(''); if (r.added) setSelected(r.state.bible.files.at(-1)?.id); if (r.skipped.length) toast(`没有添加：${r.skipped.join('、')}`); }
   }
   async function drop(e: DragEvent) {
     e.preventDefault(); setOver(false);
-    try { const r = await window.api.files.addPaths(id, [...e.dataTransfer.files].map((f) => window.api.files.pathFor(f)).filter(Boolean)); p.setSt(r.state); setGroup('all'); }
+    try { const r = await window.api.files.addPaths(id, [...e.dataTransfer.files].map((f) => window.api.files.pathFor(f)).filter(Boolean)); p.setSt(r.state); setGroup('all'); setCollection(''); setQuery(''); if (r.added) setSelected(r.state.bible.files.at(-1)?.id); }
     catch (e) { toast(String(e)); }
   }
   const editable = !!note && /\.(md|txt|fountain|srt)$/i.test(note.file);
   return <div className="knowledge-layout" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={(e) => void drop(e)}>
     <aside className="side-list note-list">
+      {switcher}
       <button className="btn btn-ghost" onClick={() => void create()}><Icon name="plus" size={14} />新建笔记<kbd>{isWindows ? 'Ctrl+Shift+O' : '⇧⌘O'}</kbd></button>
       <input className="input" aria-label="搜索笔记" placeholder={isWindows ? '搜索笔记  Ctrl+K' : '搜索笔记  ⌘K'} value={query} onChange={(e) => setQuery(e.target.value)} />
       <details open className="note-group"><summary>已固定 <span className="muted">{files.filter((f) => f.starred).length}</span></summary><div className="note-items">{files.filter((f) => f.starred).map((f) => <button key={f.id} onClick={() => { setGroup('all'); setCollection(''); setQuery(''); setSelected(f.id); }} aria-current={f.id === note?.id ? 'page' : undefined}><Icon name="doc" size={14} /><span>{f.title || f.name}</span></button>)}</div></details>

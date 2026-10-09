@@ -2,6 +2,8 @@
 import { createServer, type Server } from 'node:http';
 
 export const GOOD_KEY = 'test-ancher-key';
+export const cloudCollection = { id: 'cloud-c1', name: '官网参考资料', color: 'blue', status: 'active', user_id: 'u1', created_at: 1750000000, updated_at: 1750000000, created_by: '', updated_by: '', description: null };
+export const cloudNote = (id = 'cloud-n1') => ({ id, title: '官网保存的视频笔记', status: 'ready', user_id: 'u1', created_at: 1750000000, updated_at: 1750000000, created_by: '', updated_by: '', description: '视频内容摘要', comment: '官网备注', tags: [], collections: [cloudCollection], files: {}, origin_files: [], downloaded_files: [], content_file: null, content_tldr_file: null, display_file: null, thumbnail_file: null, podcast: null, error_message: null, last_accessed_at: null, is_public: false, slug: '', reaction: null, source: 'url', url: 'https://example.com/video', author: null, site_name: null, published_date: null, language: 'zh' });
 export const REPLY = '好的，先写开场。<ops>[{"op":"insertNode","type":"heading","text":"外景 胡同口 — 傍晚"},{"op":"insertNode","type":"action","text":"豆豆蹲在自家门墩儿旁边，用手指头戳石狮子的鼻子。"},{"op":"insertNode","type":"character","text":"门墩儿"},{"op":"insertNode","type":"dialogue","text":"别捏了，它要说话的。"},{"op":"upsertCharacter","name":"门墩儿","role":"精灵 · 一百多岁","desc":"住在石门墩里，嘴硬心软"},{"op":"upsertLocation","name":"胡同口","ie":"外景","times":["傍晚"]}]</ops>';
 
 /** "润色对白" rewrites the first dialogue line it sees in the packed script — exercises the modification preview. */
@@ -44,13 +46,30 @@ function replyFor(prompt: string): string {
 /** Prompts containing __SLOW__ stall before streaming, so the E2E can cancel a workflow mid-step. */
 export const isSlow = (prompt: string) => prompt.includes('__SLOW__');
 
-export function startFakeAncher(): Promise<{ url: string; server: Server; prompts: string[] }> {
+export function startFakeAncher(): Promise<{ url: string; server: Server; prompts: string[]; cloudNotes: ReturnType<typeof cloudNote>[]; cloudFailures: { body: number } }> {
   const prompts: string[] = [];
+  const cloudNotes = [cloudNote()];
+  const cloudFailures = { body: 0 };
   const server = createServer((req, res) => {
     const auth = req.headers.authorization;
     const json = (status: number, body: unknown) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+    if (req.url === '/test-note-body') {
+      if (auth) return json(400, { message: 'CDN must not receive an API key' });
+      if (cloudFailures.body > 0) { cloudFailures.body--; return json(503, { message: '正文暂时不可用' }); }
+      res.writeHead(200, { 'content-type': 'text/markdown' }); res.end('# 官网视频逐字稿\n豆豆：这是在官网保存的笔记正文。'); return;
+    }
     if (auth !== `Bearer ${GOOD_KEY}`) return json(401, { message: 'invalid api key', code: 'API-AUT001' });
     const url = req.url ?? '';
+    const pathname = new URL(url, 'http://localhost').pathname;
+    const page = (items: unknown[]) => json(200, { items, has_more: false, next_cursor: null });
+    if (req.method === 'GET' && pathname === '/api/v1/notes/') return page(cloudNotes);
+    if (req.method === 'GET' && pathname === '/api/v1/collections/') return page([cloudCollection]);
+    if (req.method === 'GET' && pathname === '/api/v1/pinned/') return page([{ type: 'note', entity_id: cloudNotes[0]!.id, index: 0, note: cloudNotes[0], collection: null, artifact: null }]);
+    if (req.method === 'GET' && /^\/api\/v1\/notes\/[^/]+$/.test(pathname)) {
+      const note = cloudNotes.find((n) => n.id === pathname.split('/').at(-1));
+      return note ? json(200, note) : json(404, { message: 'note not found' });
+    }
+    if (req.method === 'POST' && pathname.endsWith('/content/presigned-urls')) return json(200, { download_url: `http://${req.headers.host}/test-note-body`, expires_in: 300 });
     if (req.method === 'GET' && url.startsWith('/api/v1/users/me')) {
       return json(200, { id: 'u1', email: 'writer@example.com', full_name: '测试编剧', created_at: 0, created_by: '', updated_at: 0, updated_by: '', phone: null, oauth_source: null, invitation_code: '', is_active: true, is_email_verified: true, activation_completed: true, tutorial_completed: true, demographic: null, preferences: null });
     }
@@ -97,6 +116,6 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
   });
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
     const a = server.address();
-    resolve({ url: `http://127.0.0.1:${typeof a === 'object' && a ? a.port : 0}`, server, prompts });
+    resolve({ url: `http://127.0.0.1:${typeof a === 'object' && a ? a.port : 0}`, server, prompts, cloudNotes, cloudFailures });
   }));
 }

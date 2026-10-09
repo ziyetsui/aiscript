@@ -20,6 +20,7 @@ import { activateKeygen, activateOffline, deactivateLocal, licenseStatus } from 
 import * as archive from './archive.ts';
 import * as updater from './updater.ts';
 import * as files from './files.ts';
+import * as ancherNotes from './ancher-notes.ts';
 import * as wf from './workflows.ts';
 import * as projects from './projects.ts';
 import { encryptionAvailable, getSecret, setSecret } from './secrets.ts';
@@ -148,6 +149,9 @@ function registerIpc(): void {
 
   const winOf = (e: Electron.IpcMainInvokeEvent) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) throw new Error('no window'); return w; };
   ipcMain.handle('files:pick', (e, id: string) => { if (licenseStatus().state !== 'active') throw new Error('未激活'); return files.pickFiles(winOf(e), id); });
+  ipcMain.handle('ancherNotes:list', gated(ancherNotes.list));
+  ipcMain.handle('ancherNotes:read', gated(ancherNotes.read));
+  ipcMain.handle('ancherNotes:import', gated(ancherNotes.importNote));
   ipcMain.handle('files:collection', gated(files.collection));
   ipcMain.handle('files:exportNote', (e, id: string, fileId: string) => { active(); return files.exportNote(winOf(e), id, fileId); });
   ipcMain.handle('files:update', gated(files.update));
