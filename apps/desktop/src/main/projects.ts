@@ -14,6 +14,8 @@ interface Meta extends ProjectMeta {
   /** Ops behind each open modification preview, keyed by chat message id. Never sent to the renderer. */
   pending?: Record<string, { ops: Op[]; label: string }>;
   workflows?: RunState[];
+  /** Earlier conversations, newest last. The current one lives in chat / conversationId. */
+  archive?: { id: string; title: string; at: number; chat: ChatMsg[]; conversationId: string | null }[];
 }
 interface Open { meta: Meta; doc: ScriptDoc; timer?: NodeJS.Timeout }
 
@@ -50,7 +52,7 @@ export function list(): ProjectMeta[] {
   if (!existsSync(root())) return [];
   return readdirSync(root())
     .filter((d) => existsSync(join(root(), d, 'meta.json')))
-    .map((d) => { const { conversationId: _c, turns: _t, chat: _h, pending: _p, workflows: _w, ...m } = readMeta(d); return m; })
+    .map((d) => { const { conversationId: _c, turns: _t, chat: _h, pending: _p, workflows: _w, archive: _a, ...m } = readMeta(d); return m; })
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
@@ -82,8 +84,8 @@ export function get(id: string): Open {
 
 export function state(p: Open): ProjectState {
   const nodes = p.doc.nodes();
-  const { conversationId: _c, turns: _t, chat = [], pending: _p, workflows = [], ...meta } = p.meta;
-  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {} })), outline: p.doc.outline };
+  const { conversationId: _c, turns: _t, chat = [], pending: _p, workflows = [], archive = [], ...meta } = p.meta;
+  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {} })), outline: p.doc.outline, conversations: archive.map((a) => ({ id: a.id, title: a.title, at: a.at, messages: a.chat.length })).reverse() };
 }
 
 export function edit(id: string, edits: Edit[]): ProjectState {
@@ -185,5 +187,50 @@ export function setOutline(id: string, text: string): ProjectState {
   p.doc.setOutline(text);
   p.doc.commit('outline');
   schedule(p);
+  return state(p);
+}
+
+/** Title of a conversation: its first user message, trimmed. */
+export const conversationTitle = (chat: ChatMsg[]) => {
+  const first = chat.find((m) => m.role === 'user')?.text.replace(/\s+/g, ' ').trim() ?? '';
+  return first ? (first.length > 24 ? `${first.slice(0, 24)}…` : first) : '新对话';
+};
+
+function archiveCurrent(p: Open): void {
+  const chat = p.meta.chat ?? [];
+  if (!chat.length) return;
+  (p.meta.archive ??= []).push({ id: randomUUID(), title: conversationTitle(chat), at: chat.at(-1)!.at, chat, conversationId: p.meta.conversationId ?? null });
+  if (p.meta.archive.length > 50) p.meta.archive.splice(0, p.meta.archive.length - 50);
+}
+
+export function newConversation(id: string): ProjectState {
+  const p = get(id);
+  archiveCurrent(p);
+  p.meta.chat = [];
+  p.meta.pending = {};
+  p.meta.conversationId = null;
+  saveNow(p);
+  return state(p);
+}
+
+export function openConversation(id: string, convId: string): ProjectState {
+  const p = get(id);
+  const i = (p.meta.archive ?? []).findIndex((a) => a.id === convId);
+  if (i < 0) return state(p);
+  const [conv] = p.meta.archive!.splice(i, 1);
+  archiveCurrent(p);
+  p.meta.chat = conv!.chat;
+  p.meta.conversationId = conv!.conversationId;
+  p.meta.pending = {}; // open previews of an archived conversation can't be applied any more
+  for (const m of p.meta.chat) if (m.preview?.state === 'open') m.preview.state = 'stale';
+  saveNow(p);
+  return state(p);
+}
+
+export function react(id: string, msgId: string, reaction: 'like' | 'dislike' | null): ProjectState {
+  const p = get(id);
+  const m = p.meta.chat?.find((x) => x.id === msgId);
+  if (m) { if (reaction) m.reaction = reaction; else delete m.reaction; }
+  saveNow(p);
   return state(p);
 }

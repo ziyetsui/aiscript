@@ -2,13 +2,13 @@
 // and "导出整个项目" (spec 0002 §8) can carry them. Nothing leaves the machine.
 import { dialog, shell, type BrowserWindow } from 'electron';
 import { randomBytes } from 'node:crypto';
-import { copyFileSync, mkdirSync, openAsBlob, readFileSync, statSync } from 'node:fs';
+import { copyFileSync, mkdirSync, openAsBlob, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, extname } from 'node:path';
 import { parseWithAncher } from '@scripter/agent';
 import type { ProjectState } from '../shared/ipc.ts';
 import { ancher } from './ai.ts';
 import { getSecret } from './secrets.ts';
-import { filePath, filesDir, get, saveNow, state } from './projects.ts';
+import { conversationTitle, filePath, filesDir, get, saveNow, state } from './projects.ts';
 
 const MAX = 200 * 1024 * 1024;
 const IMG = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
@@ -121,4 +121,22 @@ export async function pin(id: string, fileId: string, on: boolean, notify: () =>
     })();
   }
   return state(p);
+}
+
+/** Save text (an AI answer, or a whole conversation) into the knowledge base as a Markdown note. */
+export function saveNote(id: string, msgId: string | null): { state: ProjectState; name: string } {
+  const p = get(id);
+  const chat = p.meta.chat ?? [];
+  const pick = msgId ? chat.filter((m) => m.id === msgId) : chat;
+  const body = pick.filter((m) => m.text.trim()).map((m) => (msgId ? m.text : `**${m.role === 'user' ? '我' : 'AI'}**：${m.text}`)).join('\n\n');
+  if (!body.trim()) throw new Error('没有可以保存的内容');
+  const stamp = new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/[/:\s]/g, '');
+  const name = `${msgId ? 'AI 回复' : conversationTitle(chat)} ${stamp}.md`.replace(/[\\/:*?"<>|]/g, '');
+  const file = `${randomBytes(8).toString('hex')}.md`;
+  mkdirSync(filesDir(id), { recursive: true });
+  writeFileSync(filePath(id, file), body, 'utf8');
+  p.doc.bible('files').add({ name, size: Buffer.byteLength(body), src: 'chat', file, addedAt: Date.now() });
+  p.doc.commit('save note');
+  saveNow(p);
+  return { state: state(p), name };
 }

@@ -29,7 +29,8 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   try {
     const sdk = ancher(key);
     const bible = p.doc.readBible();
-    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible), p.doc.outline);
+    // Full rules only when this starts a new Ancher conversation; later turns carry a one-line reminder.
+    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible), p.doc.outline, !p.meta.conversationId);
     const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, webSearch: req.webSearch, signal: ac.signal }, {
       onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
     });

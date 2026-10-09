@@ -84,6 +84,12 @@ const api: Api = {
       return () => ipcRenderer.removeListener('update:status', h);
     },
   },
+  chat: {
+    newConversation: call('chat:new') as Api['chat']['newConversation'],
+    openConversation: call('chat:open') as Api['chat']['openConversation'],
+    react: call('chat:react') as Api['chat']['react'],
+    saveAsNote: call('chat:saveNote') as Api['chat']['saveAsNote'],
+  },
   exporter: { save: call('export:save') as Api['exporter']['save'] },
 };
 
