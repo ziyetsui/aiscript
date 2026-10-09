@@ -13,9 +13,11 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
   const [font, setFont] = useState<ScriptFont>(currentFont());
   const [sound, setSoundOn] = useState(soundOn());
   const [vol, setVol] = useState(soundVolume());
+  const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
   useEffect(() => {
     void window.api.app.info().then((i) => setVer(i.version));
     void window.api.update.status().then(setUp);
+    void window.api.app.getTheme().then(setTheme);
     return window.api.update.onStatus(setUp);
   }, []);
   async function clear(which: 'ancher' | 'gemini') {
@@ -58,7 +60,13 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>密钥只保存在这台电脑的系统钥匙串里，不会上传到任何服务器。用量请在各自的服务商账户里查看。</p>
         </section>
         <section className="card">
-          <h2 style={{ fontSize: 15 }}>编辑器</h2>
+          <h2 style={{ fontSize: 15 }}>外观</h2>
+          <div className="seg" role="radiogroup" aria-label="外观" style={{ alignSelf: 'flex-start' }}>
+            {([['system', '跟随系统'], ['light', '亮色'], ['dark', '暗色']] as const).map(([k, l]) => (
+              <button key={k} role="radio" aria-checked={theme === k} aria-selected={theme === k} onClick={async () => setTheme(await window.api.app.setTheme(k))}>{l}</button>
+            ))}
+          </div>
+          <h2 style={{ fontSize: 15, marginTop: 8 }}>编辑器</h2>
           <div className="field">
             <label htmlFor="sf">剧本字体</label>
             <select id="sf" className="input" value={font} onChange={(e) => { const f = e.target.value as ScriptFont; setFont(f); applyFont(f); }}>

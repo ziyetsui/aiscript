@@ -3,15 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScriptNode } from '@scripter/core/script';
 import type { AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
-import { RunCard, WF_MENU, WorkflowLauncher, WorkflowMenu } from '../components/Workflows.tsx';
-import { AssistantMessage, ChatHeader, Composer, JumpPill, Thinking, UserBubble } from '../components/Chat.tsx';
+import { RunCard, WF_MENU, WorkflowLauncher } from '../components/Workflows.tsx';
+import { AssistantMessage, ChatHeader, Composer, EmptyChat, JumpPill, Thinking, UserBubble } from '../components/Chat.tsx';
 import { SelectionBar } from '../components/SelectionBar.tsx';
 import type { Route } from '../App.tsx';
 import { bell, carriageReturn, keyClick, onSound, setSound, soundOn } from '../lib/typewriter.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
 import { Editor, placeCaret } from './Editor.tsx';
 
-const QUICK = ['润色对白', '续写下一场', '检查人物一致性', '润色格式', '总结大纲'];
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const visibleReply = (t: string) => t.split('<ops>')[0]!.trim();
 
@@ -43,6 +42,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
   const [unread, setUnread] = useState(0);
   const [awayFromBottom, setAway] = useState(false);
   const [queue, setQueue] = useState<string[]>([]);
+  const [ghost, setGhost] = useState(''); // Tab suggestion after a turn
 
   const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); }, []);
   useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, apply]);
@@ -130,6 +130,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     if (!keys.ancher) { toast('先到设置里填写 Ancher key'); return; }
     if (running) { setQueue((q) => [...q, t]); setInput(''); return; }
     stick.current = true;
+    setGhost('');
     const reqId = crypto.randomUUID();
     setAsking(t);
     setInput('');
@@ -152,6 +153,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     if (r.ok && r.turn) void typeOut(newIds, s.nodes);
     if (r.ok && r.turn && s.outline !== st?.outline) toast('已写进大纲，点左侧「大纲」查看');
     if (!r.ok && !r.cancelled && r.message && !s.chat.length) toast(r.message);
+    setGhost(suggestNext([...s.chat].reverse().find((m) => m.role === 'ai')?.text ?? '', s.chat.length));
   }
 
   useEffect(() => {
@@ -159,6 +161,17 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     if (pending) { sent.current = true; void send(pending); }
     else if (pendingEpisode !== undefined) { sent.current = true; void startWorkflow('episode', { text: pendingEpisode }); }
   }, [pending, pendingEpisode, st]);
+
+  /** "+" menu and empty-chat tiles. */
+  function onAction(a: Parameters<typeof EmptyChat>[0]['onAction'] extends (x: infer T) => void ? T : never) {
+    if (a.kind === 'attach') void attach();
+    else if (a.kind === 'video') openWorkflow('transcribe');
+    else if (a.kind === 'workflow') openWorkflow(a.id);
+    else if (a.kind === 'web') { setWeb(true); setInput(a.text); }
+    else if (a.kind === 'prefill') setInput(a.text);
+    else if (a.kind === 'mention') setInput((v) => `${v}@`);
+    requestAnimationFrame(() => document.getElementById('agent-in')?.focus());
+  }
 
   /** + in the composer: add files to the knowledge base and turn on 写作时参考 for them. */
   async function attach() {
@@ -284,9 +297,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
             onSave={async () => { try { const r = await window.api.chat.saveAsNote(id, null); setSt(r.state); toast(`已存进知识库：${r.name}`); } catch (e) { toast(cleanErr(e)); } }} />
           <div className="ag-body">
             <div className="ag-feed" ref={feed} onScroll={onFeedScroll} aria-live="polite">
-              {st.chat.length === 0 && !running && (
-                <div className="ag-empty"><b>你的编剧搭档，随时待命</b><span>说说你想写什么。AI 新写的内容直接进剧本，改写会先给你预览，每一轮都能单独撤销。</span></div>
-              )}
+              {st.chat.length === 0 && !running && !asking && <EmptyChat onAction={onAction} />}
               {st.chat.map((m) => {
                 const undone = !!m.turnId && st.turns.find((t) => t.id === m.turnId)?.undone;
                 const extras = (
@@ -313,16 +324,11 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
             </div>
             <JumpPill show={awayFromBottom || unread > 0} unread={unread} onClick={toLatest} />
           </div>
-          <Composer value={input} onChange={setInput} onSend={() => void send(input)} onStop={() => { if (running) void window.api.ai.cancel(running); }}
-            running={!!running} queued={queue.length} web={web} onWeb={setWeb} onAttach={() => void attach()}
-            mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' }))]}
-            chips={<>
-              {launcher && <WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} />}
-              <div className="cmp-chips">
-                <WorkflowMenu onPick={openWorkflow} disabled={!!running} />
-                {QUICK.map((q) => <button key={q} className="chip" disabled={!!running} onClick={() => void send(q)}>{q}</button>)}
-              </div>
-            </>} />
+          {launcher && <div className="launcher-wrap"><WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} /></div>}
+          <Composer value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input)} onStop={() => { if (running) void window.api.ai.cancel(running); }}
+            running={!!running} queue={queue} onDequeue={(i) => setQueue((q) => q.filter((_, k) => k !== i))} ghost={ghost}
+            web={web} onWeb={setWeb} onAction={onAction}
+            mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })), ...st.bible.files.map((f) => ({ label: f.name, kind: '笔记' }))]} />
         </section>
       </div>
     </>
@@ -368,3 +374,15 @@ const chatTitle = (chat: ChatMsg[]) => {
   return first ? (first.length > 24 ? `${first.slice(0, 24)}…` : first) : '新对话';
 };
 const cleanErr = (e: unknown) => String((e as Error)?.message ?? e).replace(/^Error invoking remote method '[^']+': Error: /, '');
+
+/**
+ * Tab suggestion after a turn. When the reply ends by offering a next step ("要我接着写「三、命运的分岔」吗？"),
+ * suggest accepting it; otherwise rotate through a few safe next steps.
+ */
+function suggestNext(reply: string, n: number): string {
+  const tail = reply.trim().slice(-160);
+  const m = /(?:要不要我|要我|需要我|要不要|我可以)([^。！？?\n]{2,40}?)[吗呢吧]?[？?]\s*$/.exec(tail);
+  if (m) return `好，${m[1]!.trim()}`;
+  const fallback = ['续写下一场', '把这一场的对白改得更像孩子说话', '检查人物一致性'];
+  return fallback[n % fallback.length]!;
+}

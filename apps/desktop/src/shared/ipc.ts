@@ -65,7 +65,12 @@ export type UpdateStatus = { state: 'idle' | 'checking' | 'none' | 'downloading'
 export type ExportFormat = 'pdf' | 'docx' | 'fdx' | 'fountain' | 'txt';
 
 export interface Api {
-  app: { info(): Promise<{ version: string; platform: string }>; diagnostics(): Promise<{ ok: boolean; path?: string }> };
+  app: {
+    info(): Promise<{ version: string; platform: string }>;
+    diagnostics(): Promise<{ ok: boolean; path?: string }>;
+    getTheme(): Promise<'system' | 'light' | 'dark'>;
+    setTheme(t: 'system' | 'light' | 'dark'): Promise<'system' | 'light' | 'dark'>;
+  };
   update: {
     status(): Promise<UpdateStatus>;
     check(): Promise<void>;

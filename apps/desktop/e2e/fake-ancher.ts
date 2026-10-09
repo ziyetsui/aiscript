@@ -6,7 +6,7 @@ export const REPLY = '好的，先写开场。<ops>[{"op":"insertNode","type":"h
 
 /** "润色对白" rewrites the first dialogue line it sees in the packed script — exercises the modification preview. */
 function replyFor(prompt: string): string {
-  if (prompt.includes('用户：总结大纲')) return '把大纲整理好了。<ops>[{"op":"appendOutline","text":"一、豆豆发现门墩儿会说话\\n二、两人约定保守秘密"}]</ops>';
+  if (prompt.includes('用户：总结大纲') || prompt.includes('用户：总结一下现在的大纲')) return '把大纲整理好了。<ops>[{"op":"appendOutline","text":"一、豆豆发现门墩儿会说话\\n二、两人约定保守秘密"}]</ops>';
   if (prompt.includes('用户：润色对白')) {
     const m = prompt.match(/\[([a-z0-9]+)\] dialogue: (.*)/);
     if (m) return `把这句改得更像孩子说话。<ops>[{"op":"updateNode","id":"${m[1]}","text":"石头……石头它会说话？！"}]</ops>`;
