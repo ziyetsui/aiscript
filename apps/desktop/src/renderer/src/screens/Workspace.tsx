@@ -291,7 +291,7 @@ const TYPE_LABEL: Record<string, string> = { heading: '场景', action: '动作'
 /** Modification preview: what would change, accept or reject. Nothing touches the script until 接受. */
 function PreviewCard({ m, onResolve }: { m: ChatMsg; onResolve: (accept: boolean) => void }) {
   const pv = m.preview!;
-  const label = { open: '', accepted: '已接受并写入', rejected: '已拒绝，剧本没有改动', stale: '剧本已变化，没有写入' }[pv.state];
+  const label = { open: '', accepted: '已接受并写入', rejected: '已拒绝，剧本没有改动', stale: '剧本已变化，没有写入', failed: '写入失败，剧本没有改动' }[pv.state];
   return (
     <div className={`card preview${pv.state === 'open' ? '' : ' done'}`}>
       <div className="preview-hd"><Icon name="eye" size={13} /><b style={{ flex: 1 }}>修改预览 · {pv.items.length} 处</b>{label && <span className="muted">{label}</span>}</div>

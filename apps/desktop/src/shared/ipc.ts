@@ -26,7 +26,7 @@ export interface ChatMsg {
   /** A workflow run shown in the conversation. */
   runId?: string;
   /** A rewrite waiting for the writer's decision (modification preview). */
-  preview?: { items: PreviewItem[]; state: 'open' | 'accepted' | 'rejected' | 'stale' };
+  preview?: { items: PreviewItem[]; state: 'open' | 'accepted' | 'rejected' | 'stale' | 'failed' };
 }
 export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string }
 export type WorkflowAction =

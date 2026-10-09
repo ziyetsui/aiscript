@@ -54,9 +54,9 @@ describe('ops', () => {
     expect(d.nodes().map((n) => n.text)).toEqual(['外景 胡同口 — 傍晚', '豆豆蹲在门墩儿旁边。']);
   });
 
-  it('leaves the doc untouched when an op targets a missing node', () => {
+  it('leaves the doc untouched when applying a turn fails', () => {
     const { d } = seed();
-    expect(() => applyOps(d, [{ op: 'insertNode', after: 'end', type: 'action', text: 'x' }, { op: 'updateNode', id: 'nope', text: 'y' }], 'bad')).toThrow();
+    expect(() => applyOps(d, [{ op: 'insertNode', after: 'end', type: 'action', text: 'x' }, { op: 'setType', id: d.nodes()[0]!.id, type: 'bogus' as never }], 'bad')).toThrow();
     expect(d.nodes()).toHaveLength(2);
   });
 });
@@ -147,5 +147,28 @@ describe('docx export', () => {
     expect(xml).toContain('外景 胡同口 — 傍晚');
     expect(xml).toContain('别捏了 &amp; 放手');
     expect(xml).toContain('w:eastAsia="FangSong"');
+  });
+});
+
+describe('ops references (models number new nodes in different ways)', () => {
+  it('accepts $n counted over inserts even when an update comes first', () => {
+    const { d, h } = seed();
+    const r = parseReply(`<ops>[{"op":"updateNode","id":"${h}","text":"外景 胡同口 — 夜"},{"op":"insertNode","after":"end","type":"character","text":"豆豆"},{"op":"insertNode","after":"$1","type":"dialogue","text":"谁？"}]</ops>`);
+    applyOps(d, r.ops, 't');
+    expect(d.nodes().map((n) => n.text)).toEqual(['外景 胡同口 — 夜', '豆豆蹲在门墩儿旁边。', '豆豆', '谁？']);
+  });
+
+  it('accepts ids the model gave its own inserts, and falls back for unknown anchors', () => {
+    const { d } = seed();
+    const r = parseReply('<ops>[{"op":"insertNode","id":"c1","type":"character","text":"门墩儿"},{"op":"insertNode","after":"c1","type":"dialogue","text":"别捏了。"},{"op":"insertNode","after":"no-such-node","type":"action","text":"豆豆往后一坐。"}]</ops>');
+    expect(r.errors).toEqual([]);
+    applyOps(d, r.ops, 't');
+    expect(d.nodes().map((n) => n.text).slice(-3)).toEqual(['门墩儿', '别捏了。', '豆豆往后一坐。']);
+  });
+
+  it('skips an update whose target has gone instead of failing the turn', () => {
+    const { d } = seed();
+    applyOps(d, [{ op: 'updateNode', id: 'gone', text: 'x' }, { op: 'insertNode', after: 'end', type: 'action', text: '新的一行' }], 't');
+    expect(d.nodes().at(-1)!.text).toBe('新的一行');
   });
 });

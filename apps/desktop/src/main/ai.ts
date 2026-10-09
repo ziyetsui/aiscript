@@ -108,10 +108,11 @@ export function resolve(projectId: string, msgId: string, accept: boolean) {
   try {
     const t = applyOps(p.doc, pend.ops, pend.label);
     turn = { id: t.id, label: t.label, undone: false };
-  } catch {
-    m.preview.state = 'stale';
+  } catch (e) {
+    log('error', `accept preview failed: ${(e as Error).message}`);
+    m.preview.state = 'failed';
     saveNow(p);
-    return { ok: false, message: '修改无法执行，剧本没有改动', state: state(p) };
+    return { ok: false, message: '写入失败，剧本没有改动。已记录到诊断日志，请让 AI 重新生成', state: state(p) };
   }
   m.preview.state = 'accepted';
   m.turnId = turn.id;
