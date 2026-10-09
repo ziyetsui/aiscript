@@ -12,7 +12,7 @@ const I = {
   home: 'M3 10.5 12 3l9 7.5V21H3ZM9 21v-6h6v6', plus: 'M12 5v14M5 12h14', export: 'M12 3v12M7 8l5-5 5 5M5 21h14',
   chart: 'M3 3v18h18M7 15v3M12 10v8M17 6v12', panel: 'M3 3h18v18H3ZM15 3v18', laptop: 'M4 5h16v11H4ZM2 19h20',
   doc: 'M14 3H6v18h12V7ZM14 3v4h4', video: 'M3 6h13v12H3ZM16 10l5-3v10l-5-3', send: 'M12 19V5M5 12l7-7 7 7', stop: 'M7 7h10v10H7Z',
-  x: 'M18 6 6 18M6 6l12 12', phone: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM11 18h2', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
+  x: 'M18 6 6 18M6 6l12 12', at: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm0 0v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1', mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM19 11a7 7 0 0 1-14 0M12 18v3', square: 'M7 7h10v10H7Z', arrowDown: 'M12 5v14M5 12l7 7 7-7', note: 'M14 3H6v18h12V7ZM14 3v4h4M12 11v6M9 14h6', newchat: 'M12 20H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v4M16 16h6M19 13v6', phone: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM11 18h2', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
   chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z', copy: 'M9 9h12v12H9ZM5 15H3V3h12v2', up: 'M7 10v11M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 18.4 21H7V10l4-8a3 3 0 0 1 4 3.9Z',
   down: 'M17 14V3M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 5.6 3H17v11l-4 8a3 3 0 0 1-4-3.9Z', undo: 'M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8',
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6', trash: 'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15', check: 'M20 6 9 17l-5-5',
@@ -332,11 +332,11 @@ const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本<
       <article class="page outline-doc" id="outline" hidden><div class="muted">还没有大纲。</div></article><article class="page" id="shots" hidden></article><article class="page" id="scn" hidden></article></div>
     <section class="agent" id="agent" aria-label="AI 编剧">
       <div class="sheet-grip" id="grip" aria-hidden="true"></div>
-      <div class="agent-hd"><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="会话列表">${icon('menu', 14)}</button><b style="flex:1" id="chat-title">新对话</b>
-        <button class="btn btn-quiet" style="width:26px;padding:0" aria-label="新对话">${icon('chat', 14)}</button><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="展开到侧边">${icon('expand', 13)}</button><button class="btn btn-quiet" style="width:26px;padding:0" aria-label="收起" onclick="agentOpen(false)">${icon('chev', 14)}</button></div>
-      <div class="agent-bd" id="feed">${welcome}</div>
-      <div class="agent-ft">
-        <div style="display:flex;align-items:flex-start;gap:6px"><div id="chips" style="flex:1;display:flex;gap:6px;flex-wrap:wrap">
+      <div class="ag-hd"><button class="ag-title" aria-label="会话列表"><span id="chat-title">新对话</span>${icon('chev', 13)}</button><span style="flex:1"></span>
+        <button class="ag-save" onclick="toast('已把这段对话存为笔记')">${icon('note', 15)}保存</button><button class="ico-btn" aria-label="新对话" onclick="toast('新对话')">${icon('newchat', 16)}</button><button class="ico-btn" aria-label="收起" onclick="agentOpen(false)">${icon('chev', 14)}</button></div>
+      <div class="ag-body"><div class="ag-feed" id="feed">${welcome}</div><button class="jump-pill" id="jump" onclick="toLatest()" aria-label="回到最新消息">${icon('arrowDown', 13)}最新<span class="n" id="jump-n" hidden></span></button></div>
+      <div class="agent-ft" style="border:0;padding:0 0 0;gap:0">
+        <div id="chips" class="cmp-chips">
           <button class="chip" onclick="prefill('把这一场润色成标准格式。')">${icon('spark', 12)} 润色格式</button><button class="chip" onclick="prefill('总结一下现在的大纲。')">${icon('book', 12)} 总结大纲</button>
           ${['润色对白', '续写场景', '检查人物一致性'].map((t) => `<button class="chip" onclick="prefill('${t}：')">${t}</button>`).join('')}
           <span id="wf-wrap" style="position:relative"><button class="chip" style="background:var(--primary-soft);color:var(--primary);font-weight:600" onclick="wfMenu()" aria-haspopup="menu">⚡ 工作流 ${icon('chev', 11)}</button>
@@ -344,12 +344,14 @@ const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本<
               <div class="eyebrow" style="padding:4px 8px 6px">针对客户痛点 · 本地执行，可取消、可重试</div>
               ${WORKFLOWS.map(([t, d], i) => `<button class="wf-item" role="menuitem" onclick="runWF(${i + 1})"><span style="flex:1;text-align:left"><b style="font-weight:600">${t}</b><br><span class="muted" style="font-size:11.5px">${d}</span></span><span class="kbd">⌥${i + 1}</span></button>`).join('')}
             </div></span></div>
-          <button class="btn btn-quiet" style="width:22px;height:22px;padding:0;flex:none" aria-label="关闭建议" onclick="this.parentElement.hidden=true">${icon('x', 11)}</button></div>
-        <div class="composer"><textarea id="ask" aria-label="给 AI 的指令" placeholder="听候差遣，随时开写……"></textarea>
-          <div style="display:flex;align-items:center;gap:6px"><button class="btn btn-quiet" style="width:26px;height:26px;padding:0" aria-label="附件">${icon('plus', 14)}</button><button class="btn btn-quiet" style="width:26px;height:26px;padding:0" aria-label="顾问">${icon('cap', 14)}</button><span style="flex:1"></span>
-            <span id="model-wrap" style="position:relative"><button class="chip" style="height:26px;font-weight:600" onclick="modelMenu()" aria-haspopup="menu"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span><span id="model">Ancher</span><span id="model-caret" hidden>${icon('chev', 11)}</span></button>
-              <div class="pop" id="model-menu" role="menu" style="width:270px;right:0;left:auto;transform-origin:bottom right"></div></span>
-            <button class="btn btn-primary" id="send" style="width:30px;height:30px;padding:0;border-radius:50%" aria-label="发送" onclick="sendTyped()">${icon('send', 15)}</button></div></div>
+        <div class="cmp"><div class="cmp-card" id="cmp-card"><textarea id="ask" aria-label="给 AI 的指令" placeholder="随便问，@ 提及角色、地点或设定" rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();sendTyped()}"></textarea>
+          <div class="cmp-bar"><button class="ico-btn" aria-label="提及" onclick="prefill($('ask').value+'@')">${icon('at', 16)}</button><button class="ico-btn" aria-label="添加文件或图片" onclick="toast('选择文件或图片')">${icon('plus', 16)}</button>
+            <button class="ico-btn" id="web" aria-pressed="false" aria-label="联网搜索" title="联网搜索" onclick="this.setAttribute('aria-pressed',this.getAttribute('aria-pressed')!=='true')">${icon('globe', 15)}</button><span style="flex:1"></span>
+            <span id="model-wrap" style="position:relative"><button class="chip" style="height:28px;font-weight:600" onclick="modelMenu()" aria-haspopup="menu"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span><span id="model">Ancher</span><span id="model-caret" hidden>${icon('chev', 11)}</span></button>
+              <div class="pop" id="model-menu" role="menu" style="width:270px;right:0;left:auto;bottom:calc(100% + 6px);top:auto;transform-origin:bottom right"></div></span>
+            <button class="ico-btn" aria-label="语音输入" onclick="toast('按住说话')">${icon('mic', 16)}</button>
+            <button class="cmp-send" id="send" aria-label="发送" onclick="sendTyped()">${icon('send', 15)}</button></div></div>
+          <div class="cmp-note">AI 可能会出错。请核对重要信息。</div></div>
       </div>
     </section>
     <button class="fab" id="fab" hidden onclick="agentOpen(true)">${icon('spark', 15)} AI</button>
@@ -415,7 +417,15 @@ function doExport(){ const fmt=(document.querySelector('input[name="ff"]:checked
   const meta={fdx:['.fdx','application/xml'],fountain:['.fountain','text/plain'],doc:['.doc','application/msword'],txt:['.txt','text/plain']}[fmt];
   download(base+meta[0], meta[1], EXPORTERS[fmt](ns)); toast('已导出 '+base+meta[0]+' · '+ns.length+' 段'); }
 
-const add=h=>{const d=document.createElement('div');d.className='enter';d.innerHTML=h;feed.appendChild(d);feed.scrollTop=feed.scrollHeight;return d;};
+// Follows the bottom only while the reader is there; otherwise counts unread and shows the 「↓ 最新」pill.
+let unread=0;
+const nearBottom=()=>feed.scrollHeight-feed.scrollTop-feed.clientHeight<48;
+function pill(){ const j=$('jump'), n=$('jump-n'); j.classList.toggle('show',unread>0||!nearBottom()); n.hidden=!unread; n.textContent=unread>99?'99+':unread; }
+feed.addEventListener('scroll',()=>{ if(nearBottom()) unread=0; pill(); });
+function toLatest(){ feed.scrollTo({top:feed.scrollHeight,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'}); unread=0; pill(); }
+const add=h=>{ const stick=nearBottom(); const th=$('thinking'); const d=document.createElement('div'); d.className='enter'; d.innerHTML=h;
+  if(th) feed.insertBefore(d,th); else feed.appendChild(d);
+  if(stick) feed.scrollTop=feed.scrollHeight; else { unread++; pill(); } return d; };
 async function tool(name,obj,ms){const t=add('<div class="tool"><span class="spin"></span><span><b>'+name+'</b>'+(obj?'：'+obj:'')+' — <span class="st">进行中</span></span></div>');await wait(ms||420);t.querySelector('.spin').outerHTML='<span class="ok">✓</span>';t.querySelector('.st').textContent='完成';}
 const VT={script:'剧本',outline:'大纲',shots:'分镜',scn:'场景'};
 function view(v){ ['page','outline','shots','scn'].forEach(id=>$(id).hidden=(id==='page'?'script':id)!==v); $('tb').hidden=v!=='script';$('hd-seg').hidden=v!=='script';$('hd-title').textContent=VT[v];
@@ -452,9 +462,29 @@ async function insertNodes(list){ const s=$('empty'); if(s){s.remove();$('ph').r
     await typeInto(p, x);
     if(ty==='heading'){ sceneN++; const [loc,tod]=x.split(' — '); $('scenes-h').hidden=false; $('scenes').insertAdjacentHTML('beforeend','<div class="item enter"><span class="tnum muted">'+sceneN+'.</span>'+loc+'<small>'+tod+'</small></div>'); stat('s-scenes',sceneN); }
     words+=x.length; stat('s-words',words.toLocaleString()); setTimeout(()=>p.classList.remove('writing'),700); } }
-function userSay(t){ add('<div class="msg-user">'+t+'</div>'); }
-function actions(){ return '<div style="display:flex;gap:4px;color:var(--ink-3)"><button class="btn btn-quiet" style="width:24px;height:24px;padding:0" aria-label="复制">'+ICON.copy+'</button><button class="btn btn-quiet" style="width:24px;height:24px;padding:0" aria-label="好的回答">'+ICON.up+'</button><button class="btn btn-quiet" style="width:24px;height:24px;padding:0" aria-label="不好的回答">'+ICON.down+'</button></div>'; }
-function lock(on){ busy=on; $('send').innerHTML=on?ICON.stop:ICON.send; $('send').setAttribute('aria-label',on?'停止':'发送'); }
+function userSay(t){
+  const d=add('<div class="ag-user"><div class="bubble"><div class="bd"></div></div><div class="msg-acts"><button class="ico-btn" aria-label="复制消息">'+ICON.copy+'</button></div></div>');
+  d.querySelector('.bd').textContent=t; const b=d.querySelector('.bubble');
+  // Clamp long messages (Ancher: 164px) with a fade and 展开更多 / 收起.
+  requestAnimationFrame(()=>{ if(b.querySelector('.bd').scrollHeight>164){ const m=document.createElement('button'); m.className='more'; m.setAttribute('aria-expanded','false'); m.innerHTML='<span>展开更多</span>'+ICON.chevD;
+    m.onclick=()=>{ const o=b.classList.toggle('open'); m.setAttribute('aria-expanded',o); m.firstChild.textContent=o?'收起':'展开更多'; }; b.appendChild(m); } });
+  d.querySelector('.msg-acts .ico-btn').onclick=e=>{ navigator.clipboard&&navigator.clipboard.writeText(t).catch(()=>{}); const btn=e.currentTarget; btn.innerHTML=ICON.check; setTimeout(()=>btn.innerHTML=ICON.copy,2000); };
+}
+function actions(){ const t=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  return '<div class="msg-acts"><button class="ico-btn" aria-label="复制" onclick="this.innerHTML=ICON.check;setTimeout(()=>this.innerHTML=ICON.copy,2000)">'+ICON.copy+'</button><button class="ico-btn" aria-label="存为笔记" onclick="toast(\'已存为笔记\')">'+ICON.note+'</button><button class="ico-btn" aria-label="好的回答" aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',this.getAttribute(\'aria-pressed\')!==\'true\')">'+ICON.up+'</button><button class="ico-btn" aria-label="不好的回答" aria-pressed="false" onclick="this.setAttribute(\'aria-pressed\',this.getAttribute(\'aria-pressed\')!==\'true\')">'+ICON.down+'</button><span class="msg-time">'+t+'</span></div>'; }
+// While the agent works: Thinking with ascii dots + shimmer, a rotating waiting tip, a running light on the composer,
+// and the send button turns into a square stop (Ancher agent-input / message-thinking / waiting-tip).
+const TIPS=['把参考剧本放进知识库并打开「写作时参考」，AI 会照着它写。','按 ⌥1–⌥9 可以直接启动工作流。','选中剧本里的文字，可以让 AI 解释、总结或翻译。','改写已有内容时会先给你修改预览，接受才写入。'];
+let dotsT, tipT;
+function lock(on){ busy=on; const s=$('send'); s.innerHTML=on?ICON.square:ICON.send; s.classList.toggle('stop',on); s.setAttribute('aria-label',on?'停止':'发送'); $('cmp-card').classList.toggle('busy',on);
+  clearInterval(dotsT); clearInterval(tipT); $('thinking')&&$('thinking').remove();
+  if(!on) return;
+  const th=document.createElement('div'); th.id='thinking'; th.style.cssText='display:flex;flex-direction:column;gap:8px';
+  th.innerHTML='<button class="thinking" aria-label="正在思考"><span class="dots" aria-hidden="true">⠋</span><span class="shimmer">Thinking</span>'+ICON.chevR+'</button><div class="wait-tip">'+ICON.bulb+'<span></span><button class="ico-btn" aria-label="关闭提示" onclick="this.parentElement.remove()">'+ICON.x+'</button></div>';
+  feed.appendChild(th); if(nearBottom()||true) feed.scrollTop=feed.scrollHeight;
+  const F='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'; let i=0; const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(!reduce) dotsT=setInterval(()=>{ const d=th.querySelector('.dots'); if(d) d.textContent=F[i++%F.length]; },90);
+  let k=Math.floor(Math.random()*TIPS.length); const tip=()=>{ const sp=th.querySelector('.wait-tip span'); if(sp) sp.textContent=TIPS[k++%TIPS.length]; }; tip(); tipT=setInterval(tip,5000); }
 
 async function turn1(){ if(busy) return; lock(true); $('welcome')&&$('welcome').remove(); turn=1;
   userSay(DATA.IDEA); $('chat-title').textContent='门墩儿里的小精灵'; step(0);
@@ -572,7 +602,7 @@ document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey&&docume
   ag.addEventListener('pointerup',end); ag.addEventListener('pointercancel',end); })();
 TW.ui(); setTimeout(turn1, 700);
 `;
-const ICONS_JS = `<script>window.ICON=${JSON.stringify({ copy: icon('copy', 13), up: icon('up', 13), down: icon('down', 13), undo: icon('undo', 13), send: icon('send', 15), stop: icon('stop', 13), video: icon('video', 12) })};</script>`;
+const ICONS_JS = `<script>window.ICON=${JSON.stringify({ copy: icon('copy', 13), up: icon('up', 13), down: icon('down', 13), undo: icon('undo', 13), send: icon('send', 15), stop: icon('stop', 13), video: icon('video', 12), check: icon('check', 13), note: icon('note', 13), square: '<svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>', chevD: icon('chev', 12), chevR: icon('chev', 12).replace('<svg', '<svg style="transform:rotate(-90deg)"'), bulb: icon('bulb', 15), x: icon('x', 12) })};</script>`;
 
 /* ═════ P5 角色画布（laper /characters） ═════ */
 const RELS = [[0, 1, '秘密朋友', '只有豆豆看得见门墩儿'], [0, 2, '祖孙', '豆豆跟姥爷住，姥爷不知道门墩儿的事'], [0, 3, '同学 · 较劲', '大壮总拿新鞋显摆，豆豆不服又不敢说'],
