@@ -3,7 +3,7 @@ import { getNoteSourceUrl, getNoteSource, getNoteThumbnailFile, getFileUrl, type
 
 /** Account metadata and thumbnail URLs sent to the renderer; API keys stay in main. */
 export interface AncherNote {
-  kind?: 'note' | 'file' | 'link'; thumbnail?: string;
+  kind?: 'note' | 'file' | 'link'; thumbnail?: string; sourceUrl?: string;
   id: string; title: string; description: string; memo: string;
   status: 'queued' | 'processing' | 'fetched' | 'ready' | 'error'; error: string;
   addedAt: number; updatedAt: number; starred: boolean;
@@ -18,7 +18,7 @@ export interface AncherOriginal {
   id: string; name: string; mime: string; body?: string; url?: string; error?: string;
 }
 /** body is the generated detailed summary; originals are independent source files. */
-export interface AncherNoteContent { note: AncherNote; body: string | null; summaryError?: string; needsRetry: boolean; originals: AncherOriginal[]; imageUrls: Record<string, string> }
+export interface AncherNoteContent { note: AncherNote; body: string | null; summaryError?: string; needsRetry: boolean; transcriptId?: string; originals: AncherOriginal[]; imageUrls: Record<string, string> }
 interface SourceFile { id: string; filename?: string | null; mimetype?: string | null; parent_file_id?: string | null }
 interface FileSlots { files?: Record<string, SourceFile>; origin_files?: SourceFile[]; downloaded_files?: SourceFile[]; transcript_file?: SourceFile | null; display_file?: SourceFile | null }
 const textMime = (mime: string) => mime.startsWith('text/') || ['application/json', 'application/xml', 'application/x-subrip'].includes(mime);
@@ -35,7 +35,7 @@ function publicNote(note: Note, starred = false): AncherNote {
   const kind = getNoteSourceUrl(note) ? 'link' : ['file','document','pdf'].includes(getNoteSource(note) ?? '') ? 'file' : 'note';
   const thumbnail = getFileUrl(getNoteThumbnailFile(note));
   return {
-    kind, ...(thumbnail && /^https:\/\//.test(thumbnail) ? { thumbnail } : {}),
+    kind, ...(getNoteSourceUrl(note)?.startsWith('https://') ? { sourceUrl: getNoteSourceUrl(note)! } : {}), ...(thumbnail && /^https:\/\//.test(thumbnail) ? { thumbnail } : {}),
     id: note.id, title: note.title || note.article?.title || '未命名笔记',
     description: note.description || note.article?.description || '', memo: note.comment || '',
     status, error: note.error_message || '', addedAt: note.created_at * 1000, updatedAt: note.updated_at * 1000,
@@ -94,7 +94,7 @@ export async function readAncherNote(sdk: Pick<AncherSdk, 'Note'>, id: string): 
   await Promise.all([...imageIds].map(async (fileId) => {
     try { imageUrls[fileId] = safeDownloadUrl(await sdk.Note.filePresignedUrl(id, fileId)); } catch { /* preserve readable text if one image is unavailable */ }
   }));
-  return { note, body, summaryError, originals, imageUrls, needsRetry: !!summaryError || originals.some((f) => !!f.error) || Object.keys(imageUrls).length < imageIds.size };
+  return { note, body, summaryError, transcriptId: transcript?.id ?? originals.find((f) => /\.(srt|vtt)$/i.test(f.name))?.id, originals, imageUrls, needsRetry: !!summaryError || originals.some((f) => !!f.error) || Object.keys(imageUrls).length < imageIds.size };
 }
 
 async function readText(res: Response): Promise<string> {

@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from 'react';
 import type { AncherNoteContent } from '@scripter/agent';
+import { getSourceEmbedUrl } from '../lib/note-source.ts';
 import { Markdown } from '../lib/markdown.tsx';
 
 /** Only note-scoped image references resolved by the main process become images. */
@@ -17,7 +18,31 @@ export function AncherMarkdown({ text, imageUrls, onMediaError }: { text: string
   return <>{parts.map((part, i) => <Fragment key={i}>{part}</Fragment>)}</>;
 }
 
-export function AncherOriginalViewer({ content, fileId, onSelect, onMediaError }: { content: AncherNoteContent; fileId: string; onSelect: (id: string) => void; onMediaError: () => void }) {
+type ViewerProps = { content: AncherNoteContent; fileId: string; onSelect: (id: string) => void; onMediaError: () => void };
+
+/** Ancher UrlSourceViewer: source preview followed directly by provider transcript. */
+export function AncherOriginalViewer(props: ViewerProps) {
+  const { content, onSelect } = props;
+  const { sourceUrl } = content.note;
+  if (!sourceUrl) return <OriginalFiles {...props} />;
+  const embedUrl = getSourceEmbedUrl(sourceUrl);
+  const transcript = content.originals.find((file) => file.id === content.transcriptId);
+  const otherFiles = content.originals.filter((file) => file.id !== content.transcriptId && !(embedUrl && file.mime.startsWith('video/')));
+  return <div className="cloud-source-viewer">
+    <section className="cloud-preview-card" aria-label="原文预览">
+      <div className="cloud-preview-header"><span>原文预览</span><a href={sourceUrl} target="_blank" rel="noopener noreferrer">打开 ↗</a></div>
+      {embedUrl ? <iframe className="cloud-source-embed" title="YouTube 原文视频" src={embedUrl} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" />
+        : <a className="cloud-source-link" href={sourceUrl} target="_blank" rel="noopener noreferrer">{content.note.thumbnail && <img src={content.note.thumbnail} alt="" />}<span>打开原文 ↗</span></a>}
+    </section>
+    <section className="cloud-preview-card" aria-label="转录">
+      <div className="cloud-preview-header"><span>转录</span>{transcript && <button onClick={() => onSelect(transcript.id)}>重新加载</button>}</div>
+      <div className="cloud-transcript">{transcript?.error ? <p role="alert" className="err">{transcript.error}</p> : <pre>{transcript?.body?.trim() || '暂无转录内容。'}</pre>}</div>
+    </section>
+    {otherFiles.length > 0 && <details className="cloud-source-files"><summary>源文件 · {otherFiles.length}</summary><OriginalFiles {...props} content={{ ...content, originals: otherFiles }} /></details>}
+  </div>;
+}
+
+function OriginalFiles({ content, fileId, onSelect, onMediaError }: ViewerProps) {
   const file = content.originals.find((f) => f.id === fileId) ?? content.originals[0];
   if (!file) return <p className="muted">这条笔记尚无可查看的原文文件。</p>;
   return <>

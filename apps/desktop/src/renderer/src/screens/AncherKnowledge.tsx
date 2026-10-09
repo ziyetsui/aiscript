@@ -116,7 +116,7 @@ export function AncherKnowledge({ id, switcher, onImported, onSelect, toggleDock
             <div className="note-kicker muted">笔记 · {new Date(current.addedAt).toLocaleDateString('zh-CN')}</div>
             <h1 className="cloud-note-title">{current.title}</h1>
             <div className="chipset">{current.tags.map((t) => <span className="chip" key={t}>{t}</span>)}</div>
-            {current.memo && <p className="muted">{current.memo}</p>}
+            {current.memo && <div className="cloud-memo"><span>备注</span><p>{current.memo}</p></div>}
             <div className="seg" role="tablist" aria-label="笔记内容"><button role="tab" aria-selected={mode === 'summary'} onClick={() => setMode('summary')}>摘要</button><button role="tab" aria-selected={mode === 'original'} onClick={() => { setMode('original'); setRefreshKey((x) => x + 1); }}>原文</button></div>
             <div className="note-body">
               {bodyError ? <div role="alert" className="err">{bodyError}<button className="btn btn-quiet" onClick={() => setRefreshKey((x) => x + 1)}>重试读取</button></div>

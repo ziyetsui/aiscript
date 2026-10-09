@@ -43,6 +43,13 @@ function createWindow(): void {
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: { preload: join(import.meta.dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
+  // YouTube requires native apps to identify embeds with their installed bundle ID.
+  win.webContents.session.webRequest.onBeforeSendHeaders({ urls: ['https://www.youtube.com/embed/*'] }, (details, callback) => {
+    if (details.webContentsId === win?.webContents.id && details.resourceType === 'subFrame') {
+      details.requestHeaders.Referer = 'https://ai.ancher.scripter/';
+    }
+    callback({ requestHeaders: details.requestHeaders });
+  });
   win.once('ready-to-show', () => (e2e ? win?.showInactive() : win?.show()));
   if (!e2e) updater.initUpdater(win);
   // Links open in the system browser; the app window never navigates away.
