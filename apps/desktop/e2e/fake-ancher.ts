@@ -82,7 +82,7 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
         else { res.write(`data: ${JSON.stringify({ type: 'done', conversation_id: 'c1', message_id: 'm1', finish_reason: 'stop' })}\n\n`); res.end(); clearInterval(t); }
       }, pre.length ? 250 : 120); };
       const wait = setTimeout(go, delay);
-      req.on('close', () => { clearTimeout(wait); clearInterval(t); });
+      res.on('close', () => { clearTimeout(wait); clearInterval(t); });
       return;
     }
     if (req.method === 'POST' && url.endsWith('/interruption')) return json(204, {});

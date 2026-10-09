@@ -59,7 +59,7 @@ export function Characters({ id }: { id: string }) {
         chars.length === 0 ? (
           <div className="page dots"><div className="empty-state"><Icon name="users" size={34} /><div>还没有角色。新建一个，或者让 AI 写剧本时自动登记。</div></div></div>
         ) : (
-          <div className="page dots character-board"><div className="grid-cards" style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', gridTemplateColumns: expanded ? 'repeat(auto-fill,minmax(320px,1fr))' : undefined }}>
+          <div className="page dots character-board"><div className="grid-cards" style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', gridTemplateColumns: `repeat(${chars.length}, ${expanded ? 320 : 230}px)` }}>
             {chars.map((c) => <CharCard key={c.id} projectId={id} c={c} stat={stats.get(c.name.trim())} onEdit={() => { setError(''); setEditing({ id: c.id, draft: pick(c) }); }} onDelete={() => void remove(c)}
               onPortrait={async () => { try { const f = await window.api.files.pickImage(id); if (f) await p.update('characters', c.id, { portrait: f }); } catch (e) { toast(String((e as Error).message)); } }}
               onReverse={async () => { try { const r = await window.api.ai.reverse(id, 'characters', c.id); p.setSt(r.state); toast(`已写进 ${c.name} 的「外形」`); } catch (e) { toast(cleanErr(e)); } }} />)}

@@ -24,6 +24,8 @@ async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
     colorScheme: null as never, // let Electron's nativeTheme (the 外观 setting) decide, instead of Playwright's light emulation
     env: { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: userData, SCRIPTER_LICENSE_PUBKEY: join(tmp, 'pub.pem'), SCRIPTER_ANCHER_BASE_URL: fake.url },
   });
+  app.process().on('exit', (code, signal) => console.log(`Electron exit: code=${code}, signal=${signal}`));
+  app.process().stderr?.on('data', (chunk) => { if (/crash|fatal|uncaught|error/i.test(String(chunk))) console.error(String(chunk)); });
   const page = await app.firstWindow();
   page.setDefaultTimeout(20000);
   await page.waitForLoadState('domcontentloaded');

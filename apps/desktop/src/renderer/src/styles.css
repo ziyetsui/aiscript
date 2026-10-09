@@ -670,3 +670,15 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .centered-modal[aria-label="制作设置"] .fs > b { padding:0 0 8px; }
 .centered-modal[aria-label="制作设置"] .fs > .in { padding:0;background:transparent;gap:8px; }
 .centered-modal[aria-label="制作设置"] .fs > .in p { margin:0; }
+
+.character-board .grid-cards { padding:40px 32px;gap:20px;align-items:start; }
+.character-board .ecard-top { height:150px; }
+.dw-scrim { background:rgb(0 0 0 / .2);backdrop-filter:none; }
+.writing-center > .topbar { overflow-x:auto;white-space:nowrap; }
+.writing-center > .topbar > :not(.grow) { flex-shrink:0; }
+@media(max-width:1120px) {
+  .writing-center + .agent { width:330px; }
+  .writing-center > .topbar { gap:4px;padding:0 8px; }
+  .writing-center > .topbar > b,.writing-center > .topbar .toggle span { display:none; }
+  .writing-center > .topbar .btn { padding:0 6px; }
+}
