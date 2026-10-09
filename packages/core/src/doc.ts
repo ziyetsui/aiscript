@@ -5,7 +5,7 @@ import { LoroDoc, LoroMap, LoroText, type Frontiers, type LoroMovableList } from
 import { Collection, PRODUCTION_DEFAULTS, readBible, type Bible, type BibleKind, type Production } from './bible.ts';
 import { ELEMENT_TYPES, newId, type ElementType, type ScriptNode } from './script.ts';
 
-export interface Turn { id: string; label: string; before: Frontiers; after: Frontiers; undone: boolean; episodeId?: string }
+export interface Turn { id: string; label: string; before: Frontiers; after: Frontiers; undone: boolean; episodeId?: string; stale?: boolean }
 export interface Episode { id: string; title: string }
 export interface ScriptCover { author: string; draft: string; date: string }
 
@@ -191,10 +191,15 @@ export class ScriptDoc {
     this.turns = turns.map((t) => ({ ...t }));
   }
 
+  /** Old frontiers may reference replaced containers. Keep the record but stop applying its inverse. */
+  invalidateEpisodeTurns(episodeId: string): void {
+    for (const t of this.turns) if ((t.episodeId ?? 'first') === episodeId) t.stale = true;
+  }
+
   /** Undo only this turn's changes; later edits by the writer are kept. */
   undoTurn(turnId: string): void {
     const t = this.turns.find((x) => x.id === turnId);
-    if (!t || t.undone) return;
+    if (!t || t.undone || t.stale) return;
     this.doc.commit();
     this.doc.applyDiff(this.doc.diff(t.after, t.before));
     this.doc.commit({ message: `undo ${t.label}` });

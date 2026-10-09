@@ -10,6 +10,20 @@ const seed = () => {
 };
 
 describe('ScriptDoc', () => {
+  it('invalidates old episode turns before replacing a script, without disabling the restore undo', () => {
+    const d = new ScriptDoc();
+    d.insert('end', 'action', '第一稿', 'node1'); d.commit();
+    const old = d.turn('删除', x => x.remove('node1'));
+    d.invalidateEpisodeTurns('first');
+    const restored = d.turn('恢复', x => x.insert('end', 'action', '第一稿', 'node1'));
+    d.undoTurn(old.id);
+    expect(d.nodes()).toEqual([{ id: 'node1', type: 'action', text: '第一稿' }]);
+    expect(d.listTurns().find(t => t.id === old.id)?.stale).toBe(true);
+    d.undoTurn(restored.id);
+    expect(d.nodes()).toEqual([]);
+    const reloaded = ScriptDoc.fromSnapshot(d.snapshot()); reloaded.loadTurns([...d.listTurns()]);
+    reloaded.undoTurn(old.id); expect(reloaded.nodes()).toEqual([]);
+  });
   it('survives a snapshot round trip', () => {
     const { d } = seed();
     d.setTitle('门墩儿');
