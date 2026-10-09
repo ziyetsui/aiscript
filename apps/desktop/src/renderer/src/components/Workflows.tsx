@@ -7,7 +7,7 @@ import { Activity } from './Activity.tsx';
 import { Markdown } from '../lib/markdown.tsx';
 
 /** Mirror of the workflow table (titles/keys/input kinds) so the menu renders without IPC. Kept in sync by the E2E. */
-export const WF_MENU: { id: WorkflowId; key: number; title: string; desc: string; input: 'none' | 'text' | 'url-or-text' | 'file' | 'focus' | 'target'; hint?: string }[] = [
+export const WF_MENU: { id: WorkflowId; key: number; title: string; desc: string; input: 'none' | 'text' | 'url-or-text' | 'url' | 'file' | 'focus' | 'target'; hint?: string }[] = [
   { id: 'directions', key: 1, title: '一个创意 → 3 个走向', desc: '三个冲突来源不同的走向，选一个写进大纲', input: 'text', hint: '一句话创意（留空则用大纲）' },
   { id: 'restructure', key: 2, title: '参考经典结构重写', desc: '拆节拍、换成自家角色、检查原创度，先预览再写入', input: 'url-or-text', hint: '参考作品的链接或一段剧本，也可以选文件' },
   { id: 'jokes', key: 3, title: '笑点方案', desc: '给光标所在的这句出 3–5 个笑点方案', input: 'focus' },
@@ -15,6 +15,7 @@ export const WF_MENU: { id: WorkflowId; key: number; title: string; desc: string
   { id: 'notes', key: 5, title: '导演意见 → 规则', desc: '整理成待确认规则，确认后全剧生效', input: 'url-or-text', hint: '粘贴导演意见，或选一张截图 / 一段录音' },
   { id: 'length', key: 6, title: '控字数 / 时长', desc: '按场估算时长，给出删减方案，先预览再写入', input: 'target' },
   { id: 'transcribe', key: 7, title: '视频 → 逐字稿', desc: '本地视频转逐字稿，存进知识库', input: 'file' },
+  { id: 'youtube', key: 0, title: 'YouTube 视频 → 逐字稿', desc: '粘贴链接，优先获取字幕，无字幕时调用 Gemini，存进知识库', input: 'url', hint: 'https://www.youtube.com/watch?v=… 或 https://youtu.be/…' },
   { id: 'topics', key: 8, title: '今日热点选题', desc: '聚合热点、生成带来源的简报，筛成最多 5 个选题', input: 'none' },
   { id: 'episode', key: 9, title: '一集剧本流水线', desc: '故事和锁定核心、分场都先给你确认，再逐场写完一整集', input: 'text', hint: '这一集的选题或一句话创意（留空则用大纲或选中的选题）' },
 ];
@@ -39,7 +40,7 @@ export function WorkflowMenu({ onPick, disabled }: { onPick: (id: WorkflowId) =>
           {WF_MENU.map((w) => (
             <button key={w.id} role="menuitem" onClick={() => { setOpen(false); onPick(w.id); }}>
               <span style={{ flex: 1 }}><b>{w.title}</b><br /><span className="muted" style={{ fontSize: 12 }}>{w.desc}</span></span>
-              <span className="kbd tnum">{optKey(w.key)}</span>
+              {w.key > 0 && <span className="kbd tnum">{optKey(w.key)}</span>}
             </button>
           ))}
         </div>
@@ -53,6 +54,7 @@ export function WorkflowLauncher({ id, focusText, onStart, onClose }: { id: Work
   const w = WF_MENU.find((x) => x.id === id)!;
   const [text, setText] = useState('');
   const [file, setFile] = useState<string | null>(null);
+  const [browser, setBrowser] = useState<WorkflowInput['browser']>();
   const [target, setTarget] = useState(5000);
   const first = useRef<HTMLTextAreaElement & HTMLInputElement>(null);
   useEffect(() => { first.current?.focus(); }, [id]);
@@ -60,16 +62,24 @@ export function WorkflowLauncher({ id, focusText, onStart, onClose }: { id: Work
   function submit(e: FormEvent) {
     e.preventDefault();
     const t = text.trim();
-    if (w.input === 'url-or-text') onStart(file ? { filePath: file } : /^https?:\/\//.test(t) ? { url: t } : { text: t });
+    if (w.input === 'url') onStart({ url: t, ...(browser ? { browser } : {}) });
+    else if (w.input === 'url-or-text') onStart(file ? { filePath: file } : /^https?:\/\//.test(t) ? { url: t } : { text: t });
     else if (w.input === 'file') { if (file) onStart({ filePath: file }); }
     else if (w.input === 'target') onStart({ target });
     else onStart({ text: t });
   }
-  const ready = w.input === 'file' ? !!file : w.input === 'url-or-text' ? !!(file || text.trim()) : w.input === 'focus' ? !!focusText : true;
+  const ready = w.input === 'file' ? !!file : w.input === 'url-or-text' ? !!(file || text.trim()) : w.input === 'focus' ? !!focusText : w.input === 'url' ? !!text.trim() : true;
   return (
     <form className="card launcher" onSubmit={submit} onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }} aria-label={w.title}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><b style={{ flex: 1 }}>⚡ {w.title}</b><button type="button" className="btn btn-quiet btn-icon" style={{ width: 26, height: 26 }} aria-label="关闭" onClick={onClose}><Icon name="x" size={13} /></button></div>
       <span className="muted" style={{ fontSize: 12 }}>{w.desc}</span>
+      {w.input === 'url' && <input ref={first} className="input" type="url" required value={text} onChange={(e) => setText(e.target.value)} placeholder={w.hint} aria-label="YouTube 视频链接" />}
+      {id === 'youtube' && <label className="fl" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>使用浏览器登录状态（可选）
+        <select className="input" style={{ width: 145 }} aria-label="YouTube 登录浏览器" value={browser ?? ''} onChange={e => setBrowser((e.target.value || undefined) as WorkflowInput['browser'])}>
+          <option value="">不使用</option><option value="chrome">Chrome</option>{isMac && <option value="safari">Safari</option>}<option value="edge">Edge</option><option value="firefox">Firefox</option>
+        </select>
+      </label>}
+      {id === 'youtube' && browser && <small className="muted">请先在该浏览器登录 YouTube。仅在本机读取登录信息，系统可能请求授权。</small>}
       {w.input === 'text' && <textarea ref={first} className="input" rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder={w.hint} aria-label="创意" style={{ minHeight: 60, fontSize: 14 }} />}
       {w.input === 'url-or-text' && (
         <>

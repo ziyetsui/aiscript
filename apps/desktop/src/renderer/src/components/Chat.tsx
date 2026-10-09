@@ -166,7 +166,7 @@ const QUICK = WRITING_ACTIONS.map((a) => ['spark', a.title, a.description, a.pro
 const PLUS: [string, [IconName, string, string, PlusAction, string?][]][] = [
   ['添加', [['clip', '文件和图片', '剧本、PDF、Word、截图', { kind: 'attach' }], ['video', '本地视频', '转成逐字稿，存进知识库', { kind: 'video' }], ['book', '知识库笔记', '作为这次对话的参考', { kind: 'mention' }]]],
   ['快捷指令', QUICK.map(([ic, t, d, text, skillActionId]) => [ic, t, d, t === '总结大纲' ? { kind: 'outline', text } : { kind: 'prefill', text, skillActionId }] as [IconName, string, string, PlusAction])],
-  ['工作流', WF_MENU.map((w) => ['bolt', w.title, w.desc, { kind: 'workflow', id: w.id }, `${isMac ? '⌥' : 'Alt+'}${w.key}`] as [IconName, string, string, PlusAction, string])],
+  ['工作流', WF_MENU.map((w) => ['bolt', w.title, w.desc, { kind: 'workflow', id: w.id }, w.key > 0 ? `${isMac ? '⌥' : 'Alt+'}${w.key}` : ''] as [IconName, string, string, PlusAction, string])],
 ];
 
 /** Empty chat: Ancher-style 3-column action grid and key hints (prototype PR #28). */

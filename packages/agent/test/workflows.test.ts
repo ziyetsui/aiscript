@@ -86,7 +86,7 @@ describe('engine', () => {
 
 describe('workflows', () => {
   it('has the eight §5.6 workflows on ⌥1–⌥8, plus the episode pipeline on ⌥9', () => {
-    expect(WORKFLOWS.map((w) => [w.key, w.title])).toEqual([
+    expect(WORKFLOWS.filter(w => w.key > 0).map((w) => [w.key, w.title])).toEqual([
       [1, '一个创意 → 3 个走向'], [2, '参考经典结构重写'], [3, '笑点方案'], [4, '写飘检查'],
       [5, '导演意见 → 规则'], [6, '控字数 / 时长'], [7, '视频 → 逐字稿'], [8, '今日热点选题'], [9, '一集剧本流水线'],
     ]);

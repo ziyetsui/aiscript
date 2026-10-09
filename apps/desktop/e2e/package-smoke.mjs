@@ -18,5 +18,11 @@ try {
  const result = spawnSync(binary, ['-v', 'error', '-f', 'lavfi', '-i', 'sine=duration=0.1', '-c:a', 'libmp3lame', '-f', 'mp3', '-']);
  if (result.status !== 0 || !result.stdout?.length) throw new Error('Packaged FFmpeg audio extraction failed: ' + String(result.error ?? result.stderr));
  console.log('Packaged FFmpeg MP3 encoding passed.');
+ for (const name of ['yt-dlp', 'deno']) {
+  const executable = join(resources, 'youtube', name + (process.platform === 'win32' ? '.exe' : ''));
+  const check = spawnSync(executable, ['--version'], { timeout: 20000 });
+  if (check.status !== 0 || !check.stdout?.length) throw new Error('Packaged YouTube tool failed: ' + name + ': ' + String(check.error ?? check.stderr));
+ }
+ console.log('Packaged yt-dlp and Deno execution passed.');
  console.log('Packaged application cold startup passed; activation screen shown, no dev overrides.');
 } finally { await app.close(); rmSync(profile, { recursive: true, force: true }); }

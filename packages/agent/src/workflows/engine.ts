@@ -22,7 +22,7 @@ export type WorkflowResult =
   | { kind: 'transcript'; fileName: string; text: string; srt: string; provider: string }
   | { kind: 'topics'; items: { title: string; logline: string; why: string }[]; citations: { url: string; title: string }[]; brief?: { headline: string; summary: string; citations: { url: string; title: string }[] }[]; sourceWarning?: string; fetchedAt?: number };
 
-export interface WorkflowInput { text?: string; url?: string; filePath?: string; focusId?: string; target?: number; provider?: 'gemini' | 'ancher'; minutes?: number }
+export interface WorkflowInput { text?: string; url?: string; filePath?: string; focusId?: string; target?: number; provider?: 'gemini' | 'ancher'; minutes?: number; browser?: 'chrome' | 'safari' | 'edge' | 'firefox' }
 
 export interface RunState {
   id: string;
@@ -52,11 +52,12 @@ export interface WorkflowEnv {
   /** Turn a URL / file into text with Ancher's parser (notes). */
   parse(src: { url?: string; filePath?: string }, signal: AbortSignal): Promise<string>;
   transcribe(filePath: string, provider: 'gemini' | 'ancher', signal: AbortSignal): Promise<{ text: string; srt: string }>;
+  youtube?(url: string, signal: AbortSignal): Promise<{ text: string; srt: string; fileName: string; provider: string }>;
   hotspots(signal: AbortSignal): Promise<NewsNowDigest>;
   hasGemini(): boolean;
 }
 
-export type WorkflowId = 'directions' | 'restructure' | 'jokes' | 'drift' | 'notes' | 'length' | 'transcribe' | 'topics' | 'episode';
+export type WorkflowId = 'directions' | 'restructure' | 'jokes' | 'drift' | 'notes' | 'length' | 'transcribe' | 'youtube' | 'topics' | 'episode';
 
 export type StepOutcome = void | { note?: string; skip?: boolean; wait?: { title: string; text: string; hint: string } };
 /** A step may pause the run for the writer; it is re-run after they confirm, with ctx[`confirmed:${id}`] set. */
@@ -66,7 +67,7 @@ export interface WorkflowDef {
   key: number; // ⌥1–⌥8
   title: string;
   desc: string;
-  input: 'none' | 'text' | 'url-or-text' | 'file' | 'focus' | 'target';
+  input: 'none' | 'text' | 'url-or-text' | 'url' | 'file' | 'focus' | 'target';
   inputHint?: string;
   steps: StepDef[];
   finish(ctx: Record<string, unknown>, input: WorkflowInput): WorkflowResult;
