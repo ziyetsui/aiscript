@@ -188,8 +188,8 @@ export function Workspace({ id, pending, pendingWeb, pendingEpisode, keys, go, d
   /** "+" menu and empty-chat tiles. */
   function onAction(a: Parameters<typeof EmptyChat>[0]['onAction'] extends (x: infer T) => void ? T : never) {
     if (a.kind === 'attach') void attach();
-    else if (a.kind === 'video') openWorkflow('transcribe');
-    else if (a.kind === 'workflow') openWorkflow(a.id);
+    else if (a.kind === 'video') { openWorkflow('transcribe'); return; }
+    else if (a.kind === 'workflow') { openWorkflow(a.id); return; }
     else if (a.kind === 'web') { setWeb(true); setInput(a.text); }
     else if (a.kind === 'prefill') setInput(a.text);
     else if (a.kind === 'mention') setInput((v) => `${v}@`);

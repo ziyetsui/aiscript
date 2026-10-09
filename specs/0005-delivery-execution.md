@@ -35,3 +35,10 @@
 - 完整 Electron E2E 通过，新增长正文、独立固定、空合集、revision=2、跨页共享对话/写回撤销、生成期间拒绝新会话、删除后重启恢复、14 张内容页亮/暗截图。
 - 截图已等待各页真实内容加载；复核后修复 hidden 按钮被 btn display 覆盖导致的多余对话图标，角色工具条归位到底部。
 - 不宣称像素级完全一致或客户设备验收完成。外部服务真实媒体解析/搜索、签名公证、客户授权机器码与接收渠道仍需对应证据。
+
+## 外部阻塞与最终复跑
+
+- 推送 `origin HEAD:main` 被 GitHub 明确拒绝：当前 ziyeprompttheworld OAuth token 缺少 workflow scope（仓库含 CI/release 工作流）。已有 SSH 不可用；另一现有登录账号不能访问目标私有仓库。没有删掉工作流规避授权，也没有扩大账号权限。
+- 已请求用户完成 `gh auth refresh -h github.com -s workflow`；因此远端落盘及 Windows 原生 CI 安装冒烟当前待授权。
+- 最终复跑发现工作流表单打开后 composer 的延迟 focus 抢焦点，已对 workflow/video 分支提前 return，避免将导演意见输入主输入框。修复后 typecheck、70 单测与完整 Electron E2E 再次通过。
+- 客户收件人/发送渠道/各机器码、Developer ID 公证与 Windows 分发签名仍待输入，不能记为已发送或正式签名交付。
