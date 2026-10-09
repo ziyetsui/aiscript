@@ -478,6 +478,7 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .dock-host .agent { width: 100%; margin: 0; }
 .dock-toggle { position: absolute; top: 11px; right: 410px; z-index: 10; width: 30px; padding: 0; }
 .content-row:has(.dock-host[hidden]) .dock-toggle { right: 16px; }
+.content-row:has(> .dock-toggle:not([hidden])) .content-main .topbar { padding-right: 54px; }
 .dock-context { margin: 0 14px 6px; padding: 12px; display: flex; gap: 12px; align-items: center; border-radius: 16px; border: 1px solid var(--line); }
 .dock-context > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; }
 .dock-context small { display: block; color: var(--ink-3); font-size: 11px; margin-top: 3px; }
