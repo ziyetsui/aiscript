@@ -12,7 +12,7 @@ const I = {
   home: 'M3 10.5 12 3l9 7.5V21H3ZM9 21v-6h6v6', plus: 'M12 5v14M5 12h14', export: 'M12 3v12M7 8l5-5 5 5M5 21h14',
   chart: 'M3 3v18h18M7 15v3M12 10v8M17 6v12', panel: 'M3 3h18v18H3ZM15 3v18', laptop: 'M4 5h16v11H4ZM2 19h20',
   doc: 'M14 3H6v18h12V7ZM14 3v4h4', video: 'M3 6h13v12H3ZM16 10l5-3v10l-5-3', send: 'M12 19V5M5 12l7-7 7 7', stop: 'M7 7h10v10H7Z',
-  x: 'M18 6 6 18M6 6l12 12', at: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm0 0v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1', mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM19 11a7 7 0 0 1-14 0M12 18v3', square: 'M7 7h10v10H7Z', arrowDown: 'M12 5v14M5 12l7 7 7-7', note: 'M14 3H6v18h12V7ZM14 3v4h4M12 11v6M9 14h6', newchat: 'M12 20H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v4M16 16h6M19 13v6', phone: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM11 18h2', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
+  x: 'M18 6 6 18M6 6l12 12', at: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm0 0v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1', mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM19 11a7 7 0 0 1-14 0M12 18v3', square: 'M7 7h10v10H7Z', tag: 'M3 12V3h9l9 9-9 9ZM7.5 7.5h.01', arrowDown: 'M12 5v14M5 12l7 7 7-7', note: 'M14 3H6v18h12V7ZM14 3v4h4M12 11v6M9 14h6', newchat: 'M12 20H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v4M16 16h6M19 13v6', phone: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM11 18h2', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
   chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z', copy: 'M9 9h12v12H9ZM5 15H3V3h12v2', up: 'M7 10v11M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 18.4 21H7V10l4-8a3 3 0 0 1 4 3.9Z',
   down: 'M17 14V3M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 5.6 3H17v11l-4 8a3 3 0 0 1-4-3.9Z', undo: 'M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8',
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6', trash: 'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15', check: 'M20 6 9 17l-5-5',
@@ -344,12 +344,14 @@ const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本<
               <div class="eyebrow" style="padding:4px 8px 6px">针对客户痛点 · 本地执行，可取消、可重试</div>
               ${WORKFLOWS.map(([t, d], i) => `<button class="wf-item" role="menuitem" onclick="runWF(${i + 1})"><span style="flex:1;text-align:left"><b style="font-weight:600">${t}</b><br><span class="muted" style="font-size:11.5px">${d}</span></span><span class="kbd">⌥${i + 1}</span></button>`).join('')}
             </div></span></div>
-        <div class="cmp"><div class="cmp-card" id="cmp-card"><textarea id="ask" aria-label="给 AI 的指令" placeholder="随便问，@ 提及角色、地点或设定" rows="2" onkeydown="if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();sendTyped()}"></textarea>
+        <div class="queue" id="queue" aria-live="polite"></div>
+        <div class="cmp"><div class="cmp-card" id="cmp-card"><div class="ghost" id="ghost" hidden><span></span><kbd>Tab</kbd></div><textarea id="ask" aria-label="给 AI 的指令" placeholder="随便问，@ 提及角色、地点或设定" rows="2" onkeydown="composerKey(event)" oninput="composerInput()"></textarea>
           <div class="cmp-bar"><button class="ico-btn" aria-label="提及" onclick="prefill($('ask').value+'@')">${icon('at', 16)}</button><button class="ico-btn" aria-label="添加文件或图片" onclick="toast('选择文件或图片')">${icon('plus', 16)}</button>
             <button class="ico-btn" id="web" aria-pressed="false" aria-label="联网搜索" title="联网搜索" onclick="this.setAttribute('aria-pressed',this.getAttribute('aria-pressed')!=='true')">${icon('globe', 15)}</button><span style="flex:1"></span>
             <span id="model-wrap" style="position:relative"><button class="chip" style="height:28px;font-weight:600" onclick="modelMenu()" aria-haspopup="menu"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span><span id="model">Ancher</span><span id="model-caret" hidden>${icon('chev', 11)}</span></button>
               <div class="pop" id="model-menu" role="menu" style="width:270px;right:0;left:auto;bottom:calc(100% + 6px);top:auto;transform-origin:bottom right"></div></span>
             <button class="ico-btn" aria-label="语音输入" onclick="toast('按住说话')">${icon('mic', 16)}</button>
+            <button class="q-pill" id="qpill" hidden onclick="sendTyped()">加入队列<kbd>↵</kbd></button>
             <button class="cmp-send" id="send" aria-label="发送" onclick="sendTyped()">${icon('send', 15)}</button></div></div>
           <div class="cmp-note">AI 可能会出错。请核对重要信息。</div></div>
       </div>
@@ -476,9 +478,13 @@ function actions(){ const t=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit
 // and the send button turns into a square stop (Ancher agent-input / message-thinking / waiting-tip).
 const TIPS=['把参考剧本放进知识库并打开「写作时参考」，AI 会照着它写。','按 ⌥1–⌥9 可以直接启动工作流。','选中剧本里的文字，可以让 AI 解释、总结或翻译。','改写已有内容时会先给你修改预览，接受才写入。'];
 let dotsT, tipT;
-function lock(on){ busy=on; const s=$('send'); s.innerHTML=on?ICON.square:ICON.send; s.classList.toggle('stop',on); s.setAttribute('aria-label',on?'停止':'发送'); $('cmp-card').classList.toggle('busy',on);
+function lock(on){ busy=on; ghost(''); const s=$('send'); s.innerHTML=on?ICON.square:ICON.send; s.classList.toggle('stop',on); s.setAttribute('aria-label',on?'停止':'发送'); $('cmp-card').classList.toggle('busy',on);
   clearInterval(dotsT); clearInterval(tipT); $('thinking')&&$('thinking').remove();
-  if(!on) return;
+  composerInput();
+  if(!on){ // turn over: send the next queued message, else offer a suggestion
+    if(queue.length){ const next=queue.shift(); renderQueue(); setTimeout(()=>{ $('ask').value=next; sendTyped(); },400); }
+    else ghost(SUGG[(turn||0)%SUGG.length]);
+    return; }
   const th=document.createElement('div'); th.id='thinking'; th.style.cssText='display:flex;flex-direction:column;gap:8px';
   th.innerHTML='<button class="thinking" aria-label="正在思考"><span class="dots" aria-hidden="true">⠋</span><span class="shimmer">Thinking</span>'+ICON.chevR+'</button><div class="wait-tip">'+ICON.bulb+'<span></span><button class="ico-btn" aria-label="关闭提示" onclick="this.parentElement.remove()">'+ICON.x+'</button></div>';
   feed.appendChild(th); if(nearBottom()||true) feed.scrollTop=feed.scrollHeight;
@@ -590,7 +596,21 @@ function prefill(t){ $('ask').value=t; $('ask').focus(); }
 document.addEventListener('keydown',e=>{ if(e.altKey&&/^Digit[1-8]$/.test(e.code)){ e.preventDefault(); runWF(+e.code.slice(5)); } });
 document.addEventListener('click',e=>{ if(!e.target.closest('#wf-wrap')) $('wf-menu').classList.remove('open'); if(!e.target.closest('#model-wrap')) $('model-menu').classList.remove('open'); });
 renderModelMenu();
-function sendTyped(){ if(busy){ toast('已停止'); return; } const v=$('ask').value.trim(); if(!v) return; $('ask').value=''; if(turn===0) return turn1(); if(turn===1) return turn2(v); userSay(v); add('<div class="narr">（演示里只预置了前两轮）</div>'); }
+// Ancher composer: while the agent works, typing turns send into 「加入队列 ↵」; queued messages go out in order
+// when the turn ends. After a turn, a ghost suggestion sits in the empty box — Tab takes it.
+const queue=[];
+const SUGG=['写第二场：豆豆第一次求门墩儿帮忙','把第一场的对白改得更像孩子说话','给第一集加一个意料之外的结尾'];
+function ghost(t){ const g=$('ghost'); g.querySelector('span').textContent=t||''; g.hidden=!t||!!$('ask').value; }
+function composerInput(){ const has=!!$('ask').value.trim(); $('qpill').hidden=!(busy&&has); $('send').hidden=busy&&has; ghost(has?'':$('ghost').querySelector('span').textContent); }
+function composerKey(e){
+  if(e.key==='Tab'&&!$('ask').value&&!$('ghost').hidden){ e.preventDefault(); $('ask').value=$('ghost').querySelector('span').textContent; ghost(''); composerInput(); return; }
+  if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); sendTyped(); } }
+function renderQueue(){ $('queue').innerHTML=queue.map((t,i)=>'<div class="q-item"><small>排队中</small><span></span><button class="ico-btn xs" aria-label="移出队列" onclick="queue.splice('+i+',1);renderQueue()">'+ICON.x+'</button></div>').join('');
+  $('queue').querySelectorAll('.q-item span').forEach((s,i)=>s.textContent=queue[i]); }
+function sendTyped(){
+  const typed=$('ask').value.trim();
+  if(busy&&typed){ queue.push(typed); $('ask').value=''; renderQueue(); composerInput(); toast('已加入队列，这一轮结束后发送'); return; }
+  if(busy){ toast('已停止'); return; } const v=$('ask').value.trim(); if(!v) return; $('ask').value=''; if(turn===0) return turn1(); if(turn===1) return turn2(v); userSay(v); add('<div class="narr">（演示里只预置了前两轮）</div>'); }
 document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey&&document.activeElement===$('ask')){ e.preventDefault(); sendTyped(); } });
 // Direction D: the agent is a side sheet you can fling away (pointer capture, velocity threshold, rubber-band).
 (function(){ const ag=$('agent'); let st=null;
@@ -843,50 +863,81 @@ const p10 = () => chrome('Ancher Scripter — 世界观', `${rail('世界观')}
   render();
   </script>`);
 
-/* ═════ P11 知识库（laper /knowledge）：本地文件，全部 / 聊天附件 / 直接上传 ═════ */
+/* ═════ P11 知识库 — rebuilt after app.ancher.ai 笔记（streamify-one-design-system: product/sidebar + product/notes） ═════ */
+const KB_NOTES = [
+  { id: 'n1', kind: 'doc', title: '《门墩儿·借来的白球鞋》逆向复刻提示词', when: '今天', tags: [['Animation', 'b2'], ['Prompting', 'n'], ['门墩儿', 'b4'], ['Scriptwriting', 'b3']], memo: '第一集的逆向复刻提示词，含结构化版与一段式版', ref: true,
+    summary: '把第一集拆成「作品风格 · 主要角色 · 故事母题 · 四幕结构 · 对白风格」五块，可以直接喂给剧本生成。核心笑点：想偷懒省事，反而大费周章，最后回到原点。',
+    body: `<h1>《门墩儿·借来的白球鞋》逆向复刻提示词</h1><h2>一、结构化版本</h2><p><b>作品风格</b>：温暖现实主义的家庭奇幻喜剧，面向 5–10 岁孩子与家长，2D 手绘，色彩明亮柔和。</p><p><b>主要角色</b></p><ul><li>豆豆：胆小心细的三年级学生，只有他看得见门墩儿。</li><li>门墩儿：住在石门墩里一百多年的小精灵，嘴硬心软，能“借”不能“变”。</li><li>姥爷：话少手巧的修车铺师傅，记得胡同每一样东西。</li><li>大壮：爱显摆的同学，其实很怕输。</li></ul><p><b>故事母题</b>：想偷懒省事，结果大费周章；结局回到原点，形成循环笑点。</p><p><b>剧情结构（四幕）</b></p><ol><li>起：大壮的发光鞋让全班围观，豆豆把脚往身后缩。</li><li>承：门墩儿借来一双落满灰的旧白球鞋，鞋带自己系上了。</li><li>转：鞋底刻着一个“林”字——是姥爷小时候的鞋。</li><li>合：豆豆没穿去比赛，把鞋放回姥爷的工具箱。</li></ol>` },
+  { id: 'n2', kind: 'mic', title: '导演意见 · 第一集', when: '昨天', tags: [['导演', 'b1']], memo: '', ref: true, summary: '笑点要来自孩子的视角，不要大人式的抖机灵；节奏前紧后松。',
+    body: `<p>第一集：笑点要来自孩子的视角，不要大人式的抖机灵。</p><p>第三场太长，建议删掉姥爷的回忆，留给第二集。</p>` },
+  { id: 'n3', kind: 'video', title: '参考视频 · 第一集逐字稿', when: '刚刚', tags: [], memo: '', ref: false, processing: true, summary: '', body: '' },
+  { id: 'n4', kind: 'user', title: '人物小传 · 豆豆', when: '3 天前', tags: [['角色', 'b4']], memo: '', ref: false, summary: '豆豆，9 岁，胆小心细，想被同学看见。',
+    body: `<p>豆豆，9 岁，三年级。胆小心细，最怕被当成怪孩子。只有他看得见门墩儿。</p>` },
+  { id: 'n5', kind: 'doc', title: '范本剧本 · 第一集.fdx', when: '上周', tags: [['范本', 'n']], memo: '客户指定的格式范本', ref: true, summary: '15 场，约 5000 字。', body: `<p>外景 胡同口 — 傍晚</p><p>豆豆蹲在自家门墩儿旁边……</p>` },
+];
+const KB_COLLECTIONS = [['第一季', 'b2'], ['导演意见', 'b1'], ['参考作品', 'b4'], ['角色设定', 'b3']];
 const p11 = () => chrome('Ancher Scripter — 知识库', `${rail('知识库')}
-  <aside class="wd-side" style="width:240px;flex:none;border-right:1px solid var(--line);padding:14px 10px;background:var(--bg)"><b style="display:block;padding:4px 6px 10px">知识</b>
-    <div class="kb-nav" role="tablist">${[['all', '全部文件'], ['chat', '聊天附件'], ['up', '直接上传']].map(([k, t], i) => `<button role="tab" data-k="${k}" class="${i ? '' : 'on'}" aria-selected="${!i}">${t}<span class="tnum muted" data-n="${k}">0</span></button>`).join('')}</div>
-    <p class="muted" style="font-size:11.5px;margin:14px 6px 0;line-height:1.6">文件只保存在这台电脑上。Agent 写作时会按需引用，比如参考剧本、人物小传、客户意见。</p></aside>
-  <section class="center" id="kb-drop">
-    ${pageHd('文件', 0, '', `<label class="btn btn-primary" style="height:28px;cursor:pointer">${icon('plus', 13)} 添加文件<input type="file" id="kb-in" multiple hidden accept=".pdf,.docx,.txt,.md,.fdx,.fountain,.mp4,.mov,.png,.jpg"></label>`)}
-    <div id="kb-body" style="flex:1;overflow:auto;padding:16px 20px;position:relative"></div>
-    <div class="kb-over" aria-hidden="true">松开即可添加到知识库</div>
+  <aside class="nt-side" aria-label="知识库">
+    <nav class="nt-nav">
+      <button class="nt-item" onclick="newNote()">${icon('plus', 16)}<span>新建笔记</span><kbd class="nt-kbd">⇧⌘O</kbd></button>
+      <button class="nt-item" onclick="toast('搜索知识库')">${icon('eye', 16)}<span>搜索</span><kbd class="nt-kbd">⌘K</kbd></button>
+    </nav>
+    <div class="nt-scroll">
+      ${[['pinned', '已固定', 1, false], ['coll', '合集', KB_COLLECTIONS.length, true], ['notes', '笔记', KB_NOTES.length, true]].map(([id, label, n, actions]) => `
+      <section class="nt-group" data-g="${id}">
+        <div class="nt-ghd"><button class="nt-glabel" aria-expanded="true" onclick="toggleGroup(this)">${label}${icon('chev', 12)}<span class="nt-count tnum" id="cnt-${id}">${n}</span></button>
+          ${actions ? `<span class="nt-gact"><button class="ico-btn xs" aria-label="排序" onclick="toast('按最近更新排序')">${icon('indent', 12)}</button><button class="ico-btn xs" aria-label="新建" onclick="${id === 'notes' ? 'newNote()' : "toast('新建合集')"}">${icon('plus', 12)}</button></span>` : ''}</div>
+        <div class="nt-list" id="list-${id}"></div>
+      </section>`).join('')}
+    </div>
+  </aside>
+  <section class="nt-main">
+    <div class="nt-panel">
+      <div class="nt-phd">
+        <button class="nt-ver" aria-haspopup="menu" onclick="toast('版本：v1（当前）')">${icon('undo', 14)}<span>v1</span>${icon('chev', 12)}</button>
+        <span style="flex:1"></span>
+        <button class="nt-out" id="ref-btn" aria-pressed="false" onclick="toggleRef()">${icon('spark', 14)}<span>写作时参考</span></button>
+        <button class="nt-out" id="edit-btn" onclick="toggleEdit()">${icon('pen', 14)}<span>编辑</span></button>
+        <button class="ico-btn" aria-label="更多" onclick="toast('固定 · 移到合集 · 导出 · 删除')">⋯</button>
+      </div>
+      <div class="nt-scrollarea"><article class="nt-article" id="article"></article></div>
+    </div>
   </section>`, `
-  <style>
-  .kb-nav{display:flex;flex-direction:column;gap:2px}.kb-nav button{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:var(--r);font-size:13px;text-align:left}
-  .kb-nav button.on{background:var(--surface);box-shadow:var(--shadow-card),inset 0 0 0 1px var(--line);font-weight:600}
-  @media (hover:hover) and (pointer:fine){.kb-nav button:not(.on):hover{background:var(--hover)}}
-  .kb-empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--ink-3);font-size:13px}
-  .kb-stack{width:96px;height:96px;margin:0 auto 10px;position:relative}.kb-stack i{position:absolute;inset:10px 14px;border-radius:10px;background:var(--ink-2);transform:translateY(calc(var(--k) * 5px));opacity:calc(1 - var(--k) * .22)}
-  .kb-stack i:first-child{background:var(--ink);background-image:repeating-linear-gradient(transparent 0 12px,color-mix(in srgb,var(--bg) 40%,transparent) 12px 13.5px);background-size:60% 100%;background-position:70% 14px;background-repeat:no-repeat}
-  .kb-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-  .kb-f{display:flex;gap:10px;align-items:center;padding:10px 12px}.kb-f.new{animation:kbIn 200ms var(--ease-enter) both}@keyframes kbIn{from{opacity:0;transform:translateY(4px)}}
-  .kb-ic{width:36px;height:36px;border-radius:var(--r);display:grid;place-items:center;background:var(--muted);font-size:10px;font-weight:700;color:var(--ink-2);flex:none}
-  .kb-over{position:absolute;inset:8px;border-radius:var(--r-xl);border:2px dashed var(--ink-3);background:color-mix(in srgb,var(--bg) 85%,transparent);display:grid;place-items:center;font-weight:600;opacity:0;pointer-events:none;transition:opacity 150ms ease}
-  #kb-drop{position:relative}#kb-drop.over .kb-over{opacity:1}
-  </style>
   <script>
-  let files=[], tab='all';
-  const kb=(n)=>n<1024?n+' B':n<1048576?(n/1024).toFixed(0)+' KB':(n/1048576).toFixed(1)+' MB';
-  function render(){ const list=files.filter(f=>tab==='all'||f.src===tab); document.querySelector('[data-count]').textContent=list.length;
-    ['all','chat','up'].forEach(k=>document.querySelector('[data-n="'+k+'"]').textContent=files.filter(f=>k==='all'||f.src===k).length);
-    const b=document.getElementById('kb-body');
-    b.innerHTML=list.length?'<div class="kb-list">'+list.map((f)=>'<div class="card kb-f'+(f.fresh?' new':'')+'"><span class="kb-ic">'+(f.name.split('.').pop()||'').slice(0,4).toUpperCase()+'</span><span style="flex:1;min-width:0"><b style="display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+f.name.replace(/</g,'&lt;')+'</b><span class="muted tnum" style="font-size:11.5px">'+kb(f.size)+' · '+(f.src==='chat'?'聊天附件':'直接上传')+'</span></span><button class="btn btn-quiet" style="width:28px;height:28px;padding:0" aria-label="移除 '+f.name.replace(/"/g,'')+'" data-id="'+f.id+'">${icon('trash', 13)}</button></div>').join('')+'</div>'
-      :'<div class="kb-empty"><div><div class="kb-stack" aria-hidden="true"><i style="--k:0"></i><i style="--k:1"></i><i style="--k:2"></i></div>'+(tab==='chat'?'在对话里发给 Agent 的文件会出现在这里':'暂无文件')+'<br><span style="font-size:12px">把文件拖进来，或点右上角「添加文件」</span></div></div>';
-    files.forEach(f=>f.fresh=false);
-    b.querySelectorAll('[data-id]').forEach(x=>x.onclick=()=>{ const f=files.find(f=>f.id==x.dataset.id); files=files.filter(g=>g!==f); render(); toast('已从知识库移除 '+f.name); }); }
-  let seq=0; function add(list){ [...list].forEach(f=>files.push({id:++seq,name:f.name,size:f.size,src:'up',fresh:true})); if(tab==='chat') setTab('up'); else render(); toast('已添加 '+list.length+' 个文件，仅保存在本机'); }
-  function setTab(k){ tab=k; document.querySelectorAll('.kb-nav button').forEach(b=>{ b.classList.toggle('on',b.dataset.k===k); b.setAttribute('aria-selected',b.dataset.k===k); }); render(); }
-  document.querySelectorAll('.kb-nav button').forEach(b=>b.onclick=()=>setTab(b.dataset.k));
-  document.getElementById('kb-in').onchange=e=>{ if(e.target.files.length) add(e.target.files); e.target.value=''; };
-  const dz=document.getElementById('kb-drop'); let depth=0;
-  dz.addEventListener('dragenter',e=>{ e.preventDefault(); depth++; dz.classList.add('over'); }); dz.addEventListener('dragover',e=>e.preventDefault());
-  dz.addEventListener('dragleave',()=>{ if(--depth<=0){ depth=0; dz.classList.remove('over'); } });
-  dz.addEventListener('drop',e=>{ e.preventDefault(); depth=0; dz.classList.remove('over'); if(e.dataTransfer.files.length) add(e.dataTransfer.files); });
-  window.__kbAdd=add; render();
+  const $=id=>document.getElementById(id);
+  const NOTES=${JSON.stringify(KB_NOTES)}, COLLS=${JSON.stringify(KB_COLLECTIONS)};
+  const KIND={doc:${JSON.stringify(icon('doc', 16))},mic:${JSON.stringify(icon('chat', 16))},video:${JSON.stringify(icon('video', 16))},user:${JSON.stringify(icon('user', 16))}};
+  const COLL_IC=${JSON.stringify(icon('box', 16))}, SPIN='<span class="spin" aria-hidden="true"></span>';
+  let cur='n1', tab='summary', editing=false;
+  const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  function sideRow(n,pinned){ return '<button class="nt-item'+(n.id===cur?' on':'')+'" data-id="'+n.id+'" onclick="openNote(\\''+n.id+'\\')"><span class="nt-lead">'+(n.processing?SPIN:KIND[n.kind])+'</span><span>'+esc(n.title)+'</span></button>'; }
+  function renderSide(){
+    $('list-pinned').innerHTML=sideRow(NOTES[0]);
+    $('list-coll').innerHTML=COLLS.map(([t,c])=>'<button class="nt-item" onclick="toast(\\'打开合集：'+t+'\\')"><span class="nt-lead" style="color:var(--color-'+c+'-500)">'+COLL_IC+'</span><span>'+t+'</span></button>').join('');
+    $('list-notes').innerHTML=NOTES.map(n=>sideRow(n)).join(''); $('cnt-notes').textContent=NOTES.length; }
+  function chip([t,c]){ return '<span class="nt-tag" data-c="'+c+'">'+esc(t)+'</span>'; }
+  function renderNote(){ const n=NOTES.find(x=>x.id===cur);
+    $('ref-btn').setAttribute('aria-pressed',n.ref); $('ref-btn').lastChild.textContent=n.ref?'写作时参考 ✓':'写作时参考';
+    $('article').innerHTML='<header class="nt-meta"><div class="nt-kicker">'+KIND[n.kind]+'<span>笔记</span><span>·</span><span>'+n.when+'</span></div><h1 class="nt-title"'+(editing?' contenteditable="plaintext-only"':'')+'>'+esc(n.title)+'</h1><div class="nt-tags">'+n.tags.map(chip).join('')+'<button class="nt-addtag" onclick="addTag()">'+${JSON.stringify(icon('tag', 11))}+'添加标签</button></div></header>'
+      +(n.processing?'<div class="nt-alert" role="status">'+SPIN+'<div><b>正在处理内容...</b><p>我们正在分析并提取笔记内容。</p></div></div>':'')
+      +(n.memo?'<div class="nt-memo"><div class="nt-label">备注</div><p>'+esc(n.memo)+'</p></div>':'')
+      +(n.processing?'<div class="nt-skel"><i style="width:70%"></i><i></i><i></i><i style="width:85%"></i></div>':'<div class="nt-tabs" role="tablist"><span class="nt-ind" id="ind"></span><button role="tab" data-t="summary" aria-selected="'+(tab==='summary')+'" onclick="setTab(\\'summary\\')">'+${JSON.stringify(icon('spark', 14))}+'摘要</button><button role="tab" data-t="original" aria-selected="'+(tab==='original')+'" onclick="setTab(\\'original\\')">原文</button></div><div class="nt-body md"'+(editing?' contenteditable="true"':'')+'>'+(tab==='summary'?'<p>'+esc(n.summary)+'</p>':n.body)+'</div>');
+    moveInd(false); }
+  function moveInd(anim){ const t=document.querySelector('.nt-tabs [aria-selected="true"]'), ind=$('ind'); if(!t||!ind) return; ind.style.transition=anim?'':'none'; ind.style.width=t.offsetWidth+'px'; ind.style.transform='translateX('+(t.offsetLeft-2)+'px)'; }
+  function setTab(t){ tab=t; try{ history.replaceState(null,'','#'+(t==='original'?'original':'summary')); }catch(_){} document.querySelectorAll('.nt-tabs [role=tab]').forEach(b=>b.setAttribute('aria-selected',b.dataset.t===t)); moveInd(true);
+    const n=NOTES.find(x=>x.id===cur); document.querySelector('.nt-body').innerHTML=t==='summary'?'<p>'+esc(n.summary)+'</p>':n.body; }
+  function openNote(id){ cur=id; editing=false; $('edit-btn').lastChild.textContent='编辑'; renderSide(); renderNote(); $('article').parentElement.scrollTop=0; }
+  function toggleEdit(){ editing=!editing; $('edit-btn').lastChild.textContent=editing?'完成':'编辑'; renderNote(); if(editing) document.querySelector('.nt-body').focus(); else toast('已保存为 v2'); }
+  function toggleRef(){ const n=NOTES.find(x=>x.id===cur); n.ref=!n.ref; renderNote(); toast(n.ref?'AI 写作时会参考这条笔记':'不再参考这条笔记'); }
+  function addTag(){ const n=NOTES.find(x=>x.id===cur); const box=document.querySelector('.nt-addtag'); const inp=document.createElement('input'); inp.className='nt-taginput'; inp.placeholder='标签名'; box.replaceWith(inp); inp.focus();
+    inp.onkeydown=e=>{ if(e.key==='Enter'&&inp.value.trim()){ n.tags.push([inp.value.trim(),['b1','b2','b3','b4'][n.tags.length%4]]); renderNote(); } if(e.key==='Escape') renderNote(); }; inp.onblur=()=>renderNote(); }
+  function toggleGroup(b){ const o=b.getAttribute('aria-expanded')==='true'; b.setAttribute('aria-expanded',!o); b.closest('.nt-group').querySelector('.nt-list').hidden=o; }
+  function newNote(){ const id='n'+(NOTES.length+1); NOTES.unshift({id,kind:'doc',title:'未命名笔记',when:'刚刚',tags:[],memo:'',ref:false,summary:'',body:'<p></p>'}); cur=id; tab='original'; editing=true; $('edit-btn').lastChild.textContent='完成'; renderSide(); renderNote(); const t=document.querySelector('.nt-title'); t.focus(); getSelection().selectAllChildren(t); }
+  renderSide(); renderNote();
+  // The video transcript finishes processing a few seconds in, like Ancher's note pipeline.
+  setTimeout(()=>{ const n=NOTES.find(x=>x.id==='n3'); n.processing=false; n.tags=[['逐字稿','b3']]; n.summary='一集约 10 分钟，四场戏；台词口语化、孩子气、短句多。'; n.body='<p>00:00 豆豆：石头……石头说话了？</p><p>00:04 门墩儿：在这儿蹲了一百多年，头一回有人看得见我。</p>'; renderSide(); if(cur==='n3') renderNote(); toast('「参考视频 · 第一集逐字稿」处理好了'); },4000);
+  addEventListener('resize',()=>moveInd(false));
   </script>`);
-
 
 /* ═════ P12 地点（laper /locations）：地点卡 + 清单，新建地点抽屉 ═════ */
 const LOC_DATA = [['胡同口', '外景', ['傍晚', '日'], '青砖灰瓦的老胡同入口，门墩儿就在豆豆家门口。', [1, 4], 'var(--color-b1-500)'],
