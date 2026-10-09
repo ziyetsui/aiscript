@@ -115,6 +115,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     const newIds = s.nodes.filter((n) => !before.has(n.id)).map((n) => n.id);
     apply(s);
     if (r.ok && r.turn) void typeOut(newIds, s.nodes);
+    if (r.ok && r.turn && s.outline !== st?.outline) toast('已写进大纲，点左侧「大纲」查看');
     if (!r.ok && !r.cancelled && r.message && !s.chat.length) toast(r.message);
   }
 
@@ -213,8 +214,8 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
       <div className="ws" ref={root}>
         <aside className="outline" aria-label="场景">
           <div className="view-switch" role="tablist" aria-label="视图">
-            <button role="tab" aria-current={view === 'script'} aria-selected={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={14} />剧本</button>
             <button role="tab" aria-current={view === 'outline'} aria-selected={view === 'outline'} onClick={() => setView('outline')}><Icon name="book" size={14} />大纲</button>
+            <button role="tab" aria-current={view === 'script'} aria-selected={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={14} />剧本</button>
           </div>
           <div className="eyebrow">场景</div>
           {st.scenes.length === 0 ? <div className="muted" style={{ fontSize: 12, padding: '4px 8px' }}>写下第一个场景标题后会出现在这里</div>
@@ -298,12 +299,15 @@ function PreviewCard({ m, onResolve }: { m: ChatMsg; onResolve: (accept: boolean
       <div className="preview-list">
         {pv.items.map((it, i) => (
           <div key={i} className="pv-it">
-            <span className="pv-tag">{it.kind === 'insert' ? '新增' : it.kind === 'update' ? '改写' : it.kind === 'delete' ? '删除' : it.kind === 'retype' ? '改格式' : '设定'}</span>
+            <span className="pv-tag">{it.kind === 'insert' ? '新增' : it.kind === 'update' ? '改写' : it.kind === 'delete' ? '删除' : it.kind === 'retype' ? '改格式' : it.kind === 'outline' ? '大纲' : '设定'}</span>
             {it.kind === 'update' && <span><del>{it.before}</del><ins>{it.after}</ins></span>}
             {it.kind === 'delete' && <del>{it.before}</del>}
             {it.kind === 'insert' && <ins><span className="muted">{TYPE_LABEL[it.type] ?? it.type} · </span>{it.text}</ins>}
             {it.kind === 'retype' && <span>{it.text}<span className="muted">（{TYPE_LABEL[it.from]} → {TYPE_LABEL[it.to]}）</span></span>}
             {it.kind === 'bible' && <span className="muted">{it.text}</span>}
+            {it.kind === 'outline' && (it.mode === 'append'
+              ? <ins><span className="muted">大纲 · </span>{it.after}</ins>
+              : <span>{it.before && <del>{it.before}</del>}<ins><span className="muted">大纲 · </span>{it.after}</ins></span>)}
           </div>
         ))}
       </div>

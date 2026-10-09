@@ -127,6 +127,16 @@ try {
   await page.locator('.paper .node', { hasText: '石头……石头说话了？' }).waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
 
+  step('「总结大纲」writes into the outline document, not into the script');
+  const before = await page.locator('.paper .node').allTextContents();
+  await page.getByRole('button', { name: '总结大纲' }).click();
+  await page.getByText('已写进大纲，点左侧「大纲」查看').waitFor({ timeout: 20_000 });
+  assert.deepEqual(await page.locator('.paper .node').allTextContents(), before);
+  await page.getByRole('tab', { name: '大纲' }).click();
+  assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /一、豆豆发现门墩儿会说话\n二、两人约定保守秘密/);
+  await page.getByRole('tab', { name: '剧本' }).click();
+  await page.locator('.paper .node').first().waitFor();
+
   step('export FDX and PDF (save dialog stubbed)');
   for (const [fmt, label] of [['fdx', 'Final Draft'], ['pdf', 'PDF'], ['docx', 'Word']] as const) {
     const out = join(tmp, `out.${fmt}`);
