@@ -23,7 +23,7 @@ export function youtubeTools(root: string, browser?: string): ToolRunner {
       clearTimeout(timeout);
       if (signal.aborted) reject(Object.assign(new Error('已取消'), { name: 'AbortError' }));
       else if (failure) reject(failure.message.includes('ENOENT') ? new Error('缺少视频下载工具，请更新客户端') : failure);
-      else if (code !== 0) reject(new Error(/confirm.*not a bot|cookies|cookie|keyring|keychain/i.test(error) ? 'YouTube 要求验证登录状态，请选择已登录的浏览器并允许读取登录信息，或改用本地文件' : /sign in|private|age.restricted|members.only/i.test(error) ? '视频需要登录或没有访问权限，请选择已登录的浏览器，或改用本地文件' : /unavailable|not available|removed/i.test(error) ? '视频不可用或存在地区限制' : '无法获取 YouTube 视频，请检查网络后重试'));
+      else if (code !== 0) reject(new Error(/requested format is not available|only images are available/i.test(error) ? 'YouTube 没有提供可下载的音频或视频格式，请尝试更换登录浏览器或使用本地文件' : /confirm.*not a bot|cookies|cookie|keyring|keychain/i.test(error) ? 'YouTube 要求验证登录状态，请选择已登录的浏览器并允许读取登录信息，或改用本地文件' : /sign in|private|age.restricted|members.only/i.test(error) ? '视频需要登录或没有访问权限，请选择已登录的浏览器，或改用本地文件' : /unavailable|not available|removed/i.test(error) ? '视频不可用或存在地区限制' : '无法获取 YouTube 视频，请检查网络后重试'));
       else resolve(output);
     });
   });
@@ -59,8 +59,10 @@ export async function transcribeYouTube(input: string, signal: AbortSignal, opti
       for (const name of await readdir(dir)) await rm(join(dir, name), { force: true });
     }
     if (!options.transcribe) throw new Error('此视频没有可用字幕，请先在设置里填写 Gemini key');
-    options.progress?.('下载音轨（不下载画面）');
-    await options.run(['-f', 'bestaudio', '--no-progress', '--max-filesize', '2G', '-o', join(dir, 'audio.%(ext)s'), '--', url], signal, 30 * 60 * 1000);
+    // Some videos expose only a combined audio/video format (for example format 18).
+    // Prefer audio-only; FFmpeg will discard the picture when the combined fallback is needed.
+    options.progress?.('下载音轨（必要时下载含音轨的视频）');
+    await options.run(['-f', 'bestaudio/best[acodec!=none]', '--no-progress', '--max-filesize', '2G', '-o', join(dir, 'audio.%(ext)s'), '--', url], signal, 30 * 60 * 1000);
     signal.throwIfAborted();
     const audio = (await readdir(dir)).find(name => /^audio\.(?!.*(?:part|ytdl)$)[a-zA-Z0-9]+$/.test(name));
     if (!audio) throw new Error('未能下载音轨，请检查网络后重试');

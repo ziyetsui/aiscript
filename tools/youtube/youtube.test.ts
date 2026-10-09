@@ -13,6 +13,11 @@ const output = (args: string[]) => args[args.indexOf('-o') + 1]!;
 it('reports a missing executable clearly', async () => {
   await expect(youtubeTools(await root())([], signal(), 1000)).rejects.toThrow('缺少视频下载工具');
 });
+it.skipIf(process.platform === 'win32')('does not label a missing download format as a regional restriction', async () => {
+  const dir = await root();
+  await writeFile(join(dir, 'yt-dlp'), '#!/bin/sh\necho "ERROR: Requested format is not available. Use --list-formats" >&2\nexit 1\n', { mode: 0o755 });
+  await expect(youtubeTools(dir)([], signal(), 1000)).rejects.toThrow('可下载的音频或视频格式');
+});
 it.skipIf(process.platform === 'win32')('stops a real child process on timeout and cancellation', async () => {
   const dir = await root();
   await writeFile(join(dir, 'yt-dlp'), '#!/bin/sh\nexec sleep 30\n', { mode: 0o755 });
@@ -34,12 +39,12 @@ it('imports existing captions without downloading media or calling Gemini, then 
   expect(transcribe).not.toHaveBeenCalled(); expect(await readdir(dir)).toEqual([]);
   expect(run.mock.calls.every(([args]) => args.at(-2) === '--' && args.at(-1) === 'https://www.youtube.com/watch?v=abcdefghijk')).toBe(true);
 });
-it('falls back from invalid captions to an audio-only download and transcribes locally', async () => {
+it('falls back from invalid captions to audio-first media download and accepts combined video for transcription', async () => {
   const dir = await root();
   const run = vi.fn<ToolRunner>(async args => {
     if (args.includes('--dump-single-json')) return metadata();
     if (args.includes('--skip-download')) await writeFile(output(args).replace('%(ext)s', 'zh.json3'), '{}');
-    else { expect(args[args.indexOf('-f') + 1]).toBe('bestaudio'); await writeFile(output(args).replace('%(ext)s', 'm4a'), 'audio'); }
+    else { expect(args[args.indexOf('-f') + 1]).toBe('bestaudio/best[acodec!=none]'); await writeFile(output(args).replace('%(ext)s', 'mp4'), 'video with audio'); }
     return '';
   });
   const transcribe = vi.fn(async (path: string) => { expect((await readdir(dirname(path))).length).toBe(1); return { text: '转写内容', srt: '字幕' }; });
