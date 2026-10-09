@@ -34,6 +34,7 @@ async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
 }
 const shot = async (page: Page, name: string) => {
   if (name.startsWith('final-')) {
+    await page.evaluate(async () => { await Promise.all(document.getAnimations().filter((a) => Number.isFinite(a.effect?.getComputedTiming().endTime)).map((a) => a.finished.catch(() => {}))); });
     await page.locator('.toast.show').waitFor({ state: 'hidden' });
     const metrics = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, scale: devicePixelRatio, panels: ['.nav','.window-bar','.outline','.note-list','.note-page','.dock-host','.agent','.collection-nav','.settings'].flatMap((selector) => [...document.querySelectorAll<HTMLElement>(selector)].filter((el) => el.getBoundingClientRect().width > 0).map((el) => { const r = el.getBoundingClientRect(), s = getComputedStyle(el); return { selector,x:r.x,y:r.y,width:r.width,height:r.height,background:s.backgroundColor,borderRadius:s.borderRadius,font:s.fontFamily }; })) }));
     writeFileSync(join(shots, `${name}.json`), JSON.stringify(metrics, null, 2));
@@ -613,7 +614,9 @@ try {
   assert.equal(savedNote.starred, true); assert.equal(savedNote.pinned, false); assert.equal(savedNote.revision, 2);
   assert.equal(await page.evaluate(async ({ id, file }) => window.api.files.readBody(id, file), { id: pid, file: noteId }), longNote + '修改');
   await page.getByLabel('笔记备注').fill('撤销测试'); await page.getByLabel('笔记备注').press('Tab');
+  await page.waitForFunction(async ({ id, file }) => (await window.api.projects.open(id)).bible.files.find((f) => f.id === file)?.memo === '撤销测试', { id: pid, file: noteId });
   await page.getByRole('button', { name: '撤销笔记信息修改', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector<HTMLTextAreaElement>('[aria-label="笔记备注"]')?.value === '客户导演意见');
   const undoneNote = await page.evaluate(async ({ id, file }) => (await window.api.projects.open(id)).bible.files.find((f) => f.id === file)!, { id: pid, file: noteId });
   assert.equal(undoneNote.memo, '客户导演意见');
   assert.equal(await page.getByLabel('笔记备注').inputValue(), '客户导演意见');
