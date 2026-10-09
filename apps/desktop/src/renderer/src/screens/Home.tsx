@@ -1,3 +1,4 @@
+import { writingAction } from '@scripter/agent/skills';
 // Creation home (prototype P3 / laper /app/new): one box, intent chips that open suggestion panels, recent projects.
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { KeyStatus, ProjectMeta, ClipboardImage } from '../../../shared/ipc.ts';
@@ -18,6 +19,7 @@ function greeting(): string {
 
 export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) {
   const [text, setText] = useState('');
+  const [skillActionId, setSkillActionId] = useState<string | undefined>();
   const [images, setImages] = useState<ClipboardImage[]>([]);
   const [kind, setKind] = useState<ProjectMeta['kind']>('script');
   const [kindOpen, setKindOpen] = useState(false);
@@ -49,7 +51,7 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
     if (kind === 'video') toast('快速视频流程即将推出，本次创建剧本项目');
     const p = await window.api.projects.create(title, 'script');
     if (attachments.length) { const r = await window.api.files.addPaths(p.id, attachments); for (const f of r.state.bible.files) await window.api.files.pin(p.id, f.id, true); }
-    go({ name: 'project', id: p.id, tab: 'write', pendingImages: images, pendingWeb: web, pending: keys.ancher ? t : undefined });
+    go({ name: 'project', id: p.id, tab: 'write', pendingImages: images, pendingWeb: web, pendingSkillActionId: skillActionId, pending: keys.ancher ? t : undefined });
     if (!keys.ancher) toast('还没填写 Ancher key，AI 暂时不能写。可以先手动写，或到设置里填写');
     } catch (e) { toast(String(e)); } finally { setBusy(false); }
   }
@@ -89,6 +91,7 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
         <div className="home-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><Logo size={34} /><h1 className="display" style={{ fontSize: 28 }}>{greeting()}</h1></div>
           <div className="home-composer">
+            {skillActionId && <button className="chip" aria-label="取消技能选择" onClick={() => setSkillActionId(undefined)}>{writingAction(skillActionId).title} ×</button>}
             <Composer images={images} onImagesChange={setImages} inputId="ask" inputLabel="想写什么" home value={text} onChange={setText} onSend={() => void start()} onStop={() => {}} running={busy} queue={[]} onDequeue={() => {}} ghost="" web={web} onWeb={setWeb} mentions={[]} model={              <span className="kind-wrap" style={{ position: 'relative' }}>
                 <button type="button" className="btn btn-ghost" aria-haspopup="listbox" aria-expanded={kindOpen} onClick={() => setKindOpen((o) => !o)}><Icon name={k.icon} size={14} />{k.title}<Icon name="chev" size={12} /></button>
                 {kindOpen && (
@@ -104,7 +107,7 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
               if (a.kind === 'blank') void blank();
               else if (a.kind === 'attach' || a.kind === 'video') void window.api.workflows.pickFile(a.kind === 'video' ? 'media' : 'any').then((path) => { if (path) setAttachments((x) => [...x, path]); });
               else if (a.kind === 'mention') toast('先创建项目，即可添加知识库笔记');
-              else if (a.kind === 'prefill' || a.kind === 'outline') setText(a.text);
+              else if (a.kind === 'prefill' || a.kind === 'outline') { setText(a.text); setSkillActionId(a.kind === 'prefill' ? a.skillActionId : 'outline'); if (a.kind === 'prefill' && a.skillActionId === 'scan') setWeb(true); }
             }} />
             {attachments.map((path, i) => <button className="chip" key={`${i}-${path}`} onClick={() => setAttachments((x) => x.filter((_, n) => n !== i))}>{path.split(/[\\/]/).at(-1)} ×</button>)}
           </div>

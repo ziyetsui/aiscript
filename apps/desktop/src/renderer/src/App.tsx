@@ -17,7 +17,7 @@ import { Icon, Logo } from './lib/ui.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 
 export type Tab = 'write' | 'production' | 'characters' | 'locations' | 'props' | 'world' | 'knowledge';
-export type Route = { name: 'home' } | { name: 'recents'; trash?: boolean } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingEpisode?: string };
+export type Route = { name: 'home' } | { name: 'recents'; trash?: boolean } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingSkillActionId?: string; pendingEpisode?: string };
 
 // Same order as the prototype rail (laper): 写作 · 制作 · 角色 · 地点 · 道具 · 世界观 · 知识库.
 const TABS: [Tab, IconName, string][] = [['write', 'pen', '写作'], ['production', 'film', '制作'], ['characters', 'users', '角色'], ['locations', 'map', '地点'], ['props', 'box', '道具'], ['world', 'globe', '世界观'], ['knowledge', 'book', '知识库']];
@@ -80,7 +80,7 @@ export function App() {
         {/* The writing tab stays mounted while its project is open, so the AI conversation and its undo buttons survive tab switches. */}
         {project && (
           <div className="tab-pane" hidden={!(route.name === 'project' && route.tab === 'write')}>
-            <Workspace key={project.id} id={project.id} pending={project.pending} pendingImages={project.pendingImages} pendingWeb={project.pendingWeb} pendingEpisode={project.pendingEpisode} keys={keys} go={setRoute} dockHost={route.name === 'project' && route.tab !== 'write' && route.tab !== 'production' && !dockHidden[route.tab] ? dockHost : null} pageContext={{ page: route.name === 'project' ? route.tab : 'write', fileId: route.name === 'project' && route.tab === 'knowledge' ? fileId : undefined }} />
+            <Workspace key={project.id} id={project.id} pending={project.pending} pendingImages={project.pendingImages} pendingWeb={project.pendingWeb} pendingSkillActionId={project.pendingSkillActionId} pendingEpisode={project.pendingEpisode} keys={keys} go={setRoute} dockHost={route.name === 'project' && route.tab !== 'write' && route.tab !== 'production' && !dockHidden[route.tab] ? dockHost : null} pageContext={{ page: route.name === 'project' ? route.tab : 'write', fileId: route.name === 'project' && route.tab === 'knowledge' ? fileId : undefined }} />
           </div>
         )}
         {route.name === 'project' && route.tab !== 'write' && <div className={`content-row ${route.tab === 'knowledge' ? 'knowledge-row' : ''}`}>

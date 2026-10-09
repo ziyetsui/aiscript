@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+import { WRITING_ACTIONS, filterWritingActions } from '@scripter/agent/skills';
 // AI panel pieces, rebuilt after app.ancher.ai's agent UI (streamify-one-design-system ·
 // packages/domain-ui/agent-ui and apps/web/src/components/product/agent), same as prototype PR #26.
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type ClipboardEvent, type Dispatch, type SetStateAction } from 'react';
@@ -159,17 +161,11 @@ export function JumpPill({ show, unread, onClick }: { show: boolean; unread: num
 export interface Mentionable { label: string; kind: string; note?: ChatNoteAttachment }
 
 /** "+" menu groups (Codex-style, prototype PR #28): 添加 · 快捷指令 · 工作流. */
-export type PlusAction = { kind: 'attach' } | { kind: 'video' } | { kind: 'blank' } | { kind: 'mention' } | { kind: 'prefill'; text: string } | { kind: 'outline'; text: string } | { kind: 'workflow'; id: WorkflowId };
-const QUICK: [IconName, string, string, string][] = [
-  ['spark', '润色格式', '整理成标准剧本格式', '把这一场润色成标准格式。'],
-  ['book', '总结大纲', '自动写入大纲', '总结一下现在的大纲。'],
-  ['chat', '润色对白', '更口语、更像孩子说话', '润色对白：'],
-  ['pen', '续写场景', '接着往下写一场', '续写场景：'],
-  ['users', '检查人物一致性', '名字、性格、口头禅', '检查人物一致性：'],
-];
+export type PlusAction = { kind: 'attach' } | { kind: 'video' } | { kind: 'blank' } | { kind: 'mention' } | { kind: 'prefill'; text: string; skillActionId?: string } | { kind: 'outline'; text: string } | { kind: 'workflow'; id: WorkflowId };
+const QUICK = WRITING_ACTIONS.map((a) => ['spark', a.title, a.description, a.prompt, a.id] as const);
 const PLUS: [string, [IconName, string, string, PlusAction, string?][]][] = [
   ['添加', [['clip', '文件和图片', '剧本、PDF、Word、截图', { kind: 'attach' }], ['video', '本地视频', '转成逐字稿，存进知识库', { kind: 'video' }], ['book', '知识库笔记', '作为这次对话的参考', { kind: 'mention' }]]],
-  ['快捷指令', QUICK.map(([ic, t, d, text]) => [ic, t, d, { kind: t === '总结大纲' ? 'outline' : 'prefill', text }] as [IconName, string, string, PlusAction])],
+  ['快捷指令', QUICK.map(([ic, t, d, text, skillActionId]) => [ic, t, d, t === '总结大纲' ? { kind: 'outline', text } : { kind: 'prefill', text, skillActionId }] as [IconName, string, string, PlusAction])],
   ['工作流', WF_MENU.map((w) => ['bolt', w.title, w.desc, { kind: 'workflow', id: w.id }, `${isMac ? '⌥' : 'Alt+'}${w.key}`] as [IconName, string, string, PlusAction, string])],
 ];
 
@@ -232,6 +228,7 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
   const [plus, setPlus] = useState(false);
   const focusSub = useRef(false);
   const [submenu, setSubmenu] = useState<string | null>(null);
+  const [skillQuery, setSkillQuery] = useState('');
   const list = mention ? mentions.filter((m) => m.label.includes(mention.q)).slice(0, 8) : [];
 
   useEffect(() => {
@@ -245,11 +242,12 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
   function pick(a: PlusAction) {
     setPlus(false); setSubmenu(null);
     if (a.kind === 'mention') { onInput(`${value}@`); ta.current?.focus(); return; }
-    if (a.kind === 'prefill') { onChange(a.text); requestAnimationFrame(() => { const el = ta.current!; el.focus(); el.setSelectionRange(a.text.length, a.text.length); }); return; }
+    if (a.kind === 'prefill') { onAction(a); onChange(a.text); requestAnimationFrame(() => { const el = ta.current!; el.focus(); el.setSelectionRange(a.text.length, a.text.length); }); return; }
     onAction(a);
   }
 
   function onMenuKey(e: KeyboardEvent<HTMLDivElement>) {
+    if ((e.target as HTMLElement).tagName === 'INPUT' && !['ArrowDown', 'ArrowUp', 'Escape'].includes(e.key)) return;
     const current = (document.activeElement as HTMLElement)?.closest('[role="menu"]');
     const items = [...(current?.querySelectorAll<HTMLElement>(':scope > .pm-item') ?? [])];
     const i = items.indexOf(document.activeElement as HTMLElement);
@@ -327,7 +325,15 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
             <div className="pm-divider" />
             {PLUS.slice(1).filter(([g]) => !home || g !== '工作流').map(([g]) => <button type="button" key={g} className="pm-item" role="menuitem" data-group={g} aria-haspopup="menu" aria-expanded={submenu === g} onPointerEnter={() => openSub(g, false)} onClick={() => openSub(g, true)}><Icon name={g === '工作流' ? 'bolt' : 'spark'} size={15} /><b>{g}</b><span /><Icon name="chev" size={12} /></button>)}
             {home && <button type="button" className="pm-item" role="menuitem" onClick={() => pick({ kind: 'blank' })}><Icon name="doc" size={15} /><b>空白剧本</b></button>}
-            {submenu && <div className="pm-sub" role="menu" aria-label={submenu}>{PLUS.find(([g]) => g === submenu)![1].map(([ic, t, d, action, key]) => <button type="button" key={t} className="pm-item" role="menuitem" onClick={() => pick(action)}><Icon name={ic} size={15} /><div><b>{t}</b><small>{d}</small></div>{key && <kbd>{key}</kbd>}</button>)}</div>}
+            {submenu && <div className="pm-sub" role="menu" aria-label={submenu}>
+              {submenu === '快捷指令' && <input className="input pm-search" aria-label="搜索编剧技能" placeholder="搜索技能、类型或创作环节" value={skillQuery} onChange={(e) => setSkillQuery(e.target.value)} />}
+              {PLUS.find(([g]) => g === submenu)![1].filter(([, title]) => submenu !== '快捷指令' || filterWritingActions(skillQuery).some((a) => a.title === title)).map(([ic, t, d, action, key], i, items) => {
+                const category = WRITING_ACTIONS.find((a) => a.title === t)?.category;
+                const previous = i ? WRITING_ACTIONS.find((a) => a.title === items[i - 1]![1])?.category : undefined;
+                return <Fragment key={t}>{submenu === '快捷指令' && category !== previous && <div className="pm-category" role="presentation">{category}</div>}<button type="button" className="pm-item" role="menuitem" onClick={() => pick(action)}><Icon name={ic} size={15} /><div><b>{t}</b><small>{d}</small></div>{key && <kbd>{key}</kbd>}</button></Fragment>;
+              })}
+              {submenu === '快捷指令' && !filterWritingActions(skillQuery).length && <div className="pm-category" role="status">没有匹配的技能</div>}
+            </div>}
 
           </div>
         )}

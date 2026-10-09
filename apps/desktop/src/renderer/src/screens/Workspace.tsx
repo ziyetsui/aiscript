@@ -1,3 +1,4 @@
+import { writingAction } from '@scripter/agent/skills';
 import { createPortal } from 'react-dom';
 // Workspace (prototype P4): scenes outline · script page · AI panel. AI edits arrive as one undoable turn
 // and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
@@ -20,11 +21,12 @@ import { Editor, placeCaret } from './Editor.tsx';
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const visibleReply = (t: string) => t.split('<ops>')[0]!.trim();
 
-export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpisode, keys, go, dockHost, pageContext }: { id: string; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingEpisode?: string; keys: KeyStatus; go: (r: Route) => void; dockHost?: HTMLDivElement | null; pageContext?: { page: string; fileId?: string } }) {
+export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkillActionId, pendingEpisode, keys, go, dockHost, pageContext }: { id: string; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingSkillActionId?: string; pendingEpisode?: string; keys: KeyStatus; go: (r: Route) => void; dockHost?: HTMLDivElement | null; pageContext?: { page: string; fileId?: string } }) {
   const [st, setSt] = useState<ProjectState | null>(null);
   const [nodes, setNodes] = useState<ScriptNode[]>([]);
   const [asking, setAsking] = useState<string | null>(null); // the user's message while its reply is in flight
   const [input, setInput] = useState('');
+  const [skillActionId, setSkillActionId] = useState<string | undefined>(pendingSkillActionId);
   const [images, setImages] = useState<ClipboardImage[]>(pendingImages ?? []);
   const [askingImages, setAskingImages] = useState<ClipboardImage[]>([]);
   const [notes, setNotes] = useState<ChatNoteAttachment[]>([]);
@@ -72,7 +74,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
   const stick = useRef(true); // follow the bottom only while the reader is there (Ancher use-conversation-scroll)
   const [unread, setUnread] = useState(0);
   const [awayFromBottom, setAway] = useState(false);
-  const [queue, setQueue] = useState<{ text: string; images: ClipboardImage[]; notes: ChatNoteAttachment[]; target?: 'outline' }[]>([]);
+  const [queue, setQueue] = useState<{ text: string; images: ClipboardImage[]; notes: ChatNoteAttachment[]; target?: 'outline'; skillActionId?: string }[]>([]);
   const [ghost, setGhost] = useState(''); // Tab suggestion after a turn
 
   const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); window.dispatchEvent(new CustomEvent('scripter:project', { detail: id })); }, [id]);
@@ -122,7 +124,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     if (running || !queue.length) return;
     const [next, ...rest] = queue;
     setQueue(rest);
-    void send(next!.text, next!.images, next!.target, next!.notes);
+    void send(next!.text, next!.images, next!.target, next!.notes, next!.skillActionId);
   }, [running, queue]);
   // Remount the outline editor only when the outline changed from outside (e.g. 「写进大纲」), never while typing.
   useEffect(() => {
@@ -173,16 +175,17 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     bell();
   }
 
-  async function send(text: string, attached: ClipboardImage[] = [], target?: 'outline', attachedNotes: ChatNoteAttachment[] = []) {
+  async function send(text: string, attached: ClipboardImage[] = [], target?: 'outline', attachedNotes: ChatNoteAttachment[] = [], selectedSkill?: string) {
     const t = text.trim() || (attached.length ? '请描述这些图片。' : attachedNotes.length ? '请总结这些笔记。' : '');
     if (!t) return;
     if (externalBusy && !running) { toast('请等待当前任务完成'); return; }
     if (!keys.ancher) { toast('先到设置里填写 Ancher key'); return; }
-    if (running) { setQueue((q) => [...q, { text: t, images: attached, notes: attachedNotes, target }]); setInput(''); setImages([]); setNotes([]); return; }
+    if (running) { setQueue((q) => [...q, { text: t, images: attached, notes: attachedNotes, target, skillActionId: selectedSkill }]); setInput(''); setImages([]); setNotes([]); setSkillActionId(undefined); return; }
     stick.current = true;
     setGhost('');
     const reqId = crypto.randomUUID();
     setAsking(t);
+    setSkillActionId(undefined);
     setAskingImages(attached);
     setAskingNotes(attachedNotes);
     setNotes([]);
@@ -195,7 +198,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     const before = new Set(nodes.map((n) => n.id));
     let r: AiWriteResult;
     try {
-      r = await window.api.ai.write({ reqId, projectId: id, instruction: t, images: attached, notes: attachedNotes, target, webSearch: web, focusId, pageContext });
+      r = await window.api.ai.write({ reqId, projectId: id, instruction: t, images: attached, notes: attachedNotes, target, skillActionId: selectedSkill, webSearch: web || selectedSkill === 'scan', focusId, pageContext });
     } catch (e) {
       r = { ok: false, narration: '', applied: 0, errors: [], citations: [], message: String(e) };
     }
@@ -218,7 +221,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
 
   useEffect(() => {
     if (!st || sent.current) return;
-    if (pending) { sent.current = true; void send(pending, pendingImages ?? []); }
+    if (pending) { sent.current = true; void send(pending, pendingImages ?? [], undefined, [], pendingSkillActionId); }
     else if (pendingEpisode !== undefined) { sent.current = true; void startWorkflow('episode', { text: pendingEpisode }); }
   }, [pending, pendingEpisode, st]);
 
@@ -228,8 +231,8 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     else if (a.kind === 'video') { openWorkflow('transcribe'); return; }
     else if (a.kind === 'workflow') { openWorkflow(a.id); return; }
     else if (a.kind === 'web') { setWeb(true); setInput(a.text); }
-    else if (a.kind === 'outline') void send(a.text, [], 'outline', notes);
-    else if (a.kind === 'prefill') setInput(a.text);
+    else if (a.kind === 'outline') void send(a.text, [], 'outline', notes, 'outline');
+    else if (a.kind === 'prefill') { setInput(a.text); setSkillActionId(a.skillActionId); if (a.skillActionId === 'scan') setWeb(true); }
     else if (a.kind === 'mention') setInput((v) => `${v}@`);
     requestAnimationFrame(() => document.getElementById('agent-in')?.focus());
   }
@@ -354,7 +357,8 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
           </div>
           {launcher && <div className="launcher-wrap"><WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} /></div>}
           {pageContext && pageContext.page !== 'write' && <div className="dock-context"><Icon name="doc" size={14} /><span>{pageContext.fileId ? (st.bible.files.find((f) => f.id === pageContext.fileId)?.title || st.bible.files.find((f) => f.id === pageContext.fileId)?.name || '当前笔记') : ({ characters: '角色表', locations: '地点表', props: '道具表', world: '世界观', production: '制作' } as Record<string, string>)[pageContext.page]}<small>当前页面参考</small></span></div>}
-          <Composer notes={notes} onNotesChange={setNotes} onMentionOpen={() => { void window.api.ancherNotes.list().then((library) => setCloudNotes(library.notes)).catch((e) => toast(String(e))); }} images={images} onImagesChange={setImages} value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input, images, undefined, notes)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
+          {skillActionId && <button type="button" className="chip" aria-label="取消技能选择" onClick={() => setSkillActionId(undefined)}>{writingAction(skillActionId).title} ×</button>}
+          <Composer notes={notes} onNotesChange={setNotes} onMentionOpen={() => { void window.api.ancherNotes.list().then((library) => setCloudNotes(library.notes)).catch((e) => toast(String(e))); }} images={images} onImagesChange={setImages} value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input, images, undefined, notes, skillActionId)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
             running={!!running || externalBusy} queue={queue.map((q) => q.text)} onDequeue={(i) => setQueue((q) => q.filter((_, k) => k !== i))} ghost={ghost}
             web={web} onWeb={setWeb} onAction={onAction}
             mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })), ...st.bible.files.map((f) => ({ label: f.title || f.name, kind: '项目笔记', note: { source: 'project' as const, id: f.id, title: f.title || f.name } })), ...cloudNotes.filter((n) => n.status === 'ready').map((n) => ({ label: n.title, kind: 'Ancher 笔记', note: { source: 'ancher' as const, id: n.id, title: n.title } }))]} />

@@ -51,7 +51,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
     const content = buildMessage(req.target === 'outline' ? '根据当前剧本和已有大纲，总结这一集的完整大纲，包含故事起因、主要情节和结尾。直接输出完整大纲正文，使用 Markdown 标题和列表，不要输出说明、剧本节点或其他修改。' : req.instruction, `${p.meta.title} · ${p.doc.episodes().find((e) => e.id === p.doc.activeEpisodeId)?.title}`,  p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible) + (noteInput.reference ? `\n本次消息添加的笔记：\n${noteInput.reference}` : '') + (req.pageContext ? `\n当前页面：${req.pageContext.page.slice(0, 80)}\n` + (() => {
       const f = bible.files.find((x) => x.id === req.pageContext?.fileId);
       return f ? `当前笔记（素材）：${f.title || f.name}\n${f.summary}\n${f.excerpt.slice(0, 8000)}` : '';
-    })() : ''), p.doc.outline, !p.meta.conversationId);
+    })() : ''), p.doc.outline, !p.meta.conversationId, req.skillActionId);
     const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, attachments, webSearch: req.webSearch, signal: ac.signal }, {
       onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
       onTool: (e) => {

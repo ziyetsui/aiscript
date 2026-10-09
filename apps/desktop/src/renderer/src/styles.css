@@ -515,6 +515,9 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .plus-menu { overflow: visible; right: auto; width: 275px; animation: none; }
 .pm-divider { height: 1px; background: var(--line); margin: 6px; }
 .pm-sub { position: absolute; bottom: 0; right: calc(100% + 4px); width: 300px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-pop); padding: 6px; }
+.pm-sub { max-height: min(540px, 65vh); overflow-y: auto; overscroll-behavior: contain; }
+.pm-search { width: 100%; margin-bottom: 4px; font-size: 12px; }
+.pm-category { padding: 10px 10px 4px; color: var(--ink-3); font-size: 11px; }
 .pm-sub .pm-item { height: auto; min-height: 44px; }
 .pm-sub .pm-item div { flex: 1; }
 .pm-sub .pm-item small { display: block; color: var(--ink-3); font-size: 11.5px; }

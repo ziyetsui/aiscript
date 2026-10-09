@@ -12,6 +12,14 @@ files:
   - "!node_modules/**/README*.md"
   - "!node_modules/**/readme*.md"
 extraResources:
+  # Preserve upstream license/notice texts alongside bundled writing methods.
+  - from: ../../packages/agent/src/skills/vendor
+    to: writing-skills-notices
+    filter:
+      - '**/LICENSE'
+      - '**/NOTICE'
+  - from: ../../packages/agent/src/skills/sources.json
+    to: writing-skills-notices/sources.json
   # Public key for offline activation codes (pnpm license keypair). Required for a usable build.
   - from: resources/license-public.pem
     to: license-public.pem
