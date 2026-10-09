@@ -59,13 +59,21 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
       const chunks = [reply.slice(0, 8), reply.slice(8, 120), reply.slice(120)].filter(Boolean);
       // Main-agent text arrives as `content` envelopes (what parseChatStream maps to ChatEvent 'text').
       const ev = (delta: string) => ({ type: 'content', conversation_id: 'c1', message_id: 'm1', delta, created_at: Date.now() / 1000 });
+      // The default reply first does some agent work: tool calls / returns arrive as `trace` envelopes from the main run.
+      const trace = (kind: 'call' | 'return', n: number, tool: string, args?: unknown) => ({ type: 'trace', conversation_id: 'c1', message_id: 'm1', created_at: Date.now() / 1000,
+        delta: { run_id: 'run-main', parent_run_id: null, root_run_id: 'run-main', agent_name: 'main', payload: kind === 'call'
+          ? { event_kind: 'function_tool_call', part: { part_kind: 'tool-call', tool_name: tool, tool_call_id: `t${n}`, args } }
+          : { event_kind: 'function_tool_result', part: { part_kind: 'tool-return', tool_name: tool, tool_call_id: `t${n}`, content: 'ok' } } } });
+      const tools = reply === REPLY ? [['web_search', { query: '北京胡同 门墩儿' }], ['web_search', { query: '门墩儿 石狮子 民俗' }], ['fetch_url', { url: 'https://example.com/mendun' }]] as const : [];
+      const pre = tools.flatMap(([t, a], n) => [trace('call', n, t, a), trace('return', n, t)]);
       let i = 0;
       const delay = isSlow(prompts.at(-1) ?? '') ? 2500 : 0;
       let t: NodeJS.Timeout | undefined;
       const go = () => { t = setInterval(() => {
-        if (i < chunks.length) res.write(`data: ${JSON.stringify(ev(chunks[i++]!))}\n\n`);
+        if (pre.length) res.write(`data: ${JSON.stringify(pre.shift())}\n\n`);
+        else if (i < chunks.length) res.write(`data: ${JSON.stringify(ev(chunks[i++]!))}\n\n`);
         else { res.write(`data: ${JSON.stringify({ type: 'done', conversation_id: 'c1', message_id: 'm1', finish_reason: 'stop' })}\n\n`); res.end(); clearInterval(t); }
-      }, 120); };
+      }, pre.length ? 250 : 120); };
       const wait = setTimeout(go, delay);
       req.on('close', () => { clearTimeout(wait); clearInterval(t); });
       return;

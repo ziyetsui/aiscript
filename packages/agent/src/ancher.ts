@@ -1,4 +1,5 @@
 // Ancher access from the Electron main process only; the key comes from the OS keychain (spec 0002 §4.1, §5.5).
+import type { ToolEvent } from './activity.ts';
 import { createAncherSdk, isAncherApiError, isActivationRequiredError, isInsufficientCreditsError, type AncherSdk, type ChatCitation, type ChatEvent } from '@ancher-ai/sdk';
 
 export type KeyCheck = { ok: true; name: string; email: string } | { ok: false; reason: 'invalid' | 'activation' | 'network'; message: string };
@@ -20,7 +21,8 @@ export async function checkAncherKey(sdk: Pick<AncherSdk, 'User'>): Promise<KeyC
 
 export interface RunHandlers {
   onText?: (delta: string) => void;
-  onTool?: (name: string) => void;
+  /** Tool calls and returns from any run (main agent or its sub-agents), for the activity rows. */
+  onTool?: (e: ToolEvent) => void;
   onCitations?: (c: ChatCitation[]) => void;
 }
 export interface RunResult { conversationId: string; text: string; citations: ChatCitation[]; finish: string }
@@ -42,7 +44,8 @@ export async function runChat(
   try {
     for await (const ev of sdk.Conversation.stream(id, { signal: opts.signal }) as AsyncIterable<ChatEvent>) {
       if (ev.type === 'text' && (!ev.run || ev.run.isMain)) { text += ev.text; h.onText?.(ev.text); }
-      else if (ev.type === 'tool-call') h.onTool?.(ev.toolName);
+      else if (ev.type === 'tool-call') h.onTool?.({ phase: 'call', id: ev.toolCallId, name: ev.toolName, args: ev.args });
+      else if (ev.type === 'tool-return') h.onTool?.({ phase: 'return', id: ev.toolCallId, name: ev.toolName });
       else if (ev.type === 'citations') { citations.push(...ev.citations); h.onCitations?.(ev.citations); }
       else if (ev.type === 'done') { finish = ev.finishReason; break; }
       else if (ev.type === 'error') throw new Error(ev.message);

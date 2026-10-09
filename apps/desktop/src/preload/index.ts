@@ -40,6 +40,11 @@ const api: Api = {
       ipcRenderer.on('ai:delta', h);
       return () => ipcRenderer.removeListener('ai:delta', h);
     },
+    onActivity(cb) {
+      const h = (_e: Electron.IpcRendererEvent, d: Parameters<Parameters<Api['ai']['onActivity']>[0]>[0]) => cb(d);
+      ipcRenderer.on('ai:activity', h);
+      return () => ipcRenderer.removeListener('ai:activity', h);
+    },
   },
   workflows: {
     start: call('wf:start') as Api['workflows']['start'],

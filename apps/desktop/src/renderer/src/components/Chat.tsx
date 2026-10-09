@@ -5,6 +5,7 @@ import type { ChatMsg, ConversationInfo, WorkflowId } from '../../../shared/ipc.
 import type { IconName } from '../lib/icon-paths.ts';
 import { WF_MENU } from './Workflows.tsx';
 import { Markdown } from '../lib/markdown.tsx';
+import { Activity } from './Activity.tsx';
 import { Icon, isMac } from '../lib/ui.tsx';
 
 const time = (at: number) => new Date(at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -85,12 +86,13 @@ export function UserBubble({ text }: { text: string }) {
 }
 
 /** Assistant reply: no bubble, Markdown body; actions row copy · 存为笔记 · 赞 · 踩 · time (message-actions). */
-export function AssistantMessage({ m, children, onReact, onSave }: {
-  m: ChatMsg; children?: ReactNode; onReact: (r: 'like' | 'dislike' | null) => void; onSave: () => void;
+export function AssistantMessage({ m, children, after, onReact, onSave }: {
+  m: ChatMsg; children?: ReactNode; after?: ReactNode; onReact: (r: 'like' | 'dislike' | null) => void; onSave: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   return (
     <div className="ag-ai">
+      {m.steps && m.steps.length > 0 && <Activity folded items={m.steps.map((r) => ({ ...r, state: 'done' as const }))} />}
       {m.text && <Markdown text={m.text} />}
       {children}
       {m.text && (
@@ -105,6 +107,7 @@ export function AssistantMessage({ m, children, onReact, onSave }: {
           <span className="msg-time">{time(m.at)}</span>
         </div>
       )}
+      {after}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { RunState, WorkflowAction, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
 import { Icon, isMac, useToast } from '../lib/ui.tsx';
+import { Activity } from './Activity.tsx';
 
 /** Mirror of the workflow table (titles/keys/input kinds) so the menu renders without IPC. Kept in sync by the E2E. */
 export const WF_MENU: { id: WorkflowId; key: number; title: string; desc: string; input: 'none' | 'text' | 'url-or-text' | 'file' | 'focus' | 'target'; hint?: string }[] = [
@@ -97,8 +98,6 @@ export function WorkflowLauncher({ id, focusText, onStart, onClose }: { id: Work
   );
 }
 
-const STEP_ICON: Record<string, string> = { done: '✓', failed: '✕', skipped: '–', pending: '' };
-
 export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; projectId: string; onApplied: (s: Awaited<ReturnType<typeof window.api.workflows.apply>>['state']) => void; onJump: (nodeId: string) => void }) {
   const w = WF_MENU.find((x) => x.id === run.wf);
   const toast = useToast();
@@ -117,14 +116,8 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
         {(run.status === 'running' || run.status === 'waiting') && <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void window.api.workflows.cancel(run.id, projectId)}><Icon name="stop" size={12} />取消</button>}
         {(run.status === 'failed' || run.status === 'cancelled') && <button className="btn btn-ghost" style={{ height: 26 }} onClick={async () => onApplied(await window.api.workflows.retry(projectId, run.id))}><Icon name="undo" size={12} />重试</button>}
       </div>
-      <ol className="steps">
-        {run.steps.map((s) => (
-          <li key={s.id} className={`st-${s.status}`}>
-            <span className="st-ic" aria-hidden="true">{s.status === 'running' ? <span className="spinner" /> : s.status === 'waiting' ? '…' : STEP_ICON[s.status]}</span>
-            <span>{s.label}{s.note && <span className="muted"> · {s.note}</span>}{s.error && <span className="err" style={{ display: 'block' }}>{s.error}</span>}</span>
-          </li>
-        ))}
-      </ol>
+      <Activity label="工作流步骤" folded={run.status === 'done'}
+        items={run.steps.map((s) => ({ label: s.label, obj: s.note, state: s.status, error: s.error }))} />
       {run.status === 'waiting' && run.waiting && <ConfirmPanel key={run.waiting.stepId} run={run} projectId={projectId} onDone={onApplied} />}
       {run.status === 'cancelled' && <div className="muted" style={{ fontSize: 12 }}>已取消，没有写入任何内容</div>}
       {run.applied && <div className="ok">{run.applied}</div>}

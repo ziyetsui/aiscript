@@ -4,7 +4,7 @@
 import { app, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { applyOps, bibleBrief, needsReview, parseReply, previewOps, referenceBrief, type Op } from '@scripter/core';
-import { buildMessage, checkAncherKey, createAncher, describeError, reversePrompt, runChat, selectionAction } from '@scripter/agent';
+import { addCall, buildMessage, checkAncherKey, endCall, toolLabel, type ActivityRow, createAncher, describeError, reversePrompt, runChat, selectionAction } from '@scripter/agent';
 import type { AiWriteRequest, AiWriteResult, ChatMsg, TurnInfo } from '../shared/ipc.ts';
 import { filePath, get, pushChat, saveNow, state } from './projects.ts';
 import { openAsBlob } from 'node:fs';
@@ -23,7 +23,11 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   const key = getSecret('ancher');
   if (!key) return { ok: false, narration: '', applied: 0, errors: [], citations: [], message: '还没有填写 Ancher API key，请到设置里填写' };
   pushChat(p, msg({ role: 'user', text: req.instruction }));
-  const reply = (m: Omit<ChatMsg, 'id' | 'at' | 'role'>) => { const r = pushChat(p, msg({ role: 'ai', ...m })); saveNow(p); return r; };
+  // Agent activity: rows stream to the renderer live and are kept on the reply, finished (a cancelled call stays as a row).
+  let rows: ActivityRow[] = [];
+  const labels = new Map<string, string>();
+  const steps = () => (rows.length ? { steps: rows.map(({ running: _r, ...x }) => x) } : {});
+  const reply = (m: Omit<ChatMsg, 'id' | 'at' | 'role'>) => { const r = pushChat(p, msg({ role: 'ai', ...steps(), ...m })); saveNow(p); return r; };
   const ac = new AbortController();
   running.set(req.reqId, ac);
   try {
@@ -33,6 +37,11 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
     const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible), p.doc.outline, !p.meta.conversationId);
     const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, webSearch: req.webSearch, signal: ac.signal }, {
       onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
+      onTool: (e) => {
+        if (e.phase === 'call') { const t = toolLabel(e.name, e.args); labels.set(e.id, t.label); rows = addCall(rows, t.label, t.obj); }
+        else rows = endCall(rows, labels.get(e.id) ?? toolLabel(e.name).label);
+        if (!sender.isDestroyed()) sender.send('ai:activity', { reqId: req.reqId, rows });
+      },
     });
     p.meta.conversationId = r.conversationId;
     const citations = r.citations.map(({ url, title }) => ({ url, title }));
@@ -52,7 +61,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
         reply({ text: parsed.narration, citations, error: 'AI 要改的段落找不到了，剧本没有改动。请再说一次' });
         return { ok: false, narration: parsed.narration, applied: 0, errors: parsed.errors, citations, message: 'AI 要改的段落找不到了' };
       }
-      const m = propose(p, parsed.ops, parsed.narration || '我想这样改，确认后再写入：', req.instruction.slice(0, 24), { citations, error: skipped });
+      const m = propose(p, parsed.ops, parsed.narration || '我想这样改，确认后再写入：', req.instruction.slice(0, 24), { ...steps(), citations, error: skipped });
       return { ok: true, narration: parsed.narration, applied: 0, errors: parsed.errors, citations, previewId: m.id };
     }
     let turn;
