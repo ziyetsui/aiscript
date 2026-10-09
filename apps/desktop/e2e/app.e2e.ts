@@ -847,6 +847,26 @@ try {
   }
   }
   await page.evaluate(async () => window.api.app.setTheme('system')); await app.close(); ({ app, page } = await launch()); assert.equal(await page.evaluate(() => window.api.app.getTheme()), 'system');
+  step('a delayed feature lookup does not override a later settings navigation');
+  await page.getByRole('button', { name: '最近项目', exact: true }).click();
+  await page.locator('.recent[data-project-id]').first().waitFor();
+  const projectList = await page.evaluate(() => window.api.projects.list());
+  await app.evaluate(({ ipcMain }, projects) => {
+    ipcMain.removeHandler('projects:list');
+    ipcMain.handle('projects:list', () => new Promise((resolve) => {
+      (globalThis as unknown as { releasePanelLookup: () => void }).releasePanelLookup = () => resolve(projects);
+    }));
+  }, projectList);
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await app.evaluate(async () => {
+    while (!(globalThis as unknown as { releasePanelLookup?: () => void }).releasePanelLookup) await new Promise((resolve) => setTimeout(resolve, 10));
+  });
+  await page.getByRole('button', { name: '设置', exact: true }).click();
+  await page.locator('.settings').waitFor();
+  await app.evaluate(() => (globalThis as unknown as { releasePanelLookup: () => void }).releasePanelLookup());
+  await page.waitForTimeout(200);
+  assert.equal(await page.locator('.settings').isVisible(), true);
+  assert.equal(await page.locator('.rail').count(), 0);
   console.log('\nE2E passed');
 } catch (e) {
   await shot(page, 'failure').catch(() => {});
