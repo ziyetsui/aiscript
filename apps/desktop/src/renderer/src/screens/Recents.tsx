@@ -7,9 +7,22 @@ import { PROJECT_NAV, type Tab } from '../lib/project-navigation.ts';
 export function Recents({ trash, tab, go }: { trash: boolean; tab?: Tab; go: (r: Route) => void }) {
   const [items, setItems] = useState<ProjectMeta[]>([]);
   const toast = useToast();
+  const [opening, setOpening] = useState(false);
   const panel = PROJECT_NAV.find(([id]) => id === tab)?.[2];
   const reload = () => (trash ? window.api.projects.trashList() : window.api.projects.list()).then(setItems);
   useEffect(() => { void reload(); }, [trash]);
+  async function openPanel(nextTab: Tab) {
+    if (opening) return;
+    setOpening(true);
+    try {
+      const projects = await window.api.projects.list();
+      let lastId: string | null = null;
+      try { lastId = localStorage.getItem('last-project'); } catch {}
+      const project = projects.find((p) => p.id === lastId) ?? projects[0];
+      go(project ? { name: 'project', id: project.id, tab: nextTab } : { name: 'recents', tab: nextTab });
+    } catch (e) { toast(String(e).replace(/^Error invoking remote method '[^']+': Error: /, '')); }
+    finally { setOpening(false); }
+  }
   async function action(p: ProjectMeta, kind: 'remove' | 'restore' | 'purge') {
     if (kind === 'purge' && !confirm(`彻底删除「${p.title}」？此操作不能恢复。`)) return;
     try { await window.api.projects[kind](p.id); await reload(); toast(kind === 'remove' ? '已移入回收站' : kind === 'restore' ? '已恢复项目' : '已彻底删除'); }
@@ -22,7 +35,7 @@ export function Recents({ trash, tab, go }: { trash: boolean; tab?: Tab; go: (r:
         <button onClick={() => go({ name: 'home' })}><Icon name="plus" size={15} />新建</button>
         <button aria-current={!trash && !tab ? 'page' : undefined} onClick={() => go({ name: 'recents' })}><Icon name="home" size={15} />最近</button>
         {PROJECT_NAV.map(([id, icon, label]) => (
-          <button key={id} aria-current={!trash && tab === id ? 'page' : undefined} onClick={() => go({ name: 'recents', tab: id })}>
+          <button key={id} aria-current={!trash && tab === id ? 'page' : undefined} disabled={opening} onClick={() => void openPanel(id)}>
             <Icon name={icon} size={15} />{label}
           </button>
         ))}

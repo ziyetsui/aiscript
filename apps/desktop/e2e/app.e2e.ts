@@ -101,6 +101,12 @@ try {
   const secrets = readFileSync(join(userData, 'secrets.json'), 'utf8');
   assert.ok(!secrets.includes(GOOD_KEY), 'key must not be stored in plain text');
 
+  step('without any projects, a feature entry offers project creation');
+  await page.getByRole('button', { name: '最近项目', exact: true }).click();
+  await page.getByRole('button', { name: '道具', exact: true }).click();
+  await page.getByText('道具 · 选择项目', { exact: true }).waitFor();
+  await page.getByRole('button', { name: '新建项目', exact: true }).click();
+
   step('intent chip opens suggestions; picking one fills the box');
   await page.getByRole('button', { name: '灵感' }).click();
   await page.getByRole('option', { name: '把这个设定演成三种不同走向' }).waitFor();
@@ -232,18 +238,31 @@ try {
   ({ app, page } = await launch());
   await page.getByText('最近').waitFor();
   await page.getByRole('button', { name: '最近项目', exact: true }).click();
-  step('project selection uses the same real navigation as the workspace');
+  step('entry navigation opens the last project directly, even when another project is newer');
+  const lastProjectId = await page.evaluate(() => localStorage.getItem('last-project'));
+  assert.ok(lastProjectId);
+  const decoy = await page.evaluate(() => window.api.projects.create('较新但未打开的项目', 'script'));
   assert.equal(await page.getByRole('button', { name: '快速视频 Beta', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: '社区', exact: true }).count(), 0);
   for (const label of ['写作', '制作', '角色', '地点', '道具', '选题池', '知识库']) {
     await page.getByRole('button', { name: label, exact: true }).click();
-    await page.getByText(`${label} · 选择项目`, { exact: true }).waitFor();
-    await page.locator('.recent[data-project-id]').first().getByRole('button').first().click();
+    await page.locator('.rail').getByRole('button', { name: label, exact: true }).waitFor();
+    assert.equal(await page.getByText(`${label} · 选择项目`, { exact: true }).count(), 0);
+    assert.equal(await page.evaluate(() => localStorage.getItem('last-project')), lastProjectId);
     assert.equal(await page.locator('.rail').getByRole('button', { name: label, exact: true }).getAttribute('aria-current'), 'page');
     await page.locator(label === '写作' ? '.writing-center' : '.content-main > *').first().waitFor({ state: 'visible' });
-    await page.getByRole('button', { name: '返回首页', exact: true }).last().click();
-    await page.getByRole('button', { name: '最近项目', exact: true }).click();
+    await page.locator('.rail').getByRole('button', { name: '最近项目', exact: true }).click();
+    await page.locator('.recent[data-project-id]').first().waitFor();
   }
+  await page.evaluate(async (id) => {
+    await window.api.projects.remove(id);
+    localStorage.setItem('last-project', id);
+  }, decoy.id);
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await page.locator('.paper .node').first().waitFor();
+  assert.equal(await page.evaluate(() => localStorage.getItem('last-project')), lastProjectId, 'a deleted last project falls back to an available project');
+  await page.evaluate((id) => window.api.projects.purge(id), decoy.id);
+  await page.locator('.rail').getByRole('button', { name: '最近项目', exact: true }).click();
   await page.locator('.recent[data-project-id]').first().getByRole('button').first().click();
   await page.locator('.paper .node').first().waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
