@@ -8,6 +8,9 @@ directories:
 files:
   - out/**
   - package.json
+  # Vendor READMEs contain sample private keys; exclude documentation, retain licenses.
+  - "!node_modules/**/README*.md"
+  - "!node_modules/**/readme*.md"
 extraResources:
   # Public key for offline activation codes (pnpm license keypair). Required for a usable build.
   - from: resources/license-public.pem

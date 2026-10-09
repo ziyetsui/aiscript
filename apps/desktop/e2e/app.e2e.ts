@@ -22,7 +22,7 @@ async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [join(here, '..')],
     colorScheme: null as never, // let Electron's nativeTheme (the 外观 setting) decide, instead of Playwright's light emulation
-    env: { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: userData, SCRIPTER_LICENSE_PUBKEY: join(tmp, 'pub.pem'), SCRIPTER_ANCHER_BASE_URL: fake.url },
+    env: { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: userData, SCRIPTER_LICENSE_PUBKEY: join(tmp, 'pub.pem'), SCRIPTER_ANCHER_BASE_URL: fake.url, SCRIPTER_NEWSNOW_BASE_URL: fake.url },
   });
   app.process().on('exit', (code, signal) => console.log(`Electron exit: code=${code}, signal=${signal}`));
   app.process().stderr?.on('data', (chunk) => { if (/crash|fatal|uncaught|error/i.test(String(chunk))) console.error(String(chunk)); });
@@ -402,6 +402,22 @@ try {
   await page.keyboard.press('Alt+8');
   const run8 = page.locator('.run').last();
   await run8.getByText('门墩儿想修好姥爷的旧鞋').waitFor({ timeout: 20_000 });
+  await run8.getByText('热点简报', { exact: true }).waitFor();
+  await run8.getByRole('link', { name: /知乎.*北京胡同口/ }).waitFor();
+  const oldOpenExternal = await app.evaluate(({ shell }) => {
+    const original = shell.openExternal;
+    (globalThis as typeof globalThis & { newsnowOpen?: string }).newsnowOpen = '';
+    shell.openExternal = async (url) => { (globalThis as typeof globalThis & { newsnowOpen?: string }).newsnowOpen = url; };
+    // Retain function in main process only, not through serialization.
+    (globalThis as typeof globalThis & { restoreNewsNowOpen?: () => void }).restoreNewsNowOpen = () => { shell.openExternal = original; };
+    return true;
+  });
+  assert.ok(oldOpenExternal);
+  await run8.getByRole('link', { name: /学校推广跳绳/ }).click();
+  await page.waitForTimeout(100);
+  assert.equal(await app.evaluate(() => (globalThis as typeof globalThis & { newsnowOpen?: string }).newsnowOpen), 'http://example.com/school');
+  await app.evaluate(() => (globalThis as typeof globalThis & { restoreNewsNowOpen?: () => void }).restoreNewsNowOpen?.());
+  assert.ok(fake.prompts.some((p) => p.includes('中文时事简报') && p.includes('https://example.com/hutong')));
   await run8.getByRole('button', { name: '加入选题池（3）' }).click();
   await run8.getByText('已加入选题池 3 个').waitFor();
   await page.getByLabel('给 AI 的指令').fill('续写下一场');

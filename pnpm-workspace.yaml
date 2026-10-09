@@ -5,6 +5,7 @@ allowBuilds:
   electron: true
   esbuild: true
   electron-winstaller: false
+  tldjs: false
 minimumReleaseAgeExclude:
   - electron@44.7.0
   - playwright-core@1.64.0
