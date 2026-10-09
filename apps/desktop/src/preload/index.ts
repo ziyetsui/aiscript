@@ -4,7 +4,7 @@ import type { Api } from '../shared/ipc.ts';
 const call = (ch: string) => (...a: unknown[]) => ipcRenderer.invoke(ch, ...a);
 
 const api: Api = {
-  app: { info: call('app:info') as Api['app']['info'], diagnostics: call('app:diagnostics') as Api['app']['diagnostics'] },
+  app: { info: call('app:info') as Api['app']['info'], diagnostics: call('app:diagnostics') as Api['app']['diagnostics'], getTheme: call('app:getTheme') as Api['app']['getTheme'], setTheme: call('app:setTheme') as Api['app']['setTheme'] },
   license: {
     status: call('license:status') as Api['license']['status'],
     activateKeygen: call('license:activateKeygen') as Api['license']['activateKeygen'],

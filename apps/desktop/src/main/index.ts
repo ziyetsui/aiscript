@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { join } from 'node:path';
 import { checkGeminiKey } from '@scripter/agent';
 import type { BibleKind } from '@scripter/core';
@@ -27,7 +27,7 @@ let win: BrowserWindow | null = null;
 function createWindow(): void {
   win = new BrowserWindow({
     width: 1360, height: 860, minWidth: 980, minHeight: 640, show: false,
-    title: 'Ancher Scripter', backgroundColor: '#fbf9f4',
+    title: 'Ancher Scripter', backgroundColor: nativeTheme.shouldUseDarkColors ? '#111110' : '#f9f9f8',
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: { preload: join(import.meta.dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false },
   });
@@ -48,10 +48,22 @@ function gated<A extends unknown[], R>(fn: (...a: A) => R) {
   };
 }
 
+/** 外观: 跟随系统 / 亮色 / 暗色. Electron's nativeTheme drives prefers-color-scheme in the renderer. */
+type Theme = 'system' | 'light' | 'dark';
+const themeSetting = (): Theme => { const t = readJson<{ theme?: Theme }>('settings.json', {}).theme; return t === 'light' || t === 'dark' ? t : 'system'; };
+
 const active = () => { if (licenseStatus().state !== 'active') throw new Error('未激活'); };
 
 function registerIpc(): void {
   ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform }));
+  ipcMain.handle('app:getTheme', () => themeSetting());
+  ipcMain.handle('app:setTheme', (_e, t: Theme) => {
+    if (!['system', 'light', 'dark'].includes(t)) return themeSetting();
+    writeJson('settings.json', { ...readJson('settings.json', {}), theme: t });
+    nativeTheme.themeSource = t;
+    for (const w of BrowserWindow.getAllWindows()) w.setBackgroundColor(nativeTheme.shouldUseDarkColors ? '#111110' : '#f9f9f8');
+    return t;
+  });
   ipcMain.handle('update:status', () => updater.updateStatus());
   ipcMain.handle('update:check', () => updater.checkNow());
   ipcMain.handle('update:install', () => updater.installNow());
@@ -148,6 +160,7 @@ process.on('unhandledRejection', (e) => archive.log('error', `unhandled: ${e ins
 
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 app.whenReady().then(() => {
+  nativeTheme.themeSource = themeSetting(); // before the window exists, so it never flashes the wrong theme
   registerIpc();
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

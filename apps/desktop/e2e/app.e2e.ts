@@ -21,6 +21,7 @@ const fake = await startFakeAncher();
 async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
   const app = await electron.launch({
     args: [join(here, '..')],
+    colorScheme: null as never, // let Electron's nativeTheme (the 外观 setting) decide, instead of Playwright's light emulation
     env: { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: userData, SCRIPTER_LICENSE_PUBKEY: join(tmp, 'pub.pem'), SCRIPTER_ANCHER_BASE_URL: fake.url },
   });
   const page = await app.firstWindow();
@@ -29,6 +30,12 @@ async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
 }
 const shot = (page: Page, name: string) => page.screenshot({ path: join(shots, `${name}.png`) });
 const step = (s: string) => console.log(`• ${s}`);
+/** Quick commands live in the composer's "+" menu (prototype PR #28): pick one, it prefills the box, Enter sends. */
+async function quick(page: Page, name: string) {
+  await page.locator('#plus').filter({ visible: true }).click();
+  await page.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click();
+  await page.getByLabel('给 AI 的指令', { exact: true }).filter({ visible: true }).press('Enter');
+}
 
 let { app, page } = await launch();
 try {
@@ -108,7 +115,7 @@ try {
   await page.locator('.paper .node').first().waitFor();
 
   step('a rewrite arrives as a modification preview: reject changes nothing, accept writes, undo restores');
-  await page.getByRole('button', { name: '润色对白' }).click();
+  await quick(page, '润色对白');
   const preview = page.locator('.preview').last();
   await preview.getByText('修改预览 · 1 处').waitFor({ timeout: 20_000 });
   await preview.locator('del', { hasText: '石头……石头说话了？' }).waitFor();
@@ -116,7 +123,7 @@ try {
   await preview.getByRole('button', { name: '拒绝' }).click();
   await preview.getByText('已拒绝，剧本没有改动').waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
-  await page.getByRole('button', { name: '润色对白' }).click();
+  await quick(page, '润色对白');
   const preview2 = page.locator('.preview').last();
   await preview2.getByRole('button', { name: '接受' }).waitFor({ timeout: 20_000 });
   await shot(page, '04a-preview');
@@ -129,7 +136,7 @@ try {
 
   step('「总结大纲」writes into the outline document, not into the script');
   const before = await page.locator('.paper .node').allTextContents();
-  await page.getByRole('button', { name: '总结大纲' }).click();
+  await quick(page, '总结大纲');
   await page.getByText('已写进大纲，点左侧「大纲」查看').waitFor({ timeout: 20_000 });
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), before);
   await page.getByRole('tab', { name: '大纲' }).click();
@@ -268,8 +275,12 @@ try {
   await page.getByRole('tab', { name: '剧本' }).click();
 
   step('⚡ ⌥5 from the menu: director notes become confirmed rules that reach the next prompt');
-  await page.getByRole('button', { name: '⚡ 工作流' }).click();
-  await page.getByRole('menuitem', { name: /导演意见 → 规则/ }).click();
+  // "+" menu, keyboard only: ↓ through 添加 and 快捷指令 into 工作流, Enter picks 导演意见 → 规则 (the 13th row).
+  await page.locator('#plus').filter({ visible: true }).click();
+  await page.getByRole('menu', { name: '添加与快捷指令' }).waitFor();
+  for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowDown');
+  assert.match((await page.evaluate(() => document.activeElement?.textContent)) ?? '', /导演意见 → 规则/);
+  await page.keyboard.press('Enter');
   await page.getByLabel('内容', { exact: true }).fill('第一集：笑点要来自孩子的视角，不要大人式的抖机灵。别让孩子玩手机。');
   await page.getByRole('button', { name: '开始' }).click();
   const run5 = page.locator('.run').last();
@@ -390,7 +401,7 @@ try {
   step('AI panel (Ancher agent UI): thinking + tip, 加入队列, long-bubble clamp, actions, save, new conversation + history');
   await page.getByRole('button', { name: '写作', exact: true }).click();
   await page.locator('.ag-hd .ico-btn[aria-label="新对话"]').filter({ visible: true }).click();
-  await page.getByText('你的编剧搭档，随时待命').waitFor();
+  await page.locator('.ag-grid').filter({ visible: true }).waitFor();
   const ask = page.getByLabel('给 AI 的指令', { exact: true }).filter({ visible: true });
   await ask.fill('__SLOW__ 第一条：写一场雨天的戏');
   await ask.press('Enter');
@@ -402,7 +413,7 @@ try {
   await page.getByRole('button', { name: /加入队列/ }).waitFor();
   await shot(page, '13-chat-running');
   await ask.press('Enter');
-  await page.getByText('队列里还有 1 条').waitFor();
+  await page.locator('.q-item', { hasText: '第二条' }).waitFor(); // queued message shown above the box
   await page.waitForFunction(() => document.querySelectorAll('.turn-card').length >= 2 && !document.querySelector('.ag-thinking'), null, { timeout: 30_000 });
   const firstChat = fake.prompts.find((x) => x.includes('用户：__SLOW__ 第一条'))!;
   const secondChat = fake.prompts.find((x) => x.includes('用户：第二条'))!;
@@ -420,12 +431,35 @@ try {
   await page.getByText(/已存进知识库：__SLOW__ 第一条/).waitFor();
   await shot(page, '14-chat-done');
   await page.locator('.ag-hd .ico-btn[aria-label="新对话"]').filter({ visible: true }).click();
-  await page.getByText('你的编剧搭档，随时待命').waitFor();
+  await page.locator('.ag-grid').filter({ visible: true }).waitFor();
   await page.locator('.ag-title').filter({ visible: true }).click();
   await page.getByRole('menuitem', { name: /__SLOW__ 第一条/ }).click();
   await page.locator('.bubble', { hasText: '__SLOW__ 第一条' }).waitFor();
   await page.getByRole('button', { name: '知识库', exact: true }).click();
   await page.getByText(/AI 回复 .*\.md/).waitFor();
+
+  step('Tab takes the ghost suggestion; an empty-chat tile prefills; 外观 → 暗色 switches to Ancher dark');
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  const ask2 = page.getByLabel('给 AI 的指令', { exact: true }).filter({ visible: true });
+  await page.locator('.ghost kbd', { hasText: 'Tab' }).filter({ visible: true }).waitFor();
+  const suggestion = (await page.locator('.ghost span').filter({ visible: true }).textContent())!;
+  await ask2.focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await ask2.inputValue(), suggestion);
+  await ask2.fill('');
+  await page.locator('.ag-hd .ico-btn[aria-label="新对话"]').filter({ visible: true }).click();
+  await page.locator('.ag-tile', { hasText: '写大纲' }).filter({ visible: true }).click();
+  assert.equal(await ask2.inputValue(), '帮我写这一集的大纲');
+  await ask2.fill('');
+  await page.getByRole('button', { name: '设置', exact: true }).click();
+  await page.getByRole('radio', { name: '暗色' }).click();
+  await page.waitForFunction(() => getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() === 'var(--n2-d1)' || getComputedStyle(document.body).backgroundColor === 'rgb(17, 17, 16)');
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await shot(page, '15-dark');
+  await page.getByRole('button', { name: '设置', exact: true }).click();
+  await page.getByRole('radio', { name: '亮色' }).click();
+  await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(249, 249, 248)');
+  await page.getByRole('radio', { name: '跟随系统' }).click();
   console.log('\nE2E passed');
 } catch (e) {
   await shot(page, 'failure').catch(() => {});
