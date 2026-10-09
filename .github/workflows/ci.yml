@@ -32,8 +32,12 @@ jobs:
       - run: pnpm test
 
   e2e:
-    # macOS: real Keychain for safeStorage, same as users.
-    runs-on: macos-latest
+    # Native Keychain / DPAPI, editor and exports on both customer platforms.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -46,7 +50,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e-shots
+          name: e2e-shots-${{ runner.os }}
           path: apps/desktop/e2e/shots/
 
   secrets:

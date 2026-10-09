@@ -38,7 +38,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
     const sdk = ancher(key);
     const bible = p.doc.readBible();
     // Full rules only when this starts a new Ancher conversation; later turns carry a one-line reminder.
-    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible) + (req.pageContext ? `\n当前页面：${req.pageContext.page.slice(0, 80)}\n` + (() => {
+    const content = buildMessage(req.instruction, `${p.meta.title} · ${p.doc.episodes().find((e) => e.id === p.doc.activeEpisodeId)?.title}`,  p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible) + (req.pageContext ? `\n当前页面：${req.pageContext.page.slice(0, 80)}\n` + (() => {
       const f = bible.files.find((x) => x.id === req.pageContext?.fileId);
       return f ? `当前笔记（素材）：${f.title || f.name}\n${f.summary}\n${f.excerpt.slice(0, 8000)}` : '';
     })() : ''), p.doc.outline, !p.meta.conversationId);

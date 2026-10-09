@@ -74,11 +74,13 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
   }
   useEffect(() => { if (sel >= 0) (list.current?.children[sel] as HTMLElement | undefined)?.focus(); }, [sel]);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => { if (!menuOpen) return; const close = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); }; const outside = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest('.home-menu')) setMenuOpen(false); }; window.addEventListener('keydown', close); window.addEventListener('pointerdown', outside); return () => { window.removeEventListener('keydown', close); window.removeEventListener('pointerdown', outside); }; }, [menuOpen]);
   const k = KINDS.find((x) => x.id === kind)!;
   return (
     <>
       <div className="topbar drag" style={{ borderBottom: 0 }}>
-        <span style={{ flex: 1 }} />
+        <div className="no-drag home-menu" style={{position:'relative'}}><button className="btn btn-quiet" aria-label="菜单" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((x) => !x)}><Icon name="menu" size={16} /></button>{menuOpen && <div className="card menu" role="menu" style={{top:40,left:0,minWidth:160}}><button role="menuitem" onClick={() => go({ name:'recents' })}>最近项目</button><button role="menuitem" onClick={() => go({ name:'settings',back:{name:'home'} })}>设置</button></div>}</div><span style={{ flex: 1 }} />
         <span className="chip no-drag"><span style={{ width: 6, height: 6, borderRadius: '50%', background: keys.ancher ? 'var(--success)' : 'var(--ink-3)' }} />{keys.ancher ? '已激活 · Ancher 已连接' : '已激活 · 未连接 Ancher'}</span>
       </div>
       <div className="home">

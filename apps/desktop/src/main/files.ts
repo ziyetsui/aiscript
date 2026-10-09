@@ -94,7 +94,7 @@ export async function pin(id: string, fileId: string, on: boolean, notify: () =>
   if (!f) throw new Error('文件不存在');
   files.update(fileId, { pinned: on });
   const needs = on && f.extract !== 'ready';
-  if (needs) files.update(fileId, { extract: 'working' });
+  if (needs) files.update(fileId, { extract: 'working', extractError: '' });
   p.doc.commit('pin file');
   saveNow(p);
   if (needs) {
@@ -117,7 +117,7 @@ export async function pin(id: string, fileId: string, on: boolean, notify: () =>
       if (!existsSync(join(dataDir(), 'projects', id))) return;
       const cur = get(id);
       if (!cur.doc.bible('files').get(fileId)) return;
-      cur.doc.bible('files').update(fileId, ok ? { excerpt: excerpt.trim().slice(0, EXCERPT_MAX), extract: 'ready' } : { extract: 'failed', pinned: false });
+      cur.doc.bible('files').update(fileId, ok ? { excerpt: excerpt.trim().slice(0, EXCERPT_MAX), extract: 'ready', extractError: '' } : { extract: 'failed', pinned: false, extractError: '无法读取资料。请确认原文件完整、Ancher 已连接且网络可用，再重试；原文件仍保存在项目中。' });
       cur.doc.commit('file excerpt');
       saveNow(cur);
       notify();
@@ -151,8 +151,9 @@ export function update(id: string, fileId: string, patch: Partial<Pick<Knowledge
   for (const key of ['title', 'memo', 'group'] as const) if (typeof patch[key] === 'string') clean[key] = patch[key]!.slice(0, 20000);
   if (Array.isArray(patch.tags)) clean.tags = patch.tags.slice(0, 30).filter((t) => t && typeof t.label === 'string').map((t) => ({ label: t.label.slice(0, 80), color: ['#496cc2', '#ad7438', '#608e53', '#777777'].includes(t.color) ? t.color : '#496cc2' }));
   if (typeof patch.starred === 'boolean') clean.starred = patch.starred;
-  p.doc.bible('files').update(fileId, clean);
-  p.doc.commit('edit note'); saveNow(p); return state(p);
+  const file = p.doc.bible('files').get(fileId); if (!file) throw new Error('笔记不存在');
+  if (Object.entries(clean).some(([key, value]) => JSON.stringify(file[key as keyof KnowledgeFile]) !== JSON.stringify(value))) p.doc.turn(`编辑笔记元数据：${fileId}`, (d) => d.bible('files').update(fileId, clean));
+  saveNow(p); return state(p);
 }
 export function createNote(id: string, title: string, body: string): ProjectState {
   const p = get(id);

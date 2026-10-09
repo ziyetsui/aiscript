@@ -32,7 +32,7 @@ function readMeta(id: string): Meta {
 
 function persist(p: Open): void {
   p.meta.updatedAt = Date.now();
-  p.meta.words = wordCount(p.doc.nodes());
+  p.meta.words = p.doc.episodes().reduce((n, e) => n + wordCount(p.doc.episode(e.id).nodes()), 0);
   p.meta.turns = [...p.doc.listTurns()];
   writeAtomic(join(dirOf(p.meta.id), 'script.loro'), p.doc.snapshot());
   writeAtomic(join(dirOf(p.meta.id), 'meta.json'), JSON.stringify(p.meta, null, 2));
@@ -76,7 +76,7 @@ export function get(id: string): Open {
     doc.loadTurns(meta.turns ?? []);
     // Parsing tasks do not survive a restart or a trip through the recycle bin.
     let interrupted = false;
-    for (const f of doc.bible('files').all()) if (f.extract === 'working') { doc.bible('files').update(f.id, { extract: 'failed', pinned: false }); interrupted = true; }
+    for (const f of doc.bible('files').all()) if (f.extract === 'working') { doc.bible('files').update(f.id, { extract: 'failed', pinned: false, extractError: '上次读取因应用退出而中断，请重试。' }); interrupted = true; }
     if (interrupted) doc.commit('recover file extraction');
     // Workflow runs left "running" by a quit become retryable failures.
     for (const r of meta.workflows ?? []) if (r.status === 'running') recoverInterrupted(r);
@@ -89,7 +89,8 @@ export function get(id: string): Open {
 export function state(p: Open): ProjectState {
   const nodes = p.doc.nodes();
   const { conversationId: _c, turns: _t, chat = [], pending: _p, workflows = [], archive = [], ...meta } = p.meta;
-  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {} })), outline: p.doc.outline, production: p.doc.production, conversations: archive.map((a) => ({ id: a.id, title: a.title, at: a.at, messages: a.chat.length })).reverse() };
+  const episodes = p.doc.episodes().map((e) => { const ns = p.doc.episode(e.id).nodes(); return { ...e, words: wordCount(ns), scenes: scenes(ns).length }; });
+  return { meta: { ...meta, words: episodes.reduce((n, e) => n + e.words, 0) }, episodes, activeEpisodeId: p.doc.activeEpisodeId, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {} })), outline: p.doc.outline, beats: p.doc.beats, cover: p.doc.cover, production: p.doc.production, conversations: archive.map((a) => ({ id: a.id, title: a.title, at: a.at, messages: a.chat.length })).reverse() };
 }
 
 export function edit(id: string, edits: Edit[]): ProjectState {
@@ -111,6 +112,17 @@ export function rename(id: string, title: string): ProjectState {
   p.doc.setTitle(p.meta.title);
   persist(p);
   return state(p);
+}
+
+export function episode(id: string, action: 'create' | 'select' | 'rename', episodeId?: string, title?: string): ProjectState {
+  const p = get(id);
+  if ((p.meta.workflows ?? []).some((r) => r.status === 'running' || r.status === 'waiting')) throw new Error('请先完成或取消当前工作流');
+  if (action === 'create') p.doc.addEpisode(title ?? '');
+  else if (action === 'select') p.doc.selectEpisode(episodeId ?? '');
+  else if (action === 'rename') p.doc.renameEpisode(episodeId ?? '', title ?? '');
+  else throw new Error('不支持的分集操作');
+  if (action !== 'rename') { p.meta.pending = {}; for (const m of p.meta.chat ?? []) if (m.preview?.state === 'open') m.preview.state = 'stale'; }
+  saveNow(p); return state(p);
 }
 
 export function undoTurn(id: string, turnId: string): ProjectState {
@@ -263,3 +275,7 @@ export function react(id: string, msgId: string, reaction: 'like' | 'dislike' | 
   saveNow(p);
   return state(p);
 }
+
+export function setBeats(id: string, text: string): ProjectState { const p = get(id); p.doc.setBeats(text); p.doc.commit('beats'); schedule(p); return state(p); }
+
+export function setCover(id: string, patch: Partial<ProjectState['cover']>): ProjectState { const p = get(id); p.doc.setCover(patch); schedule(p); return state(p); }

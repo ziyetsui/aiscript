@@ -1,0 +1,21 @@
+import { useEffect, useState } from 'react';
+import type { ExportSelection, ProjectState } from '../../../shared/ipc.ts';
+import { Drawer } from './Drawer.tsx';
+import { currentFont } from '../lib/editor-font.ts';
+const CONTENTS = [['script','剧本'],['outline','大纲'],['beats','节拍'],['scenes','场景'],['shots','分镜'],['characters','选角表'],['locations','勘景本'],['props','道具表']] as const;
+const FORMATS = [['pdf','PDF','打印排版，可发给导演'],['fdx','Final Draft（.fdx）','行业标准'],['fountain','Fountain','纯文本剧本标准'],['docx','Word（.docx）','可继续编辑'],['txt','TXT','纯文本']] as const;
+export function ExportDialog({ open, state, onClose, onDone }: { open: boolean; state: ProjectState; onClose(): void; onDone(path: string): void }) {
+  const [selection, setSelection] = useState<ExportSelection>({ episodes: [], content: 'script', format: 'pdf', layout: 'hollywood', texture: true, font: currentFont() });
+  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  useEffect(() => { if (open) { const preferred = localStorage.getItem('script-default-export'); setSelection({ episodes: state.episodes.map((e) => e.id), content: 'script', format: FORMATS.some(([f]) => f === preferred) ? preferred as ExportSelection['format'] : 'pdf', layout: 'hollywood', texture: true, font: currentFont() }); setError(''); } }, [open]);
+  const patch = (p: Partial<ExportSelection>) => setSelection((s) => ({ ...s, ...p }));
+  if (!open) return null;
+  return <Drawer open={open} title="导出" sub={`已选 ${selection.episodes.length} 集 · ${selection.episodes.length === state.episodes.length ? '全部分集' : '部分分集'}`} cta={busy ? '导出中…' : '导出'} busy={busy || !selection.episodes.length} modal onClose={() => { if (!busy) onClose(); }} onSubmit={async () => {
+    setBusy(true); setError('');
+    try { const r = await window.api.exporter.save(state.meta.id, selection.format, selection); if (r.ok) { onClose(); onDone(r.path!); } } catch (e) { setError(String(e)); } finally { setBusy(false); }
+  }}><div className="export-columns">
+    <section><header>分集<button type="button" onClick={() => patch({ episodes: [] })}>清空</button></header>{state.episodes.map((ep, i) => <label className="export-choice" key={ep.id}><span><b>{ep.title}</b><small>第 {i + 1} 集</small></span><input type="checkbox" aria-label={`导出分集 ${ep.title}`} checked={selection.episodes.includes(ep.id)} onChange={(e) => patch({ episodes: e.target.checked ? [...selection.episodes, ep.id] : selection.episodes.filter((id) => id !== ep.id) })} /></label>)}</section>
+    <section><header>导出内容</header><div className="export-content-grid">{CONTENTS.map(([content, label]) => <label className="export-choice" key={content}>{label}<input type="radio" name="content" value={content} checked={selection.content === content} onChange={() => patch({ content, format: content !== 'script' && ['fdx','fountain'].includes(selection.format) ? 'pdf' : selection.format })} /></label>)}</div></section>
+    <section><header>文件格式</header>{FORMATS.map(([format, label, description]) => <label className="export-choice" key={format}><span><b>{label}</b><small>{description}</small></span><input type="radio" name="format" value={format} checked={selection.format === format} disabled={selection.content !== 'script' && ['fdx','fountain'].includes(format)} onChange={() => patch({ format })} /></label>)}<p className="muted">剧本格式</p><div className="seg">{([['hollywood','好莱坞'],['asian','亚洲']] as const).map(([layout, label]) => <button type="button" key={layout} aria-pressed={selection.layout === layout} onClick={() => patch({ layout })}>{label}</button>)}</div><label className="export-choice">纸张纹理<input type="checkbox" checked={selection.texture} onChange={(e) => patch({ texture: e.target.checked })} /></label></section>
+  </div><p className="muted">字体随编辑器设置；Final Draft / Fountain 保留可编辑语义，纸张纹理用于 PDF。资料表按所选分集的剧本引用筛选。</p>{error && <div className="err" role="alert">{error}</div>}<button type="button" className="btn btn-quiet" onClick={async () => { try { const r = await window.api.projects.exportArchive(state.meta.id); if (r.ok) { onClose(); onDone(r.path!); } } catch (e) { setError(String(e)); } }}>整个项目（.scripter）</button></Drawer>;
+}

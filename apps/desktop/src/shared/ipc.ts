@@ -1,5 +1,5 @@
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
-import type { PreviewItem } from '@scripter/core';
+import type { ExportSelection, PreviewItem } from '@scripter/core';
 import type { ActivityRow, RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
 export type { ActivityRow };
 import type { Bible, KnowledgeFile, BibleItem, BibleKind, ElementType, Production, ScriptNode, SceneSummary } from '@scripter/core/script';
@@ -35,7 +35,8 @@ export interface ChatMsg {
 }
 /** An earlier conversation of this project (Ancher-style history under the title ⌄). */
 export interface ConversationInfo { id: string; title: string; at: number; messages: number }
-export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string; conversations: ConversationInfo[]; production: Production }
+export interface EpisodeInfo { id: string; title: string; words: number; scenes: number }
+export interface ProjectState { meta: ProjectMeta; episodes: EpisodeInfo[]; activeEpisodeId: string; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string; beats: string; cover: { author: string; draft: string; date: string }; conversations: ConversationInfo[]; production: Production }
 export type WorkflowAction =
   | { type: 'direction'; index: number }
   | { type: 'preview' }
@@ -98,6 +99,7 @@ export interface Api {
     create(title: string, kind: ProjectMeta['kind']): Promise<ProjectMeta>;
     open(id: string): Promise<ProjectState>;
     rename(id: string, title: string): Promise<ProjectState>;
+    episode(id: string, action: 'create' | 'select' | 'rename', episodeId?: string, title?: string): Promise<ProjectState>;
     remove(id: string): Promise<void>;
     trashList(): Promise<ProjectMeta[]>;
     restore(id: string): Promise<void>;
@@ -105,6 +107,8 @@ export interface Api {
     edit(id: string, edits: Edit[]): Promise<ProjectState>;
     undoTurn(id: string, turnId: string): Promise<ProjectState>;
     setOutline(id: string, text: string): Promise<ProjectState>;
+    setBeats(id: string, text: string): Promise<ProjectState>;
+    setCover(id: string, patch: Partial<ProjectState['cover']>): Promise<ProjectState>;
     setProduction(id: string, patch: Partial<Production>): Promise<ProjectState>;
     exportArchive(id: string): Promise<{ ok: boolean; path?: string }>;
     importArchive(): Promise<ProjectMeta | null>;
@@ -166,5 +170,7 @@ export interface Api {
     /** Save one message (or the whole conversation when msgId is null) as a knowledge-base note. */
     saveAsNote(projectId: string, msgId: string | null): Promise<{ state: ProjectState; name: string }>;
   };
-  exporter: { save(id: string, format: ExportFormat): Promise<{ ok: boolean; path?: string; message?: string }> };
+  exporter: { save(id: string, format: ExportFormat, selection?: ExportSelection): Promise<{ ok: boolean; path?: string; message?: string }> };
 }
+
+export type { ExportSelection };

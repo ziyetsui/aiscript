@@ -6,3 +6,4 @@ export { toFdx } from './export/fdx.ts';
 export { toTxt } from './export/txt.ts';
 export * from './bible.ts';
 export { toDocx } from './export/docx.ts';
+export * from './export/scope.ts';

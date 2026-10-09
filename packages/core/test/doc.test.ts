@@ -146,7 +146,7 @@ describe('docx export', () => {
     const xml = strFromU8(unzipSync(bytes)['word/document.xml']!);
     expect(xml).toContain('外景 胡同口 — 傍晚');
     expect(xml).toContain('别捏了 &amp; 放手');
-    expect(xml).toContain('w:eastAsia="FangSong"');
+    expect(xml).toContain('w:eastAsia="Zhuque Fangsong"');
   });
 });
 

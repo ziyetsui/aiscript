@@ -61,7 +61,7 @@ function gated<A extends unknown[], R>(fn: (...a: A) => R) {
 
 /** 外观: 跟随系统 / 亮色 / 暗色. Electron's nativeTheme drives prefers-color-scheme in the renderer. */
 type Theme = 'system' | 'light' | 'dark';
-const themeSetting = (): Theme => { const t = readJson<{ theme?: Theme }>('settings.json', {}).theme; return t === 'light' || t === 'dark' ? t : 'light'; };
+const themeSetting = (): Theme => { const t = readJson<{ theme?: Theme }>('settings.json', {}).theme; return t === 'system' || t === 'light' || t === 'dark' ? t : 'light'; };
 
 const active = () => { if (licenseStatus().state !== 'active') throw new Error('未激活'); };
 
@@ -106,6 +106,7 @@ function registerIpc(): void {
   ipcMain.handle('projects:list', gated(() => projects.list()));
   ipcMain.handle('projects:create', gated((title: string, kind: ProjectMeta['kind']) => projects.create(title, kind)));
   ipcMain.handle('projects:open', gated((id: string) => projects.state(projects.get(id))));
+  ipcMain.handle('projects:episode', gated((id: string, action: 'create' | 'select' | 'rename', episodeId?: string, title?: string) => { if (ai.isBusy(id)) throw new Error('请先停止正在生成的内容'); return projects.episode(id, action, episodeId, title); }));
   ipcMain.handle('projects:rename', gated((id: string, title: string) => projects.rename(id, title)));
   ipcMain.handle('projects:remove', gated((id: string) => { if (ai.isBusy(id) || projects.state(projects.get(id)).runs.some((r) => r.status === 'running')) throw new Error('请先停止正在生成的内容'); projects.remove(id); }));
   ipcMain.handle('projects:trashList', gated(() => projects.trashList()));
@@ -120,6 +121,8 @@ function registerIpc(): void {
     if (!w) return null;
     try { return await archive.importProject(w); } catch (err) { archive.log('warn', `import failed: ${(err as Error).message}`); throw err; }
   });
+  ipcMain.handle('projects:setCover', gated((id: string, patch: object) => projects.setCover(id, patch)));
+  ipcMain.handle('projects:setBeats', gated((id: string, text: string) => projects.setBeats(id, text)));
   ipcMain.handle('projects:setOutline', gated((id: string, text: string) => projects.setOutline(id, text)));
   ipcMain.handle('projects:setProduction', gated((id: string, patch: object) => projects.setProduction(id, pickProduction(patch))));
 
@@ -173,10 +176,10 @@ function registerIpc(): void {
   ipcMain.handle('ai:selection', gated((kind: 'explain' | 'summarize' | 'translate', text: string) => ai.selection(kind, text)));
   ipcMain.handle('files:pin', (e, id: string, fileId: string, on: boolean) => { active(); return files.pin(id, fileId, on, () => { if (!e.sender.isDestroyed()) e.sender.send('project:changed', { projectId: id }); }); });
   ipcMain.handle('ai:resolve', gated((projectId: string, msgId: string, accept: boolean) => ai.resolve(projectId, msgId, accept)));
-  ipcMain.handle('export:save', (e, id: string, format: ExportFormat) => {
+  ipcMain.handle('export:save', (e, id: string, format: ExportFormat, selection?: import('../shared/ipc.ts').ExportSelection) => {
     if (licenseStatus().state !== 'active') throw new Error('未激活');
     const w = BrowserWindow.fromWebContents(e.sender);
-    return w ? exportSave(w, id, format) : { ok: false };
+    return w ? exportSave(w, id, format, selection) : { ok: false };
   });
 }
 

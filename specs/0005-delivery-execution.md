@@ -57,3 +57,8 @@
 - 下载的 Windows 安装器提取 app.asar，以及只读挂载两种架构的 CI dmg，237 文本文件扫描与正式公钥检查均通过；两个 CI dmg 在本机分别 ARM64 原生、x64 Rosetta 启动到激活页，已卸载挂载卷。云端原生包证据与客户完整验收明确分开。
 - 草稿 Windows 资产因先前并发轮次与新 run artifact 不一致，已以第二轮实际安装验证的 artifact 替换；候选包与草稿必须逐文件核对 SHA256 后才作为交付来源。
 - 流水线修复提交 f710ac2 的 [CI 37890486763](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37890486763) 全部通过。GitHub 会将中文资产文件名归一为 default.md，交付脚本统一使用 INSTALLATION.zh-CN.md，避免下载后的说明文件名与校验清单不一致；源说明仍使用中文文件名。
+
+
+## 2026-10-09 · 按 0006 继续执行的修订
+
+本轮产品合同与逐页差异以 [0007-final-prototype-closure.md](0007-final-prototype-closure.md) 为续补记录：实现真实多分集、分集独立正文/大纲/节拍/封面、范围与版式导出、内置 Courier Prime / 朱雀仿宋及授权文件、知识库元数据撤销与输入时序修复。旧版测试和 beta.1 安装包只证明旧源码；新候选为 **1.0.0-beta.2**。本机74单测与类型检查通过，双平台原生 CI/新安装包证据待本轮运行记录更新。签名、公证、真实服务及客户验收/发送不因草稿构建成功自动通过。老师原文摘录保持不变。

@@ -40,7 +40,7 @@ export function App() {
   useEffect(() => { void refresh(); }, [refresh]);
 
   if (!lic) return null;
-  if (lic.state !== 'active') return <Activate status={lic} onDone={refresh} />;
+  if (lic.state !== 'active') return <div className={`activation-shell ${platform === 'darwin' ? 'mac-shell' : ''}`}>{platform === 'darwin' && <div className="window-bar drag">Ancher Scripter · 激活</div>}<Activate status={lic} onDone={refresh} /></div>;
   if (!keys) return null;
   if (!keys.ancher && !skipKeys) return <KeysSetup onDone={refresh} onSkip={() => setSkipKeys(true)} />;
 
@@ -62,7 +62,7 @@ export function App() {
   return (
     <div className={`shell ${platform === 'darwin' ? 'mac-shell' : ''}`}>
       {platform === 'darwin' && <div className="window-bar drag">Ancher Scripter{route.name === 'project' ? ` — ${TABS.find(([t]) => t === route.tab)?.[2]}` : ''}</div>}
-      {route.name !== 'recents' && route.name !== 'settings' && nav}
+      {route.name !== 'home' && route.name !== 'recents' && route.name !== 'settings' && nav}
       <div className="main">
         {route.name === 'home' && <Home keys={keys} go={setRoute} />}
         {route.name === 'recents' && <Recents trash={!!route.trash} go={setRoute} />}
@@ -73,7 +73,7 @@ export function App() {
             <Workspace key={project.id} id={project.id} pending={project.pending} pendingWeb={project.pendingWeb} pendingEpisode={project.pendingEpisode} keys={keys} go={setRoute} dockHost={route.name === 'project' && route.tab !== 'write' && route.tab !== 'production' && !dockHidden[route.tab] ? dockHost : null} pageContext={{ page: route.name === 'project' ? route.tab : 'write', fileId: route.name === 'project' && route.tab === 'knowledge' ? fileId : undefined }} />
           </div>
         )}
-        {route.name === 'project' && route.tab !== 'write' && <div className="content-row">
+        {route.name === 'project' && route.tab !== 'write' && <div className={`content-row ${route.tab === 'knowledge' ? 'knowledge-row' : ''}`}>
           <div className="content-main">        {route.name === 'project' && route.tab === 'characters' && <Characters key={route.id} id={route.id} />}
         {route.name === 'project' && route.tab === 'locations' && <Locations key={route.id} id={route.id} />}
         {route.name === 'project' && route.tab === 'props' && <Props key={route.id} id={route.id} />}

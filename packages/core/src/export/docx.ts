@@ -10,10 +10,10 @@ const INDENT: Partial<Record<ElementType, { left?: number; right?: number }>> = 
   dialogue: { left: 3.5 * TWIP_PER_CM, right: 2.8 * TWIP_PER_CM },
 };
 
-function para(n: ScriptNode): Paragraph {
+function para(n: ScriptNode, layout: 'hollywood' | 'asian', font: 'typewriter' | 'song' | 'system'): Paragraph {
   const run = (text: string) => new TextRun({
     text,
-    font: { ascii: 'Courier Prime', hAnsi: 'Courier Prime', eastAsia: 'FangSong' },
+    font: font === 'system' ? 'Arial' : font === 'song' ? { ascii: 'Courier Prime', hAnsi: 'Courier Prime', eastAsia: 'SimSun' } : { ascii: 'Courier Prime', hAnsi: 'Courier Prime', eastAsia: 'Zhuque Fangsong' },
     size: 24, // 12pt
     bold: n.type === 'heading' || n.type === 'shot',
     italics: n.type === 'note',
@@ -22,7 +22,7 @@ function para(n: ScriptNode): Paragraph {
   const text = n.type === 'note' ? `[注释] ${n.text}` : n.text;
   return new Paragraph({
     children: [run(text)],
-    indent: INDENT[n.type],
+    indent: layout === 'asian' ? undefined : INDENT[n.type],
     alignment: n.type === 'transition' ? AlignmentType.RIGHT : n.type === 'subtitle' ? AlignmentType.CENTER : AlignmentType.LEFT,
     spacing: {
       before: n.type === 'heading' ? 360 : n.type === 'character' ? 240 : 0,
@@ -33,15 +33,15 @@ function para(n: ScriptNode): Paragraph {
   });
 }
 
-export async function toDocx(title: string, nodes: readonly ScriptNode[]): Promise<Uint8Array> {
+export async function toDocx(title: string, nodes: readonly ScriptNode[], layout: 'hollywood' | 'asian' = 'hollywood', font: 'typewriter' | 'song' | 'system' = 'typewriter'): Promise<Uint8Array> {
   const doc = new Document({
     creator: 'Ancher Scripter',
     title,
     sections: [{
       properties: { page: { margin: { top: 1418, bottom: 1418, left: 1247, right: 1247 } } }, // A4, 2.5 cm / 2.2 cm
       children: [
-        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 600 }, children: [new TextRun({ text: title, bold: true, size: 32, font: { ascii: 'Courier Prime', hAnsi: 'Courier Prime', eastAsia: 'FangSong' } })] }),
-        ...nodes.map(para),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 600 }, children: [new TextRun({ text: title, bold: true, size: 32, font: font === 'system' ? 'Arial' : font === 'song' ? { ascii: 'Courier Prime', hAnsi: 'Courier Prime', eastAsia: 'SimSun' } : { ascii: 'Courier Prime', hAnsi: 'Courier Prime', eastAsia: 'Zhuque Fangsong' } })] }),
+        ...nodes.map((n) => para(n, layout, font)),
       ],
     }],
   });

@@ -73,14 +73,15 @@ export function Editor({ nodes, typingId, freshIds, edit, setLocal }: {
 
   useLayoutEffect(() => {
     const f = focusAfter.current;
-    if (f) { focusAfter.current = null; placeCaret(el(f.id), f.at); }
+    if (f && el(f.id)) { focusAfter.current = null; placeCaret(el(f.id), f.at); }
   });
 
   const onText = (id: string, text: string) => {
     pending.current.set(id, text);
     setLocal((ns) => ns.map((n) => (n.id === id ? { ...n, text } : n)));
     window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => { void flush(); }, 250);
+    // Main already coalesces disk writes; send IPC now so export/close cannot miss the last key.
+    void flush();
   };
 
   const onKey = async (e: KeyboardEvent<HTMLDivElement>, n: ScriptNode) => {
@@ -157,8 +158,8 @@ export function Editor({ nodes, typingId, freshIds, edit, setLocal }: {
   return (
     <div className="paper" ref={root} onKeyDown={(e) => { if (e.key.length === 1) keyClick(e.key); else if (e.key === 'Enter') carriageReturn(); }}>
       {nodes.length === 0 ? (
-        <button className="node" style={{ width: '100%', textAlign: 'left', color: 'var(--ink-3)' }} onClick={startBlank}>
-          点这里开始写，或在右边让 AI 先写第一场。Tab 切换格式 · Enter 换到下一种元素
+        <button className="node blank-script" style={{ width: '100%', textAlign: 'left', color: 'var(--ink-3)' }} onClick={startBlank}>
+          <span className="script-key-help"><kbd>Tab</kbd><span>反复按 Tab 切换格式</span><kbd>Enter</kbd><span>换到下一种剧本元素</span><kbd>@</kbd><span>在右侧提及角色、地点或设定</span></span><span className="blank-heading">内景/外景 地点 — 日/夜</span>
         </button>
       ) : nodes.map((n) => <Line key={n.id} node={n} typing={n.id === typingId} fresh={freshIds.has(n.id)} onText={onText} onKey={onKey} onPaste={onPaste} />)}
     </div>

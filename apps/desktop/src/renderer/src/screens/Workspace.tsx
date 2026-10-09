@@ -12,6 +12,8 @@ import { ShotsView, shotInstruction } from '../components/Shots.tsx';
 import type { Route } from '../App.tsx';
 import { bell, carriageReturn, keyClick, onSound, setSound, soundOn } from '../lib/typewriter.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
+import { Drawer } from '../components/Drawer.tsx';
+import { ExportDialog } from '../components/ExportDialog.tsx';
 import { Editor, placeCaret } from './Editor.tsx';
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -31,7 +33,8 @@ export function Workspace({ id, pending, pendingWeb, pendingEpisode, keys, go, d
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [sound, setSoundState] = useState(soundOn());
   const [exportOpen, setExportOpen] = useState(false);
-  const [view, setView] = useState<'script' | 'outline' | 'shots'>('script');
+  const [episodeDialog, setEpisodeDialog] = useState<{ action: 'create' | 'rename'; id?: string; title: string } | null>(null);
+  const [view, setView] = useState<'script' | 'outline' | 'shots' | 'episodes' | 'beats' | 'cover' | 'scenes'>('script');
   const [launcher, setLauncher] = useState<{ id: WorkflowId; focusId: string | null; focusText: string | null } | null>(null);
   const lastFocus = useRef<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -121,6 +124,8 @@ export function Workspace({ id, pending, pendingWeb, pendingEpisode, keys, go, d
   const edit = useCallback(async (edits: Edit[]) => {
     const s = await window.api.projects.edit(id, edits);
     setSt(s); // node text stays local while typing; ids/types/order come back authoritative
+    if (edits.every((e) => e.op === 'text')) return; // an older keystroke reply must not remove a newer optimistic split
+    setNodes((live) => s.nodes.map((n) => ({ ...n, text: live.find((x) => x.id === n.id)?.text ?? n.text })));
   }, [id]);
 
   /** Reveal newly inserted nodes one by one, character by character. */
@@ -250,13 +255,22 @@ export function Workspace({ id, pending, pendingWeb, pendingEpisode, keys, go, d
   function onOutline(text: string) {
     window.clearTimeout(outlineTimer.current);
     outlineSent.current = text;
-    outlineTimer.current = window.setTimeout(() => { void window.api.projects.setOutline(id, text).then((s) => setSt((x) => (x ? { ...x, outline: s.outline } : s))); }, 400);
+    void window.api.projects.setOutline(id, text).then((s) => setSt((x) => (x ? { ...x, outline: s.outline } : s)));
   }
 
   async function doExport(f: ExportFormat) {
     setExportOpen(false);
     const r = await window.api.exporter.save(id, f);
     if (r.ok) toast(`已导出到 ${r.path}`);
+  }
+
+  async function episode(action: 'create' | 'select' | 'rename', episodeId?: string, title?: string) {
+    if (action !== 'select' && title === undefined) { setEpisodeDialog({ action, id: episodeId, title: action === 'create' ? `第 ${(st?.episodes.length ?? 0) + 1} 集` : st?.episodes.find((e) => e.id === episodeId)?.title ?? '' }); return; }
+    try {
+      const next = await window.api.projects.episode(id, action, episodeId, title);
+      apply(next); setHidden(new Set()); setTyping(null); setFresh(new Set()); setOutlineKey((k) => k + 1); outlineSent.current = null; lastFocus.current = null; setEpisodeDialog(null);
+      if (action !== 'rename') setView('script');
+    } catch (e) { toast(String(e)); }
   }
 
   async function rename(title: string) {
@@ -317,41 +331,31 @@ export function Workspace({ id, pending, pendingWeb, pendingEpisode, keys, go, d
   const pageHeader = (
       <div className="topbar drag">
         <button className="btn btn-quiet no-drag" onClick={() => go({ name: 'home' })} aria-label="返回首页"><Icon name="home" size={15} /></button>
-        <input className="no-drag" defaultValue={st.meta.title} key={st.meta.title} onBlur={(e) => void rename(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-          aria-label="剧本标题" style={{ border: 0, background: 'transparent', fontWeight: 600, fontSize: 15, outline: 'none', minWidth: 120 }} />
-        <span className="muted tnum" style={{ fontSize: 12 }}>{st.scenes.length} 场 · {st.meta.words} 字</span>
-        <span style={{ flex: 1 }} />
+        <b>{view === 'outline' ? '大纲' : view === 'beats' ? '故事节拍' : view === 'episodes' ? '分集看板' : view === 'shots' ? '分镜' : view === 'scenes' ? '场景' : '剧本'}</b><span className="grow" /><div className="seg no-drag"><button aria-pressed={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={12} />剧本</button><button aria-pressed={view === 'cover'} onClick={() => setView('cover')}>封面</button></div><span className="grow" />
         <label className="toggle no-drag" title="打字机音效"><input type="checkbox" checked={sound} onChange={(e) => { setSound(e.target.checked); setSoundState(e.target.checked); }} />打字机音效</label>
+        <button className="btn btn-quiet no-drag" aria-label="撤销最近一轮修改" title="撤销最近一轮生成或笔记信息修改" disabled={!st.turns.some((t) => !t.undone)} onClick={() => { const t = [...st.turns].reverse().find((t) => !t.undone); if (t) void undo(t.id); }}><Icon name="undo" size={14} /></button><button className="btn btn-quiet no-drag" aria-label="批注" onClick={async () => { const newId = crypto.randomUUID().replaceAll('-', ''); setView('script'); await edit([{ op: 'insert', after: lastFocus.current ?? 'end', type: 'note', text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); }}><Icon name="chat" size={14} /></button>
         <span className="no-drag" style={{ position: 'relative' }}>
-          <button className="btn btn-ghost" aria-haspopup="menu" aria-expanded={exportOpen} onClick={() => setExportOpen((o) => !o)}><Icon name="export" size={14} />导出</button>
-          {exportOpen && (
-            <div className="card menu" role="menu" style={{ right: 0, top: 'calc(100% + 6px)', transformOrigin: 'top right' }} onMouseLeave={() => setExportOpen(false)}>
-              <button role="menuitem" onClick={() => { const f = localStorage.getItem('script-default-export') || 'pdf'; void doExport(['pdf', 'docx', 'fdx', 'fountain', 'txt'].includes(f) ? f as ExportFormat : 'pdf'); }}>按默认格式导出</button>
-              {([['pdf', 'PDF', '发给导演、打印'], ['docx', 'Word（.docx）', '继续编辑、走审批'], ['fdx', 'Final Draft（.fdx）', '行业标准格式'], ['fountain', 'Fountain', '纯文本剧本标准'], ['txt', 'TXT', '纯文本']] as const).map(([f, t, d]) => (
-                <button key={f} role="menuitem" onClick={() => void doExport(f)}><span><b>{t}</b><br /><span className="muted" style={{ fontSize: 12 }}>{d}</span></span></button>
-              ))}
-              <div style={{ height: 1, background: 'var(--line)', margin: '4px 6px' }} />
-              <button role="menuitem" onClick={async () => { setExportOpen(false); const r = await window.api.projects.exportArchive(id); if (r.ok) toast(`已导出整个项目到 ${r.path}`); }}>
-                <span><b>整个项目（.scripter）</b><br /><span className="muted" style={{ fontSize: 12 }}>含设定、规则库、知识库和对话，换电脑时用</span></span></button>
-            </div>
-          )}
+          <button className="btn btn-ghost" aria-haspopup="dialog" aria-expanded={exportOpen} onClick={() => setExportOpen((o) => !o)}><Icon name="export" size={14} />导出</button>
+
         </span>
       </div>
   );
 
   return (
     <>
-
+      <ExportDialog open={exportOpen} state={st} onClose={() => setExportOpen(false)} onDone={(path) => toast(`已导出到 ${path}`)} />
+      <Drawer open={!!episodeDialog} title={episodeDialog?.action === 'rename' ? '重命名分集' : '新建一集'} cta="保存" modal onClose={() => setEpisodeDialog(null)} onSubmit={() => episodeDialog ? episode(episodeDialog.action, episodeDialog.id, episodeDialog.title) : undefined}><label>分集名称<input className="input" aria-label="分集名称" value={episodeDialog?.title ?? ''} onChange={(e) => setEpisodeDialog((x) => x ? { ...x, title: e.target.value } : x)} /></label></Drawer>
       <div className="ws" ref={root}>
         <aside className="outline" aria-label="场景">
-          <div className="project-side-title"><b>{st.meta.title}</b><button aria-label="添加场景" onClick={async () => { const nodeId = crypto.randomUUID().replaceAll('-', ''); await edit([{ op: 'insert', after: 'end', type: 'heading', text: '', id: nodeId }]); setView('script'); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${nodeId}"]`), 'end')); }}><Icon name="plus" size={14} /></button></div>
-          <div className="episode-label">第 1 集</div>
+          <div className="project-side-title"><input className="project-title-input" aria-label="剧本标题" defaultValue={st.meta.title} key={st.meta.title} onBlur={(e) => void rename(e.target.value)} /><button aria-label="新建一集" onClick={() => void episode('create')}><Icon name="plus" size={14} /></button></div>
+          <button className="episode-board-link" onClick={() => setView('episodes')}><Icon name="book" size={14} />分集看板</button>
+          {st.episodes.map((e, i) => <div className="episode-row" key={e.id}><button className="episode-label" aria-current={st.activeEpisodeId === e.id ? 'page' : undefined} onClick={() => void episode('select', e.id)}><small>第 {i + 1} 集</small><span>{e.title}</span></button><button className="episode-rename" aria-label={`重命名分集 ${e.title}`} onClick={() => void episode('rename', e.id)}>⋯</button></div>)}
           <div className="view-switch" role="tablist" aria-label="视图">
             <button role="tab" aria-current={view === 'outline'} aria-selected={view === 'outline'} onClick={() => setView('outline')}><Icon name="book" size={14} />大纲</button>
             <button role="tab" aria-current={view === 'script'} aria-selected={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={14} />剧本</button>
             <button role="tab" aria-current={view === 'shots'} aria-selected={view === 'shots'} onClick={() => { setView('shots'); void window.api.projects.open(id).then(apply); }}><Icon name="film" size={14} />分镜</button>
           </div>
-          <div className="eyebrow">场景</div>
+          <button className="episode-board-link" onClick={() => setView('beats')}><Icon name="book" size={14} />故事节拍</button><button className="episode-board-link" onClick={() => setView('scenes')}><Icon name="map" size={14} />场景</button>
           {st.scenes.length === 0 ? <div className="muted" style={{ fontSize: 12, padding: '4px 8px' }}>写下第一个场景标题后会出现在这里</div>
             : st.scenes.map((s) => (
               <button key={s.nodeId} title={s.heading} onClick={() => jumpTo(s.nodeId)}>
@@ -364,13 +368,13 @@ export function Workspace({ id, pending, pendingWeb, pendingEpisode, keys, go, d
         <SelectionBar container={view === 'script' ? paperRef.current : null} />
         <div ref={paperRef} className="paper-scroll" onFocus={(e) => { const nid = (e.target as HTMLElement).dataset?.id; if (nid) lastFocus.current = nid; }}>
           {view === 'script' && <div className="script-toolbar" role="toolbar" aria-label="剧本格式">{([['heading','film','场景'], ['action','pen','动作'], ['character','user','角色'], ['parenthetical','indent','括号'], ['dialogue','chat','对白'], ['transition','export','转场'], ['shot','eye','镜头'], ['note','doc','注释'], ['subtitle','book','字幕']] as const).map(([type, icon, label]) => <button key={type} aria-label={`设为${label}`} onMouseDown={(e) => e.preventDefault()} onClick={async () => { const nodeId = lastFocus.current; if (nodeId && nodes.some((n) => n.id === nodeId)) { await edit([{ op: 'type', id: nodeId, type }]); placeCaret(document.querySelector(`[data-id="${nodeId}"]`), 'end'); } else { const newId = crypto.randomUUID().replaceAll('-', ''); await edit([{ op: 'insert', after: 'end', type, text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); } }}><Icon name={icon} size={14} /><span>{label}</span></button>)}</div>}
-          {view === 'script'
+          {view === 'cover' ? <article className="paper script-cover"><h1>{st.meta.title}</h1><h2>{st.episodes.find((e) => e.id === st.activeEpisodeId)?.title}</h2>{([['author','作者'],['draft','稿次'],['date','日期']] as const).map(([field,label]) => <label key={field}>{label}<input className="input" aria-label={`封面${label}`} defaultValue={st.cover[field]} key={`${st.activeEpisodeId}:${field}`} onBlur={async (e) => setSt(await window.api.projects.setCover(id, { [field]: e.target.value }))} /></label>)}</article> : view === 'scenes' ? <div className="scene-board">{st.scenes.length ? st.scenes.map((s) => <button className="card" key={s.nodeId} onClick={() => jumpTo(s.nodeId)}><h3>{s.index}. {s.heading}</h3><p>{s.characters.join('、') || '暂无角色'} · {s.dialogueCount} 段对白</p></button>) : <div className="empty-state">写下场景标题后会出现在这里</div>}</div> : view === 'episodes' ? <div className="episode-board">{st.episodes.map((e, i) => <button className="card" key={e.id} onClick={() => void episode('select', e.id)}><small>第 {i + 1} 集</small><h2>{e.title}</h2><p>{e.scenes} 场 · {e.words} 字</p></button>)}<button className="card" onClick={() => void episode('create')}>＋ 新建一集</button></div> : view === 'script'
             ? <Editor nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
             : view === 'shots'
               ? <ShotsView st={st} projectId={id} setSt={apply} busy={!!running} onAI={(sc) => void send(shotInstruction(sc))}
                   onAll={() => void send(`给全部 ${st.scenes.length} 场拆分镜：每场一个 setShots（sceneId 用场景标题的节点 id），景别有变化，一句话写清画面和动作。只写分镜，不要改剧本。`)}
                   onExport={() => void doExport('shots')} />
-            : <textarea className="outline-doc" aria-label="大纲" key={outlineKey} defaultValue={st.outline} onChange={(e) => onOutline(e.target.value)}
+            : view === 'beats' ? <textarea className="outline-doc" aria-label="故事节拍" key={st.activeEpisodeId} defaultValue={st.beats} onChange={(e) => { const text = e.target.value; void window.api.projects.setBeats(id, text).then((s) => setSt((x) => x ? { ...x, beats: s.beats } : s)); }} placeholder="写下这一集的关键节拍…" /> : <textarea className="outline-doc" aria-label="大纲" key={outlineKey} defaultValue={st.outline} onChange={(e) => onOutline(e.target.value)}
                 placeholder={'写下这一集的故事大纲：起、承、转、合，重场戏，人物动机。\n「写飘检查」会对照这里检查剧本有没有跑偏。'} />}
         </div>
         </div>

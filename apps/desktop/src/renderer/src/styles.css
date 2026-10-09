@@ -591,7 +591,7 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .dw.centered-modal { inset: 50% auto auto 50%; bottom: auto; width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); transform: translate(-50%, -50%) scale(.98); border-radius: 22px; }
 .dw.centered-modal.open { transform: translate(-50%, -50%); }
 .centered-modal .dw-hd h2 { font-size: 22px; }
-.centered-modal .dw-body { display: grid; grid-template-columns: 240px 1fr; gap: 14px; }
+.centered-modal[aria-label="制作设置"] .dw-body { display: grid; grid-template-columns: 240px 1fr; gap: 14px; }
 .centered-modal .fs { background: var(--muted); padding: 12px; border-radius: 16px; }
 .centered-modal .fs:nth-child(4) { grid-column: 2; grid-row: 1 / span 3; }
 .centered-modal .prod-styles { grid-template-columns: 1fr 1fr; }
@@ -603,3 +603,70 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .recent small { font-size: 11px; display: block; }
 .dock-toggle[hidden] { display: none !important; }
 .character-board .board-tools { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); margin: 0; }
+
+.episode-board-link { display:flex;align-items:center;gap:8px;padding:8px;border-radius:6px;font-size:13px; }
+.episode-row { display:flex;align-items:center; }
+.episode-row .episode-label { flex:1;min-width:0;text-align:left;background:transparent;border:0;margin:2px 0; }
+.outline .episode-rename { width:28px;flex:none;padding:6px; }
+.project-title-input { width:100%;min-width:0;border:0;background:transparent;color:var(--ink);font-size:13px;font-weight:600;outline:none; }
+.writing-center > .topbar { gap:8px; }
+.writing-center > .topbar .toggle { font-size:11px; }
+.script-cover { text-align:center; }
+.script-cover h1 { margin:90px 0 24px; }
+.script-cover label { display:block;max-width:300px;margin:24px auto;text-align:left; }
+.script-cover label input { display:block;width:100%;margin-top:8px; }
+.scene-board { display:grid;gap:12px; }
+.scene-board button { text-align:left;padding:18px; }
+.script-key-help { display:grid;grid-template-columns:auto 1fr;gap:10px 14px;align-items:center;font-size:12px; }
+.script-key-help kbd { border:1px solid var(--line);border-radius:3px;padding:2px 6px; }
+.blank-heading { display:block;margin-top:28px;font-size:12px;letter-spacing:.08em; }
+.activation-shell { height:100%;display:flex;flex-direction:column; }
+.activation-shell .act { flex:1;min-height:0;height:auto;grid-template-columns:minmax(400px,.95fr) 1.05fr;gap:16px;padding:16px; }
+.activation-shell .act-form { grid-column:1;grid-row:1;max-width:none;align-items:center;padding:24px; }
+.activation-shell .act-form > div { width:min(400px,100%); }
+.activation-shell .act-form > div:nth-child(2) { text-align:center; }
+.activation-shell .act-form > button { width:min(400px,100%); }
+.activation-shell .act-art { grid-column:2;grid-row:1;border-radius:24px; }
+.activation-shell .act-art::after { background:none; }
+.home-in { margin:auto 0;padding-top:0; }
+.home .home-links { margin-top:12px; }
+.collection-shell .settings section { max-width:none; }
+.note-list { width:256px;padding:8px; }
+.note-frame > .note-tools { padding:20px 20px 12px; }
+.note-content { padding:24px 20px 64px; }
+.side-list:not(.note-list) { padding-top:14px; }
+.collection-main > .topbar { padding-left:32px;border-bottom:0; }
+.collection-main > .page { padding:0 32px 24px; }
+.collection-main .recent-grid { padding:8px 0; }
+.episode-label small { display:block;color:var(--ink-3);font-size:11px; }
+.episode-label span { display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+.episode-label[aria-current="page"] { background:var(--surface);box-shadow:var(--shadow-card); }
+.episode-rename { padding:4px;color:var(--ink-3); }
+.episode-board { padding:24px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px; }
+.episode-board .card { min-height:180px;padding:20px;text-align:left; }
+.export-columns { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px; }
+.export-columns section { padding:12px;border-radius:14px;background:var(--muted); }
+.export-columns header { display:flex;justify-content:space-between;font-weight:600;font-size:13px;margin-bottom:8px; }
+.export-columns header button { color:var(--ink-3);font-weight:400; }
+.export-choice { display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;margin-bottom:6px;border-radius:10px;background:var(--surface);font-size:12.5px; }
+.export-choice small { display:block;font-size:11px;color:var(--ink-3); }
+.export-choice input { accent-color:var(--primary); }
+.export-content-grid { display:grid;grid-template-columns:1fr 1fr;gap:6px; }
+.centered-modal[aria-label="导出"] { width:min(780px,calc(100vw - 32px)); }
+@font-face{font-family:'Courier Prime';src:url('/fonts/CourierPrime-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:'Courier Prime';src:url('/fonts/CourierPrime-Bold.ttf') format('truetype');font-weight:700;font-display:swap}
+@font-face{font-family:'Zhuque Fangsong';src:url('/fonts/ZhuqueFangsong-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+
+.knowledge-row .dock-host { width:408px; }
+.note-tools .chip { height:32px;padding:0 10px;border-radius:10px; }
+.note-tools .chip[aria-pressed="true"] { color:var(--primary);background:var(--primary-soft);box-shadow:inset 0 0 0 1px var(--primary); }
+.centered-modal[aria-label="制作设置"] .prod-style { padding:0;gap:0;overflow:hidden; }
+.centered-modal[aria-label="制作设置"] .prod-sw { position:relative;margin:0;width:100%; }
+.prod-era { position:absolute;left:8px;top:8px;background:rgb(0 0 0 / .45);color:white;border-radius:6px;padding:2px 6px;font-size:11px; }
+.centered-modal[aria-label="制作设置"] .prod-style b { padding:8px 10px;font-size:12.5px; }
+.prod-extra { margin-top:8px;font-size:12px; }
+.prod-extra summary { cursor:pointer;color:var(--ink-3); }
+
+.centered-modal[aria-label="制作设置"] .fs > b { padding:0 0 8px; }
+.centered-modal[aria-label="制作设置"] .fs > .in { padding:0;background:transparent;gap:8px; }
+.centered-modal[aria-label="制作设置"] .fs > .in p { margin:0; }

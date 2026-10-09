@@ -258,6 +258,7 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
   }
 
   function onKey(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return;
     if (mention && list.length) {
       if (e.key === 'ArrowDown') { setMention({ ...mention, sel: (mention.sel + 1) % list.length }); e.preventDefault(); return; }
       if (e.key === 'ArrowUp') { setMention({ ...mention, sel: (mention.sel - 1 + list.length) % list.length }); e.preventDefault(); return; }

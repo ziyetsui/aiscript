@@ -5,11 +5,14 @@ import { LoroDoc, LoroMap, LoroText, type Frontiers, type LoroMovableList } from
 import { Collection, PRODUCTION_DEFAULTS, readBible, type Bible, type BibleKind, type Production } from './bible.ts';
 import { ELEMENT_TYPES, newId, type ElementType, type ScriptNode } from './script.ts';
 
-export interface Turn { id: string; label: string; before: Frontiers; after: Frontiers; undone: boolean }
+export interface Turn { id: string; label: string; before: Frontiers; after: Frontiers; undone: boolean; episodeId?: string }
+export interface Episode { id: string; title: string }
+export interface ScriptCover { author: string; draft: string; date: string }
 
 export class ScriptDoc {
   readonly doc: LoroDoc;
   private turns: Turn[] = [];
+  private viewEpisodeId?: string;
 
   constructor(doc = new LoroDoc()) {
     this.doc = doc;
@@ -24,7 +27,38 @@ export class ScriptDoc {
   }
 
   private get list(): LoroMovableList {
-    return this.doc.getMovableList('nodes');
+    return this.doc.getMovableList(this.activeEpisodeId === 'first' ? 'nodes' : `nodes:${this.activeEpisodeId}`);
+  }
+
+  get activeEpisodeId(): string { return this.viewEpisodeId ?? (this.doc.getMap('meta').get('activeEpisode') as string | undefined) ?? 'first'; }
+  episodes(): Episode[] {
+    const list = this.doc.getMovableList('episodes');
+    if (!list.length) return [{ id: 'first', title: '第 1 集' }];
+    return Array.from({ length: list.length }, (_, i) => { const e = list.get(i) as LoroMap; return { id: e.get('id') as string, title: e.get('title') as string }; });
+  }
+  private episodeEntry(id: string): LoroMap {
+    const list = this.doc.getMovableList('episodes');
+    if (!list.length) { const e = list.insertContainer(0, new LoroMap()); e.set('id', 'first'); e.set('title', '第 1 集'); }
+    for (let i = 0; i < list.length; i++) { const e = list.get(i) as LoroMap; if (e.get('id') === id) return e; }
+    throw new Error('分集不存在');
+  }
+  addEpisode(title: string): string {
+    this.episodeEntry('first');
+    const id = newId(); const list = this.doc.getMovableList('episodes'); const e = list.insertContainer(list.length, new LoroMap());
+    e.set('id', id); e.set('title', title.trim() || `第 ${list.length} 集`); this.selectEpisode(id); return id;
+  }
+  selectEpisode(id: string): void {
+    if (!this.episodes().some((e) => e.id === id)) throw new Error('分集不存在');
+    this.doc.getMap('meta').set('activeEpisode', id); this.doc.commit({ message: 'select episode' });
+  }
+  renameEpisode(id: string, title: string): void {
+    if (!title.trim()) throw new Error('分集名称不能为空');
+    this.episodeEntry(id).set('title', title.trim()); this.doc.commit({ message: 'rename episode' });
+  }
+  /** Export/reference view of the same project; never changes the writer's active episode. */
+  episode(id: string): ScriptDoc {
+    if (!this.episodes().some((e) => e.id === id)) throw new Error('分集不存在');
+    const view = new ScriptDoc(this.doc); view.viewEpisodeId = id; return view;
   }
 
   get title(): string {
@@ -38,15 +72,22 @@ export class ScriptDoc {
 
   /** Story outline (大纲): one rich-text-free LoroText, edited as plain text. */
   get outline(): string {
-    return this.doc.getText('outline').toString();
+    return this.doc.getText(this.activeEpisodeId === 'first' ? 'outline' : `outline:${this.activeEpisodeId}`).toString();
   }
 
   setOutline(text: string): void {
-    const t = this.doc.getText('outline');
+    const t = this.doc.getText(this.activeEpisodeId === 'first' ? 'outline' : `outline:${this.activeEpisodeId}`);
     if (t.toString() === text) return;
     t.delete(0, t.length);
     t.insert(0, text);
   }
+  get beats(): string { return this.doc.getText(this.activeEpisodeId === 'first' ? 'beats' : `beats:${this.activeEpisodeId}`).toString(); }
+  setBeats(text: string): void {
+    const t = this.doc.getText(this.activeEpisodeId === 'first' ? 'beats' : `beats:${this.activeEpisodeId}`);
+    if (t.toString() === text) return; t.delete(0, t.length); t.insert(0, text);
+  }
+  get cover(): ScriptCover { return { author: '', draft: '', date: '', ...this.doc.getMap(`cover:${this.activeEpisodeId}`).toJSON() } as ScriptCover; }
+  setCover(patch: Partial<ScriptCover>): void { const m = this.doc.getMap(`cover:${this.activeEpisodeId}`); for (const key of ['author','draft','date'] as const) if (typeof patch[key] === 'string') m.set(key, patch[key]!.slice(0, 500)); this.commit('cover'); }
 
   /** 制作设置 (prototype P6). */
   get production(): Production {
@@ -136,7 +177,7 @@ export class ScriptDoc {
       throw e;
     }
     this.doc.commit({ message: `ai: ${label}` });
-    const t: Turn = { id: newId(), label, before, after: this.doc.frontiers(), undone: false };
+    const t: Turn = { id: newId(), label, before, after: this.doc.frontiers(), undone: false, episodeId: this.activeEpisodeId };
     this.turns.push(t);
     return t;
   }

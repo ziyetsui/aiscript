@@ -77,6 +77,18 @@ jobs:
           done
           pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.target }} --publish always
 
+      - name: Scan packaged resources
+        working-directory: apps/desktop
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then
+            node ../../scripts/scan-package.mjs release/win-unpacked/resources/app.asar
+          else
+            for archive in release/mac*/Ancher\ Scripter.app/Contents/Resources/app.asar; do
+              node ../../scripts/scan-package.mjs "$archive"
+            done
+          fi
+
       - name: Installed Windows package smoke
         if: runner.os == 'Windows'
         working-directory: apps/desktop

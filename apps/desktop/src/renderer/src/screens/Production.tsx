@@ -127,13 +127,13 @@ export function Production({ id }: { id: string }) {
               <div className="prod-styles" role="radiogroup" aria-label="美术风格">
                 {ART_STYLES.map((s, i) => (
                   <button key={s.name} type="button" role="radio" aria-checked={settings.style === s.name} className="card prod-style" onClick={() => setSettings({ ...settings, style: s.name })}>
-                    <span className="prod-sw" style={{ background: `linear-gradient(135deg, ${STYLE_COLORS[i]}, color-mix(in srgb, ${STYLE_COLORS[i]}, black 40%))` }} />
-                    <b>{s.name}</b><span className="muted">{s.era}</span>
+                    <span className="prod-sw" style={{ background: `linear-gradient(135deg, ${STYLE_COLORS[i]}, color-mix(in srgb, ${STYLE_COLORS[i]}, black 40%))` }}><span className="prod-era">{s.era}</span></span>
+                    <b>{s.name}</b>
                   </button>
                 ))}
               </div>
-              <label className="fl" htmlFor="style-note">风格补充（可选）</label>
-              <textarea id="style-note" className="input" value={settings.styleNote} onChange={(e) => setSettings({ ...settings, styleNote: e.target.value })} placeholder="例如：暖橙色傍晚光，九十年代北京胡同，手绘质感" />
+              <details className="prod-extra"><summary>风格补充（可选）</summary><label className="fl" htmlFor="style-note">风格补充</label>
+              <textarea id="style-note" className="input" value={settings.styleNote} onChange={(e) => setSettings({ ...settings, styleNote: e.target.value })} placeholder="例如：暖橙色傍晚光，九十年代北京胡同，手绘质感" /></details>
             </Section>
           </>
         )}

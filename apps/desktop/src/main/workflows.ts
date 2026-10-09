@@ -99,6 +99,7 @@ export function start(projectId: string, wf: WorkflowId, input: WorkflowInput, f
   const p = get(projectId);
   workflow(wf); // throws on unknown ids
   const run = newRun(workflow(wf), input, randomUUID());
+  run.ctx.episodeId = p.doc.activeEpisodeId;
   runsOf(p).push(run);
   if (runsOf(p).length > 60) runsOf(p).splice(0, runsOf(p).length - 60);
   pushChat(p, { id: randomUUID(), role: 'ai', text: '', at: Date.now(), runId: run.id });
@@ -113,6 +114,7 @@ export function cancel(runId: string, projectId?: string): void {
   if (!projectId) return;
   const p = get(projectId);
   const run = runsOf(p).find((r) => r.id === runId);
+  if (run && (run.ctx.episodeId ?? 'first') !== p.doc.activeEpisodeId) throw new Error('请切回此工作流所属的分集后再操作');
   if (run?.status === 'waiting') {
     run.status = 'cancelled';
     run.waiting = undefined;
@@ -128,6 +130,7 @@ export function confirmStep(projectId: string, runId: string, text: string, from
   sender = from;
   const p = get(projectId);
   const run = runsOf(p).find((r) => r.id === runId);
+  if (run && (run.ctx.episodeId ?? 'first') !== p.doc.activeEpisodeId) throw new Error('请切回此工作流所属的分集后再操作');
   if (!run || run.status !== 'waiting' || !run.waiting) return state(p);
   const stepId = run.waiting.stepId;
   confirm(run, text);
@@ -151,6 +154,7 @@ export function retry(projectId: string, runId: string, from: WebContents): Proj
   sender = from;
   const p = get(projectId);
   const run = runsOf(p).find((r) => r.id === runId);
+  if (run && (run.ctx.episodeId ?? 'first') !== p.doc.activeEpisodeId) throw new Error('请切回此工作流所属的分集后再操作');
   if (run && !live.has(runId) && (run.status === 'failed' || run.status === 'cancelled')) launch(p, run);
   return state(p);
 }
@@ -159,6 +163,7 @@ export function retry(projectId: string, runId: string, from: WebContents): Proj
 export function apply(projectId: string, runId: string, a: WorkflowAction): { ok: boolean; message: string; state: ProjectState } {
   const p = get(projectId);
   const run = runsOf(p).find((r) => r.id === runId);
+  if (run && (run.ctx.episodeId ?? 'first') !== p.doc.activeEpisodeId) throw new Error('请切回此工作流所属的分集后再操作');
   const r = run?.result;
   const done = (message: string, ok = true) => { if (ok && run) run.applied = message; saveNow(p); if (run) emit(projectId, run); return { ok, message, state: state(p) }; };
   if (!run || !r) return done('这个工作流还没有结果', false);

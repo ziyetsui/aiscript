@@ -14,7 +14,7 @@ export interface KnowledgeFile {
   id: string; name: string; size: number; src: 'upload' | 'chat'; file: string; addedAt: number;
   /** "写作时参考": the extracted text is sent with writing requests as reference material. */
   title: string; tags: { label: string; color: string }[]; memo: string; group: string; summary: string;
-  starred: boolean; revision: number; pinned: boolean; excerpt: string; extract: 'none' | 'working' | 'ready' | 'failed';
+  starred: boolean; revision: number; pinned: boolean; excerpt: string; extract: 'none' | 'working' | 'ready' | 'failed'; extractError: string;
 }
 /** Director-review rules (spec 0002 §1.1 "审稿与规则库"): pending until a human confirms; hard rules vs preferences. */
 export interface Rule { id: string; text: string; scope: string; source: string; level: 'hard' | 'pref'; status: 'pending' | 'active'; addedAt: number }
@@ -52,7 +52,7 @@ export const BIBLE_DEFAULTS: { [K in BibleKind]: Omit<BibleItem<K>, 'id'> } = {
   locations: { name: '', ie: '外景', times: ['日'], desc: '', visual: '', color: 'oklch(0.55 0.06 150)', image: '' },
   props: { name: '', category: '', color: 'oklch(0.36 0.07 160)', desc: '', visual: '', x: 40, y: 40 },
   world: { title: '', value: '' },
-  files: { title: '', tags: [], memo: '', group: '全部笔记', summary: '', name: '', size: 0, src: 'upload', file: '', addedAt: 0, starred: false, revision: 1, pinned: false, excerpt: '', extract: 'none' },
+  files: { title: '', tags: [], memo: '', group: '全部笔记', summary: '', name: '', size: 0, src: 'upload', file: '', addedAt: 0, starred: false, revision: 1, pinned: false, excerpt: '', extract: 'none', extractError: '' },
   rules: { text: '', scope: '全剧', source: '', level: 'hard', status: 'pending', addedAt: 0 },
   jokes: { text: '', mechanism: '', verdict: 'good', context: '', addedAt: 0 },
   topics: { title: '', logline: '', why: '', source: '', status: 'idea', reason: '', addedAt: 0 },
