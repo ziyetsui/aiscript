@@ -45,7 +45,11 @@ const Line = memo(function Line({ node, typing, fresh, onText, onKey, onPaste }:
   return (
     <div ref={ref} className={`node${typing ? ' caret' : ''}${fresh ? ' fresh' : ''}`} data-id={node.id} data-type={node.type} data-ph={PH[node.type]}
       contentEditable={typing ? false : 'plaintext-only'} suppressContentEditableWarning spellCheck={false} role="textbox" aria-label={ELEMENT_LABEL[node.type]}
-      onInput={(e) => onText(node.id, e.currentTarget.textContent ?? '')} onKeyDown={(e) => onKey(e, node)} onPaste={(e) => onPaste(e, node)} />
+      onInput={(e) => {
+        const input = e.nativeEvent as InputEvent;
+        if (input.isTrusted && ['insertText', 'insertCompositionText', 'insertFromComposition'].includes(input.inputType) && input.data) keyClick(input.data);
+        onText(node.id, e.currentTarget.textContent ?? '');
+      }} onKeyDown={(e) => onKey(e, node)} onPaste={(e) => onPaste(e, node)} />
   );
 });
 
@@ -90,6 +94,7 @@ export function Editor({ nodes, typingId, freshIds, edit, setLocal }: {
     const off = caretOffset(e.currentTarget);
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
+      if (e.nativeEvent.isTrusted) carriageReturn();
       const before = text.slice(0, off);
       const after = text.slice(off);
       const curType = inferType(before, n.type);
@@ -156,7 +161,7 @@ export function Editor({ nodes, typingId, freshIds, edit, setLocal }: {
   }
 
   return (
-    <div className="paper" ref={root} onKeyDown={(e) => { if (e.key.length === 1) keyClick(e.key); else if (e.key === 'Enter') carriageReturn(); }}>
+    <div className="paper" ref={root}>
       {nodes.length === 0 ? (
         <button className="node blank-script" style={{ width: '100%', textAlign: 'left', color: 'var(--ink-3)' }} onClick={startBlank}>
           <span className="script-key-help"><kbd>Tab</kbd><span>反复按 Tab 切换格式</span><kbd>Enter</kbd><span>换到下一种剧本元素</span><kbd>@</kbd><span>在右侧提及角色、地点或设定</span></span><span className="blank-heading">内景/外景 地点 — 日/夜</span>

@@ -7,13 +7,15 @@ import { spawnSync } from 'node:child_process';
 import ffmpeg from 'ffmpeg-static';
 import { _electron as electron } from 'playwright-core';
 import { generateKeypair, issueOfflineCode } from '../../../packages/license/src/offline.ts';
+import { GOOD_KEY, startFakeAncher } from './fake-ancher.ts';
 
+const fake = await startFakeAncher();
 const tmp = mkdtempSync(join(tmpdir(), 'scripter-gemini-e2e-'));
 const { privatePem, publicPem } = generateKeypair();
 writeFileSync(join(tmp, 'public.pem'), publicPem);
 const media = join(tmp, 'local-video.mp4');
 assert.equal(spawnSync(ffmpeg!, ['-v', 'error', '-f', 'lavfi', '-i', 'color=size=32x32:rate=1:duration=1', '-f', 'lavfi', '-i', 'sine=duration=1', '-shortest', '-c:v', 'mpeg4', '-c:a', 'aac', media]).status, 0);
-const env = { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: join(tmp, 'data'), SCRIPTER_LICENSE_PUBKEY: join(tmp, 'public.pem') };
+const env = { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: join(tmp, 'data'), SCRIPTER_LICENSE_PUBKEY: join(tmp, 'public.pem'), SCRIPTER_ANCHER_BASE_URL: fake.url };
 const launch = () => electron.launch({ args: [join(import.meta.dirname, '..')], env });
 let app = await launch();
 try {
@@ -28,7 +30,9 @@ try {
   assert.equal(await page.getByLabel('Gemini 服务').inputValue(), 'ai-studio');
   await page.getByLabel('Gemini 服务').selectOption('google-cloud');
   await app.evaluate(() => {
+    const originalFetch = globalThis.fetch;
     globalThis.fetch = async (url, init) => {
+      if (String(url).startsWith('http://127.0.0.1:')) return originalFetch(url, init);
       if (String(url) !== 'https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent') throw new Error('Unexpected endpoint');
       const key = (init?.headers as Record<string, string>)['x-goog-api-key'];
       if (key === 'denied-cloud-key') return new Response('{}', { status: 403 });
@@ -62,7 +66,24 @@ try {
   assert.ok(result.runs[0]?.applied?.includes('逐字稿.txt'));
   assert.equal(result.bible.files.length, 2);
   for (const file of result.bible.files) {
+    assert.equal(file.extract, 'ready');
+    assert.match(file.excerpt, /小明：你好。/);
     assert.match(await page.evaluate(({ id, fileId }) => window.api.files.readBody(id, fileId), { id: project.id, fileId: file.id }), /小明：你好。/);
+  }
+  // With Ancher connected, generated metadata is saved on both local notes.
+  assert.equal((await page.evaluate(key => window.api.keys.setAncher(key), GOOD_KEY)).ok, true);
+  const titled = await page.evaluate(() => window.api.projects.create('自动笔记信息', 'video'));
+  await page.evaluate(({ id, filePath }) => window.api.workflows.start(id, 'transcribe', { filePath }), { id: titled.id, filePath: media });
+  let titledResult = await page.evaluate(id => window.api.projects.open(id), titled.id);
+  for (let i = 0; i < 200 && !titledResult.runs[0]?.applied && titledResult.runs[0]?.status !== 'failed'; i++) {
+    await page.waitForTimeout(100);
+    titledResult = await page.evaluate(id => window.api.projects.open(id), titled.id);
+  }
+  assert.equal(titledResult.bible.files.length, 2, JSON.stringify(titledResult.runs));
+  assert.deepEqual(titledResult.bible.files.map(f => f.title), ['小明的问候 · 逐字稿', '小明的问候 · 字幕']);
+  for (const file of titledResult.bible.files) {
+    assert.equal(file.summary, '视频中小明向对方问好。');
+    assert.match(file.excerpt, /小明：你好。/);
   }
   await app.close();
   app = await launch(); page = await app.firstWindow();
@@ -70,8 +91,10 @@ try {
   assert.equal(status.geminiService, 'google-cloud');
   assert.equal(status.gemini, true);
   assert.ok(!JSON.stringify(status).includes('test-cloud-key'));
+  assert.deepEqual((await page.evaluate(id => window.api.projects.open(id), titled.id)).bible.files.map(f => ({ title: f.title, summary: f.summary })), titledResult.bible.files.map(f => ({ title: f.title, summary: f.summary })));
   console.log('Gemini E2E passed: Cloud validation, encrypted key, video → MP3 → TXT/SRT, restart persistence.');
 } finally {
   await app.close().catch(() => {});
+  fake.server.close();
   rmSync(tmp, { recursive: true, force: true });
 }

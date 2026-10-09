@@ -16,6 +16,7 @@ function replyFor(prompt: string): string {
     if (m) return `把这句改得更像孩子说话。<ops>[{"op":"updateNode","id":"${m[1]}","text":"石头……石头它会说话？！"}]</ops>`;
   }
   const r = (o: unknown) => `好的。<result>${JSON.stringify(o)}</result>`;
+  if (prompt.includes('为视频转写笔记生成中文标题和摘要')) return r({ title: '小明的问候', summary: '视频中小明向对方问好。' });
   if (/用户：给(第 \d+ 场|全部 \d+ 场).*拆分镜/.test(prompt)) {
     const ids = [...prompt.matchAll(/sceneId 是 (\S+?)）/g)].map((m) => m[1]);
     return `拆好了。<ops>${JSON.stringify(ids.map((sceneId) => ({ op: 'setShots', sceneId, shots: [{ size: '全景', desc: '胡同口，夕阳斜照', dur: 4 }, { size: '特写', desc: '豆豆捏着开胶的鞋头', dur: 2 }] })))}</ops>`;

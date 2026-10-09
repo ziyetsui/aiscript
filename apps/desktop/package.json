@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ancher-ai/sdk": "0.4.0",
+    "@mastra/core": "1.75.0",
     "@modelcontextprotocol/sdk": "1.27.1",
     "electron-updater": "6.8.9",
     "fflate": "0.8.3",

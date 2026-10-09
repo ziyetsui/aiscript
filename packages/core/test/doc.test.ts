@@ -194,3 +194,15 @@ describe('outline ops', async () => {
     expect(previewOps(d, [{ op: 'setOutline', text: '新大纲' }]).items).toEqual([{ kind: 'outline', mode: 'replace', before: '旧大纲', after: '新大纲' }]);
   });
 });
+
+it('writes beats as their own undoable document and previews replacements', async () => {
+ const { parseReply, applyOps, previewOps, needsReview } = await import('../src/index.ts');
+ const d = new ScriptDoc();
+ const parsed = parseReply(`<ops>${JSON.stringify([{op:'setBeats',text:'起：借来神笔\n转：发现代价'}])}</ops>`);
+ expect(parsed.errors).toEqual([]);
+ const turn = applyOps(d, parsed.ops, '写入故事节拍');
+ expect(d.beats).toContain('发现代价');expect(d.outline).toBe('');expect(d.nodes()).toHaveLength(0);
+ expect(needsReview(parsed.ops, '', [], '旧节拍')).toBe(true);
+ expect(previewOps(d, parsed.ops).items[0]).toMatchObject({kind:'beats',after:'起：借来神笔\n转：发现代价'});
+ d.undoTurn(turn.id);expect(d.beats).toBe('');
+});

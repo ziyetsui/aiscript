@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
-import { describeError, loadAncherLibrary, readAncherNote } from '@scripter/agent';
+import { createAncherNote, type CreateAncherNoteInput, describeError, loadAncherLibrary, readAncherNote } from '@scripter/agent';
 import { ancher } from './ai.ts';
 import { getSecret } from './secrets.ts';
 import { filePath, filesDir, get, saveNow, state } from './projects.ts';
@@ -38,4 +38,9 @@ export async function importNote(projectId: string, noteId: string) {
   });
   p.doc.commit('import Ancher note'); saveNow(p);
   return { state: state(p), fileId };
+}
+
+export async function create(input: CreateAncherNoteInput) {
+  try { return await createAncherNote(account(), input); }
+  catch (e) { throw new Error(describeError(e)); }
 }

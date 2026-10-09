@@ -11,7 +11,6 @@ import { ChatImages, AssistantMessage, ChatHeader, Composer, EmptyChat, JumpPill
 import { SelectionBar } from '../components/SelectionBar.tsx';
 import { ShotsView, shotInstruction } from '../components/Shots.tsx';
 import type { Route } from '../App.tsx';
-import { bell, carriageReturn, keyClick, onSound, setSound, soundOn } from '../lib/typewriter.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
 import { Drawer } from '../components/Drawer.tsx';
 import { ExportDialog } from '../components/ExportDialog.tsx';
@@ -31,6 +30,8 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
   const [askingImages, setAskingImages] = useState<ClipboardImage[]>([]);
   const [notes, setNotes] = useState<ChatNoteAttachment[]>([]);
   const noteFocus = useRef(false);
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
   const [askingNotes, setAskingNotes] = useState<ChatNoteAttachment[]>([]);
   const [cloudNotes, setCloudNotes] = useState<{ id: string; title: string; status: string }[]>([]);
   const [web, setWeb] = useState(pendingWeb ?? false);
@@ -40,7 +41,6 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
   const [hidden, setHidden] = useState<Set<string>>(new Set());
   const [typing, setTyping] = useState<{ id: string; shown: number } | null>(null);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
-  const [sound, setSoundState] = useState(soundOn());
   const [exportOpen, setExportOpen] = useState(false);
   const [episodeDialog, setEpisodeDialog] = useState<{ action: 'create' | 'rename'; id?: string; title: string } | null>(null);
   const [view, setView] = useState<'script' | 'outline' | 'shots' | 'episodes' | 'beats' | 'cover' | 'scenes'>('script');
@@ -54,12 +54,12 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
   const toast = useToast();
   useEffect(() => {
     const attach = (event: Event) => {
-      const detail = (event as CustomEvent<{ projectId: string; note: ChatNoteAttachment }>).detail;
+      const detail = (event as CustomEvent<{ projectId: string; note: ChatNoteAttachment; accepted?: boolean }>).detail;
       if (detail?.projectId !== id || !detail.note) return;
       noteFocus.current = true;
-      if (notes.some((note) => note.source === detail.note.source && note.id === detail.note.id)) toast('这条笔记已在待发送附件中');
-      else if (notes.length >= 10) { toast('每条消息最多添加 10 条笔记'); return; }
-      else setNotes((current) => [...current, detail.note]);
+      if (notesRef.current.some((note) => note.source === detail.note.source && note.id === detail.note.id)) { detail.accepted = true; toast('这条参考已在待发送附件中'); }
+      else if (notesRef.current.length >= 10) { toast('每条消息最多添加 10 条参考'); return; }
+      else { notesRef.current = [...notesRef.current, detail.note]; setNotes(notesRef.current); detail.accepted = true; }
       requestAnimationFrame(() => document.getElementById('agent-in')?.focus());
     };
     window.addEventListener('scripter:attach-note', attach);
@@ -93,7 +93,6 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     void check(); return () => { live = false; clearTimeout(timer); };
   }, [id, pageContext?.page, apply]);
   useEffect(() => { const h = (e: Event) => { if ((e as CustomEvent<string>).detail === id) void window.api.projects.open(id).then(apply); }; window.addEventListener('scripter:note', h); return () => window.removeEventListener('scripter:note', h); }, [id, apply]);
-  useEffect(() => onSound(setSoundState), []);
   useEffect(() => window.api.ai.onDelta((d) => { if (d.reqId === running) setStream((s) => s + d.text); }), [running]);
   const [acts, setActs] = useState<ActivityRow[]>([]); // live agent activity for the running request
   useEffect(() => window.api.ai.onActivity((d) => { if (d.reqId === running) setActs(d.rows); }), [running]);
@@ -166,14 +165,11 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
       const step = Math.max(1, Math.ceil(n.text.length / 60)); // long paragraphs speed up so a turn never drags
       for (let i = 0; i <= n.text.length; i += step) {
         setTyping({ id: nid, shown: i });
-        keyClick(n.text[i] ?? '');
         await new Promise((r) => setTimeout(r, 16));
       }
       setTyping(null);
-      carriageReturn();
       await new Promise((r) => setTimeout(r, 60));
     }
-    bell();
   }
 
   async function send(text: string, attached: ClipboardImage[] = [], target?: 'outline', attachedNotes: ChatNoteAttachment[] = [], selectedSkill?: string) {
@@ -195,11 +191,11 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     setStream('');
     setActs([]);
     setRunning(reqId);
-    const focusId = (document.activeElement as HTMLElement | null)?.dataset?.id;
+    const focusId = lastFocus.current ?? (document.activeElement as HTMLElement | null)?.dataset?.id;
     const before = new Set(nodes.map((n) => n.id));
     let r: AiWriteResult;
     try {
-      r = await window.api.ai.write({ reqId, projectId: id, instruction: t, images: attached, notes: attachedNotes, target, skillActionId: selectedSkill, webSearch: web || selectedSkill === 'scan', focusId, pageContext });
+      r = await window.api.ai.write({ reqId, projectId: id, instruction: t, images: attached, notes: attachedNotes, target, skillActionId: selectedSkill, webSearch: web || selectedSkill === 'scan', focusId, pageContext: { ...pageContext, page: pageContext?.page ?? 'write', document: view === 'outline' || view === 'shots' || view === 'beats' ? view : 'script' } });
     } catch (e) {
       r = { ok: false, narration: '', applied: 0, errors: [], citations: [], message: String(e) };
     }
@@ -214,7 +210,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     if (!r.ok && !r.cancelled && attached.length) { setImages((current) => current.length ? current : attached); setInput((current) => current || text); }
     const newIds = s.nodes.filter((n) => !before.has(n.id)).map((n) => n.id);
     apply(s);
-    if (r.ok && r.turn) void typeOut(newIds, s.nodes);
+    if (r.ok && r.turn) { revealChanges(st, s); void typeOut(newIds, s.nodes); }
     if (r.ok && r.turn && s.outline !== st?.outline) toast('已写进大纲，点左侧「大纲」查看');
     if (!r.ok && !r.cancelled && r.message && !s.chat.length) toast(r.message);
     setGhost(suggestNext([...s.chat].reverse().find((m) => m.role === 'ai')?.text ?? '', s.chat.length));
@@ -249,6 +245,15 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     toast(r.added ? `已添加 ${r.added} 个参考文件，AI 写作时会参考` : '没有添加文件');
   }
 
+  function revealChanges(before: ProjectState | null, next: ProjectState) {
+    if (!before) return;
+    if (JSON.stringify(before.nodes) !== JSON.stringify(next.nodes)) setView('script');
+    else if (before.outline !== next.outline) setView('outline');
+    else if (before.beats !== next.beats) setView('beats');
+    else if (JSON.stringify(before.bible.shots) !== JSON.stringify(next.bible.shots)) setView('shots');
+    if (pageContext?.page && pageContext.page !== 'write') go({name:'project',id,tab:'write'});
+  }
+
   async function undo(turnId: string) {
     apply(await window.api.projects.undoTurn(id, turnId));
     toast('已撤销这一轮修改');
@@ -260,6 +265,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     apply(r.state);
     if (!r.ok) { toast(r.message ?? '没有写入'); return; }
     if (!accept) { toast('已拒绝，剧本没有改动'); return; }
+    revealChanges(st, r.state);
     const changed = (m.preview?.items ?? []).flatMap((it) => ('id' in it ? [it.id] : []));
     setFresh(new Set(changed));
     void typeOut(r.state.nodes.filter((n) => !before.has(n.id)).map((n) => n.id), r.state.nodes);
@@ -362,7 +368,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
           <Composer notes={notes} onNotesChange={setNotes} onMentionOpen={() => { void window.api.ancherNotes.list().then((library) => setCloudNotes(library.notes)).catch((e) => toast(String(e))); }} images={images} onImagesChange={setImages} value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input, images, undefined, notes, skillActionId)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
             running={!!running || externalBusy} queue={queue.map((q) => q.text)} onDequeue={(i) => setQueue((q) => q.filter((_, k) => k !== i))} ghost={ghost}
             web={web} onWeb={setWeb} onAction={onAction}
-            mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })), ...st.bible.files.map((f) => ({ label: f.title || f.name, kind: '项目笔记', note: { source: 'project' as const, id: f.id, title: f.title || f.name } })), ...cloudNotes.filter((n) => n.status === 'ready').map((n) => ({ label: n.title, kind: 'Ancher 笔记', note: { source: 'ancher' as const, id: n.id, title: n.title } }))]} />
+            mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })), ...st.bible.topics.map((t) => ({ label: t.title, kind: '选题', note: { source: 'topic' as const, id: t.id, title: t.title } })), ...st.bible.files.map((f) => ({ label: f.title || f.name, kind: '项目笔记', note: { source: 'project' as const, id: f.id, title: f.title || f.name } })), ...cloudNotes.filter((n) => n.status === 'ready').map((n) => ({ label: n.title, kind: 'Ancher 笔记', note: { source: 'ancher' as const, id: n.id, title: n.title } }))]} />
         </section>
   );
 
@@ -370,7 +376,6 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
       <div className="topbar drag">
         <button className="btn btn-quiet no-drag" onClick={() => go({ name: 'home' })} aria-label="返回首页"><Icon name="home" size={15} /></button>
         <b>{view === 'outline' ? '大纲' : view === 'beats' ? '故事节拍' : view === 'episodes' ? '分集看板' : view === 'shots' ? '分镜' : view === 'scenes' ? '场景' : '剧本'}</b><span className="grow" /><div className="seg no-drag"><button aria-pressed={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={12} />剧本</button><button aria-pressed={view === 'cover'} onClick={() => setView('cover')}>封面</button></div><span className="grow" />
-        <label className="toggle no-drag" title="打字机音效"><input aria-label="打字机音效" type="checkbox" checked={sound} onChange={(e) => { setSound(e.target.checked); setSoundState(e.target.checked); }} /><span>打字机音效</span></label>
         <button className="btn btn-quiet no-drag" aria-label="撤销最近一轮修改" title="撤销最近一轮生成或笔记信息修改" disabled={!st.turns.some((t) => !t.undone)} onClick={() => { const t = [...st.turns].reverse().find((t) => !t.undone); if (t) void undo(t.id); }}><Icon name="undo" size={14} /></button><button className="btn btn-quiet no-drag" aria-label="批注" onClick={async () => { const newId = crypto.randomUUID().replaceAll('-', ''); setView('script'); await edit([{ op: 'insert', after: lastFocus.current ?? 'end', type: 'note', text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); }}><Icon name="chat" size={14} /></button>
         <span className="no-drag" style={{ position: 'relative' }}>
           <button className="btn btn-ghost" aria-haspopup="dialog" aria-expanded={exportOpen} onClick={() => setExportOpen((o) => !o)}><Icon name="export" size={14} />导出</button>
@@ -406,13 +411,21 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
         <SelectionBar container={view === 'script' ? paperRef.current : null} />
         <div ref={paperRef} className="paper-scroll" onFocus={(e) => { const nid = (e.target as HTMLElement).dataset?.id; if (nid) lastFocus.current = nid; }}>
           {view === 'script' && <div className="script-toolbar" role="toolbar" aria-label="剧本格式">{([['heading','film','场景'], ['action','pen','动作'], ['character','user','角色'], ['parenthetical','indent','括号'], ['dialogue','chat','对白'], ['transition','export','转场'], ['shot','eye','镜头'], ['note','doc','注释'], ['subtitle','book','字幕']] as const).map(([type, icon, label]) => <button key={type} aria-label={`设为${label}`} onMouseDown={(e) => e.preventDefault()} onClick={async () => { const nodeId = lastFocus.current; if (nodeId && nodes.some((n) => n.id === nodeId)) { await edit([{ op: 'type', id: nodeId, type }]); placeCaret(document.querySelector(`[data-id="${nodeId}"]`), 'end'); } else { const newId = crypto.randomUUID().replaceAll('-', ''); await edit([{ op: 'insert', after: 'end', type, text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); } }}><Icon name={icon} size={14} /><span>{label}</span></button>)}</div>}
-          {view === 'cover' ? <article className="paper script-cover"><h1>{st.meta.title}</h1><h2>{st.episodes.find((e) => e.id === st.activeEpisodeId)?.title}</h2>{([['author','作者'],['draft','稿次'],['date','日期']] as const).map(([field,label]) => <label key={field}>{label}<input className="input" aria-label={`封面${label}`} defaultValue={st.cover[field]} key={`${st.activeEpisodeId}:${field}`} onBlur={async (e) => setSt(await window.api.projects.setCover(id, { [field]: e.target.value }))} /></label>)}</article> : view === 'scenes' ? <div className="scene-board">{st.scenes.length ? st.scenes.map((s) => <button className="card" key={s.nodeId} onClick={() => jumpTo(s.nodeId)}><h3>{s.index}. {s.heading}</h3><p>{s.characters.join('、') || '暂无角色'} · {s.dialogueCount} 段对白</p></button>) : <div className="empty-state">写下场景标题后会出现在这里</div>}</div> : view === 'episodes' ? <div className="episode-board">{st.episodes.map((e, i) => <button className="card" key={e.id} onClick={() => void episode('select', e.id)}><small>第 {i + 1} 集</small><h2>{e.title}</h2><p>{e.scenes} 场 · {e.words} 字</p></button>)}<button className="card" onClick={() => void episode('create')}>＋ 新建一集</button></div> : view === 'script'
+          {view === 'cover' ? <article className="paper script-cover"><h1 className="cover-title" key={st.meta.title} contentEditable="plaintext-only" suppressContentEditableWarning role="textbox" aria-label="封面标题" aria-multiline="false" onBlur={(e) => {
+            const title = (e.currentTarget.textContent ?? '').replace(/\s+/g, ' ').trim();
+            e.currentTarget.textContent = title || st.meta.title;
+            void rename(title).catch((error) => toast(String(error)));
+          }} onKeyDown={(e) => {
+            if (e.nativeEvent.isComposing) return;
+            if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
+            if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.textContent = st.meta.title; e.currentTarget.blur(); }
+          }}>{st.meta.title}</h1><h2>{st.episodes.find((e) => e.id === st.activeEpisodeId)?.title}</h2>{([['author','作者'],['draft','稿次'],['date','日期']] as const).map(([field,label]) => <label key={field}>{label}<input className="input" aria-label={`封面${label}`} defaultValue={st.cover[field]} key={`${st.activeEpisodeId}:${field}`} onBlur={async (e) => setSt(await window.api.projects.setCover(id, { [field]: e.target.value }))} /></label>)}</article> : view === 'scenes' ? <div className="scene-board">{st.scenes.length ? st.scenes.map((s) => <button className="card" key={s.nodeId} onClick={() => jumpTo(s.nodeId)}><h3>{s.index}. {s.heading}</h3><p>{s.characters.join('、') || '暂无角色'} · {s.dialogueCount} 段对白</p></button>) : <div className="empty-state">写下场景标题后会出现在这里</div>}</div> : view === 'episodes' ? <div className="episode-board">{st.episodes.map((e, i) => <button className="card" key={e.id} onClick={() => void episode('select', e.id)}><small>第 {i + 1} 集</small><h2>{e.title}</h2><p>{e.scenes} 场 · {e.words} 字</p></button>)}<button className="card" onClick={() => void episode('create')}>＋ 新建一集</button></div> : view === 'script'
             ? <Editor nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
             : view === 'shots'
               ? <ShotsView st={st} projectId={id} setSt={apply} busy={!!running} onAI={(sc) => void send(shotInstruction(sc))}
                   onAll={() => void send(`给全部 ${st.scenes.length} 场拆分镜：每场一个 setShots（sceneId 用场景标题的节点 id），景别有变化，一句话写清画面和动作。只写分镜，不要改剧本。`)}
                   onExport={() => void doExport('shots')} />
-            : view === 'beats' ? <textarea className="outline-doc" aria-label="故事节拍" key={st.activeEpisodeId} defaultValue={st.beats} onChange={(e) => { const text = e.target.value; void window.api.projects.setBeats(id, text).then((s) => setSt((x) => x ? { ...x, beats: s.beats } : s)); }} placeholder="写下这一集的关键节拍…" /> : <textarea className="outline-doc" aria-label="大纲" key={outlineKey} defaultValue={st.outline} onChange={(e) => onOutline(e.target.value)}
+            : view === 'beats' ? <textarea className="outline-doc" aria-label="故事节拍" key={st.activeEpisodeId} value={st.beats} onChange={(e) => { const text = e.target.value; setSt((x) => x ? { ...x, beats: text } : x); void window.api.projects.setBeats(id, text).then((s) => setSt((x) => x?.beats === text ? { ...x, beats: s.beats } : x)).catch((e) => toast(String(e))); }} placeholder="写下这一集的关键节拍…" /> : <textarea className="outline-doc" aria-label="大纲" key={outlineKey} defaultValue={st.outline} onChange={(e) => onOutline(e.target.value)}
                 placeholder={'写下这一集的故事大纲：起、承、转、合，重场戏，人物动机。\n「写飘检查」会对照这里检查剧本有没有跑偏。'} />}
         </div>
         </div>
@@ -434,12 +447,13 @@ export function PreviewCard({ m, onResolve }: { m: ChatMsg; onResolve: (accept: 
       <div className="preview-list">
         {pv.items.map((it, i) => (
           <div key={i} className="pv-it">
-            <span className="pv-tag">{it.kind === 'insert' ? '新增' : it.kind === 'update' ? '改写' : it.kind === 'delete' ? '删除' : it.kind === 'retype' ? '改格式' : it.kind === 'outline' ? '大纲' : '设定'}</span>
+            <span className="pv-tag">{it.kind === 'insert' ? '新增' : it.kind === 'update' ? '改写' : it.kind === 'delete' ? '删除' : it.kind === 'retype' ? '改格式' : it.kind === 'outline' ? '大纲' : it.kind === 'beats' ? '故事节拍' : '设定'}</span>
             {it.kind === 'update' && <span><del>{it.before}</del><ins>{it.after}</ins></span>}
             {it.kind === 'delete' && <del>{it.before}</del>}
             {it.kind === 'insert' && <ins><span className="muted">{TYPE_LABEL[it.type] ?? it.type} · </span>{it.text}</ins>}
             {it.kind === 'retype' && <span>{it.text}<span className="muted">（{TYPE_LABEL[it.from]} → {TYPE_LABEL[it.to]}）</span></span>}
             {it.kind === 'bible' && <span><span className="muted">{it.text}</span>{it.after && <ins style={{ whiteSpace: 'pre-wrap', display: 'block' }}>{it.after}</ins>}</span>}
+            {it.kind === 'beats' && <span>{it.before && <del>{it.before}</del>}<ins>{it.after}</ins></span>}
             {it.kind === 'outline' && (it.mode === 'append'
               ? <ins><span className="muted">大纲 · </span>{it.after}</ins>
               : <span>{it.before && <del>{it.before}</del>}<ins><span className="muted">大纲 · </span>{it.after}</ins></span>)}

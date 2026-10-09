@@ -104,5 +104,10 @@ function cleanPortableMeta(meta: Record<string, unknown>): void {
   const clearChat = (chat: unknown) => { if (!Array.isArray(chat)) return; for (const m of chat) if (m?.preview?.state === 'open') m.preview.state = 'stale'; };
   clearChat(meta.chat);
   if (Array.isArray(meta.archive)) for (const c of meta.archive) { c.conversationId = null; clearChat(c.chat); }
-  if (Array.isArray(meta.workflows)) for (const r of meta.workflows) if (r?.ctx) delete r.ctx.conversationId;
+  if (Array.isArray(meta.workflows)) for (const r of meta.workflows) {
+    if (r?.ctx) delete r.ctx.conversationId;
+    // Native snapshots also carry prior step context; strip remote account IDs
+    // while retaining the suspended execution needed to continue an imported project.
+    if (r?.mastra) r.mastra = JSON.parse(JSON.stringify(r.mastra, (key, value) => key === 'conversationId' ? undefined : value));
+  }
 }
