@@ -1,11 +1,28 @@
-// Optional Gemini key (spec 0002 §5.5). Only checks the key here; transcription arrives with workflow ⌥7.
-export async function checkGeminiKey(key: string, f: typeof fetch = fetch): Promise<{ ok: boolean; message: string }> {
+export type GeminiService = 'ai-studio' | 'google-cloud';
+export const geminiService = (value: unknown): GeminiService => value === 'google-cloud' ? 'google-cloud' : 'ai-studio';
+const CLOUD = 'https://aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent';
+
+function apiError(status: number): string {
+  if (status === 400) return 'Gemini 请求不被接受（400），请检查密钥、所选服务和模型是否可用';
+  if (status === 401) return 'Gemini 认证失败（401），请检查密钥';
+  if (status === 403) return 'Gemini 权限不足（403），请检查密钥限制、API 启用状态和账户权限';
+  if (status === 429) return 'Gemini 配额不足或请求过于频繁（429），请检查用量后重试';
+  if (status === 404) return 'Gemini 模型或接口不可用（404）';
+  return `Gemini 返回 ${status}，请稍后重试`;
+}
+
+export async function checkGeminiKey(key: string, f: typeof fetch = fetch, service: GeminiService = 'ai-studio'): Promise<{ ok: boolean; message: string }> {
   try {
-    const r = await f('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', { headers: { 'x-goog-api-key': key } });
-    if (r.ok) return { ok: true, message: 'Gemini key 可用' };
-    return { ok: false, message: r.status === 400 || r.status === 403 ? 'Gemini key 无效' : `Gemini 返回 ${r.status}` };
+    const cloud = service === 'google-cloud';
+    const r = await f(cloud ? CLOUD : 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', {
+      method: cloud ? 'POST' : 'GET',
+      signal: AbortSignal.timeout(30_000),
+      headers: { 'x-goog-api-key': key, ...(cloud ? { 'Content-Type': 'application/json' } : {}) },
+      ...(cloud ? { body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Reply OK.' }] }], generationConfig: { maxOutputTokens: 32, thinkingConfig: { thinkingBudget: 0 } } }) } : {}),
+    });
+    return r.ok ? { ok: true, message: 'Gemini key 可用' } : { ok: false, message: apiError(r.status) };
   } catch {
-    return { ok: false, message: '连不上 Gemini，请检查网络' };
+    return { ok: false, message: '连不上 Gemini 或请求超时，请检查网络' };
   }
 }
 
@@ -51,4 +68,58 @@ export function srtToText(srt: string): string {
     .split(/\r?\n/)
     .filter((l) => l.trim() && !/^\d+$/.test(l.trim()) && !/-->/.test(l))
     .join('\n');
+}
+
+/** Cloud express mode accepts inline media, rather than AI Studio Files API handles. */
+export async function transcribeWithGoogleCloud(key: string, audio: Uint8Array, signal: AbortSignal, f: typeof fetch = fetch): Promise<{ text: string; srt: string }> {
+  signal.throwIfAborted();
+  if (audio.byteLength > 14 * 1024 * 1024) throw new Error('音频分段过大，请缩短后重试');
+  const r = await f(CLOUD, {
+    method: 'POST', signal, headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [
+        { inlineData: { mimeType: 'audio/mpeg', data: Buffer.from(audio).toString('base64') } },
+        { text: '逐字转写这段音频中的所有对白和旁白，保留原语言、口头语和说话人。只输出 SRT 字幕，时间从本段 00:00:00,000 开始。不要摘要或翻译。没有人声时只输出 NO_SPEECH。' },
+      ] }],
+      generationConfig: { maxOutputTokens: 32768, thinkingConfig: { thinkingBudget: 0 } },
+    }),
+  });
+  if (!r.ok) throw new Error(apiError(r.status));
+  const out = await r.json() as { candidates?: { finishReason?: string; content?: { parts?: { text?: string; thought?: boolean }[] } }[] };
+  const candidate = out.candidates?.[0];
+  if (candidate?.finishReason !== 'STOP') throw new Error('Gemini 转写未完整结束，请重试或缩短音频');
+  const srt = (candidate.content?.parts ?? []).filter(p => !p.thought).map(p => p.text ?? '').join('').replace(/^```(?:srt)?\s*|```\s*$/g, '').trim();
+  if (srt === 'NO_SPEECH') return { text: '', srt: '' };
+  // Fail visibly instead of saving a summary or truncated transcript as subtitles.
+  return mergeTranscriptSegments([{ srt, offsetSeconds: 0 }]);
+}
+
+const timestamp = '(\\d{2,}):(\\d{2}):(\\d{2}),(\\d{3})';
+const timing = new RegExp(`^${timestamp} --> ${timestamp}$`);
+const millis = (parts: string[]) => ((Number(parts[0]) * 60 + Number(parts[1])) * 60 + Number(parts[2])) * 1000 + Number(parts[3]);
+function formatTime(value: number): string {
+  const ms = Math.round(value);
+  return `${String(Math.floor(ms / 3600000)).padStart(2, '0')}:${String(Math.floor(ms / 60000) % 60).padStart(2, '0')}:${String(Math.floor(ms / 1000) % 60).padStart(2, '0')},${String(ms % 1000).padStart(3, '0')}`;
+}
+
+export function mergeTranscriptSegments(segments: { srt: string; offsetSeconds: number }[]): { text: string; srt: string } {
+  const blocks: string[] = [];
+  const text: string[] = [];
+  for (const segment of segments) {
+    if (!Number.isFinite(segment.offsetSeconds) || segment.offsetSeconds < 0) throw new Error('音频分段时间无效');
+    if (!segment.srt.trim()) throw new Error('Gemini 没有返回有效字幕，请重试');
+    for (const block of segment.srt.trim().split(/\r?\n\s*\r?\n/)) {
+      const lines = block.trim().split(/\r?\n/);
+      const match = timing.exec(lines[1] ?? '');
+      if (!/^\d+$/.test(lines[0] ?? '') || !match || !lines.slice(2).join('').trim()) throw new Error('Gemini 返回的字幕格式无效，请重试');
+      const start = millis(match.slice(1, 5));
+      const end = millis(match.slice(5, 9));
+      if (end < start || [match[2], match[3], match[6], match[7]].some(n => Number(n) >= 60)) throw new Error('Gemini 返回的字幕时间无效，请重试');
+      text.push(lines.slice(2).join('\n'));
+      const offset = segment.offsetSeconds * 1000;
+      blocks.push(`${blocks.length + 1}\n${formatTime(start + offset)} --> ${formatTime(end + offset)}\n${lines.slice(2).join('\n')}`);
+    }
+  }
+  const srt = blocks.join('\n\n');
+  return { srt, text: text.join('\n') };
 }

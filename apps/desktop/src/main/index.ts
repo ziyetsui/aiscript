@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { join } from 'node:path';
-import { checkGeminiKey } from '@scripter/agent';
+import { checkGeminiKey, geminiService } from '@scripter/agent';
 import { ART_STYLES, type BibleKind, type Production } from '@scripter/core';
 
 /** Only known production fields with known values cross the IPC boundary. */
@@ -94,7 +94,7 @@ function registerIpc(): void {
 
   ipcMain.handle('keys:status', gated(() => {
     const acct = readJson<{ ancherAccount?: string }>('settings.json', {}).ancherAccount;
-    return { ancher: !!getSecret('ancher'), gemini: !!getSecret('gemini'), ancherAccount: acct, encryption: encryptionAvailable() };
+    return { ancher: !!getSecret('ancher'), gemini: !!getSecret('gemini'), ancherAccount: acct, geminiService: geminiService(readJson<{ geminiService?: string }>('settings.json', {}).geminiService), encryption: encryptionAvailable() };
   }));
   ipcMain.handle('keys:setAncher', gated(async (key: string): Promise<KeyResult> => {
     const r = await ai.checkAncherKey(ai.ancher(key.trim()));
@@ -103,10 +103,12 @@ function registerIpc(): void {
     writeJson('settings.json', { ...readJson('settings.json', {}), ancherAccount: r.email });
     return { ok: true, account: r.email };
   }));
-  ipcMain.handle('keys:setGemini', gated(async (key: string): Promise<KeyResult> => {
-    const r = await checkGeminiKey(key.trim());
+  ipcMain.handle('keys:setGemini', gated(async (key: string, service: unknown = 'ai-studio'): Promise<KeyResult> => {
+    if (service !== 'ai-studio' && service !== 'google-cloud') return { ok: false, message: '请选择有效的 Gemini 服务' };
+    const r = await checkGeminiKey(key.trim(), fetch, service);
     if (!r.ok) return { ok: false, message: r.message };
     setSecret('gemini', key.trim());
+    writeJson('settings.json', { ...readJson('settings.json', {}), geminiService: service });
     return { ok: true };
   }));
   ipcMain.handle('keys:clear', gated((which: 'ancher' | 'gemini') => setSecret(which, null)));

@@ -50,6 +50,7 @@ jobs:
       - run: pnpm --filter @scripter/desktop exec node e2e/ancher-original.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/note-chat.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/writing-skills.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/gemini.e2e.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

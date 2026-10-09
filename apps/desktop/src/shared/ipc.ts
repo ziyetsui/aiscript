@@ -1,5 +1,5 @@
-import type { ClipboardImage, ChatNoteAttachment } from '@scripter/agent';
-export type { ClipboardImage, ChatNoteAttachment };
+import type { ClipboardImage, ChatNoteAttachment, GeminiService } from '@scripter/agent';
+export type { ClipboardImage, ChatNoteAttachment, GeminiService };
 export interface StoredChatImage { name: string; file: string }
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
 import type { ExportSelection, PreviewItem } from '@scripter/core';
@@ -12,7 +12,7 @@ export type LicenseStatus =
   | { state: 'inactive'; reason?: string; machineCode: string; keygenConfigured: boolean };
 
 export type ActivateResult = { ok: true } | { ok: false; message: string };
-export interface KeyStatus { ancher: boolean; gemini: boolean; ancherAccount?: string; encryption: boolean }
+export interface KeyStatus { ancher: boolean; gemini: boolean; ancherAccount?: string; encryption: boolean; geminiService: GeminiService }
 export type KeyResult = { ok: true; account?: string } | { ok: false; message: string };
 
 export interface ProjectMeta { id: string; title: string; kind: 'script' | 'video'; createdAt: number; updatedAt: number; words: number; noteGroups?: string[] }
@@ -100,7 +100,7 @@ export interface Api {
   keys: {
     status(): Promise<KeyStatus>;
     setAncher(key: string): Promise<KeyResult>;
-    setGemini(key: string): Promise<KeyResult>;
+    setGemini(key: string, service?: GeminiService): Promise<KeyResult>;
     clear(which: 'ancher' | 'gemini'): Promise<void>;
   };
   projects: {
