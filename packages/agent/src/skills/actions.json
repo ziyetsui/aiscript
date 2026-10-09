@@ -569,5 +569,16 @@
       "story-deslop"
     ],
     "keywords": "去AI|AI味|模板感"
+  },
+  {
+    "id": "prototype-modeling",
+    "title": "原型建模",
+    "description": "从动画逐字稿逆向辨识机制，建立并检验可生成原创故事的最小模型",
+    "category": "分析",
+    "prompt": "请使用「原型建模」研究我提供或引用的动画逐字稿。仅分析，在对话中输出观察证据、候选原理、最小状态模型、反事实测试和原创演绎样例，并标注模型边界与待验证项。",
+    "skills": [
+      "prototype-modeling"
+    ],
+    "keywords": "原型建模|动画逆向工程|动画第一性原理|FPAE|叙事模型|模型辨识"
   }
 ]

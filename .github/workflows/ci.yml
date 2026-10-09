@@ -56,6 +56,7 @@ jobs:
       - run: pnpm --filter @scripter/desktop exec node e2e/topics-artifacts.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node --experimental-transform-types e2e/local-data.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/writing-skills.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/export.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/gemini.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/youtube.e2e.ts
       - uses: actions/upload-artifact@v4

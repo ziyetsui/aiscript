@@ -519,5 +519,14 @@
     "url": "https://github.com/gaojesse999/ai-scripts/tree/main/skills/screenwriter-skill",
     "license": "Application-original",
     "adapted": true
+  },
+  {
+    "id": "prototype-modeling",
+    "repo": "ziyeprompttheworld/aiscript",
+    "commit": "application-original",
+    "url": "https://github.com/ziyeprompttheworld/aiscript/blob/main/packages/agent/src/skills/vendor/application-adapters/prototype-modeling/SKILL.md",
+    "license": "Application-original",
+    "adapted": true,
+    "provenance": "用户提供的 FPAE 系统提示词；补充逐字稿证据边界与客户端输出约定"
   }
 ]
