@@ -16,6 +16,9 @@ export const Op = z.discriminatedUnion('op', [
   z.object({ op: z.literal('upsertCharacter'), name: z.string().min(1).max(40), role: z.string().max(80).optional(), desc: z.string().max(600).optional(), want: z.string().max(200).optional(), fear: z.string().max(200).optional() }),
   z.object({ op: z.literal('upsertLocation'), name: z.string().min(1).max(40), ie: z.enum(['内景', '外景', '内外景']).optional(), times: z.array(z.string().max(8)).max(6).optional(), desc: z.string().max(600).optional() }),
   z.object({ op: z.literal('setWorld'), title: z.string().min(1).max(40), value: z.string().max(2000) }),
+  // The outline (大纲) is its own document, not notes inside the script.
+  z.object({ op: z.literal('appendOutline'), text: z.string().min(1).max(20000) }),
+  z.object({ op: z.literal('setOutline'), text: z.string().max(20000) }),
 ]);
 export type Op = z.infer<typeof Op>;
 
@@ -108,6 +111,12 @@ export function applyOps(doc: ScriptDoc, ops: readonly Op[], label: string) {
           if (hit) w.update(hit.id, { value: op.value }); else w.add({ title: op.title, value: op.value });
           break;
         }
+        case 'appendOutline': {
+          const cur = d.outline.trimEnd();
+          d.setOutline(cur ? `${cur}\n\n${op.text.trim()}` : op.text.trim());
+          break;
+        }
+        case 'setOutline': d.setOutline(op.text); break;
       }
     });
   });
@@ -120,10 +129,12 @@ export type PreviewItem =
   | { kind: 'update'; id: string; type: string; before: string; after: string }
   | { kind: 'retype'; id: string; text: string; from: string; to: string }
   | { kind: 'delete'; id: string; type: string; before: string }
-  | { kind: 'bible'; text: string };
+  | { kind: 'bible'; text: string }
+  | { kind: 'outline'; mode: 'append' | 'replace'; before: string; after: string };
 
-export function needsReview(ops: readonly Op[]): boolean {
-  return ops.some((o) => o.op === 'updateNode' || o.op === 'deleteNode' || o.op === 'setType');
+/** Rewrites of existing text need review; so does replacing an outline that already has content. */
+export function needsReview(ops: readonly Op[], currentOutline = ''): boolean {
+  return ops.some((o) => o.op === 'updateNode' || o.op === 'deleteNode' || o.op === 'setType' || (o.op === 'setOutline' && currentOutline.trim() !== '' && o.text.trim() !== currentOutline.trim()));
 }
 
 /** Describe what the ops would change, against the current document. Missing targets are reported, not guessed. */
@@ -137,6 +148,8 @@ export function previewOps(doc: ScriptDoc, ops: readonly Op[]): { items: Preview
     else if (o.op === 'upsertCharacter') items.push({ kind: 'bible', text: `登记角色：${o.name}` });
     else if (o.op === 'upsertLocation') items.push({ kind: 'bible', text: `登记地点：${o.name}` });
     else if (o.op === 'setWorld') items.push({ kind: 'bible', text: `世界观「${o.title}」` });
+    else if (o.op === 'appendOutline') items.push({ kind: 'outline', mode: 'append', before: '', after: o.text });
+    else if (o.op === 'setOutline') items.push({ kind: 'outline', mode: 'replace', before: doc.outline, after: o.text });
     else {
       const n = byId.get(o.id);
       if (!n) { if (!/^\$\d+$/.test(o.id) && !own.has(o.id)) missing.push(o.id); continue; }

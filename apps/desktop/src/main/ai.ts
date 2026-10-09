@@ -29,7 +29,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   try {
     const sdk = ancher(key);
     const bible = p.doc.readBible();
-    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible));
+    const content = buildMessage(req.instruction, p.meta.title, p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible), p.doc.outline);
     const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, webSearch: req.webSearch, signal: ac.signal }, {
       onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
     });
@@ -45,7 +45,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
       reply({ text: parsed.narration || '好的。', citations, error: skipped });
       return { ok: true, narration: parsed.narration, applied: 0, errors: parsed.errors, citations };
     }
-    if (needsReview(parsed.ops)) {
+    if (needsReview(parsed.ops, p.doc.outline)) {
       const pv = previewOps(p.doc, parsed.ops);
       if (pv.missing.length) {
         reply({ text: parsed.narration, citations, error: 'AI 要改的段落找不到了，剧本没有改动。请再说一次' });

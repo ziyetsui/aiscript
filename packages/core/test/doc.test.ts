@@ -172,3 +172,25 @@ describe('ops references (models number new nodes in different ways)', () => {
     expect(d.nodes().at(-1)!.text).toBe('新的一行');
   });
 });
+
+describe('outline ops', async () => {
+  const { needsReview, previewOps } = await import('../src/index.ts');
+  it('append / replace the outline inside the undoable turn', () => {
+    const { d } = seed();
+    const t1 = applyOps(d, [{ op: 'appendOutline', text: '一、相遇\n二、悲惨的未来' }], '大纲');
+    expect(d.outline).toBe('一、相遇\n二、悲惨的未来');
+    applyOps(d, [{ op: 'appendOutline', text: '三、命运的分岔' }], '续');
+    expect(d.outline).toBe('一、相遇\n二、悲惨的未来\n\n三、命运的分岔');
+    d.undoTurn(t1.id);
+    expect(d.outline.trim()).toBe('三、命运的分岔'); // the later turn's own text survives the undo
+    expect(d.nodes()).toHaveLength(2); // the script itself is untouched
+  });
+  it('only replacing a non-empty outline needs review, and the preview shows before/after', () => {
+    const { d } = seed();
+    expect(needsReview([{ op: 'setOutline', text: '新' }], '')).toBe(false);
+    expect(needsReview([{ op: 'appendOutline', text: '加' }], '旧')).toBe(false);
+    expect(needsReview([{ op: 'setOutline', text: '新' }], '旧')).toBe(true);
+    applyOps(d, [{ op: 'setOutline', text: '旧大纲' }], 'x');
+    expect(previewOps(d, [{ op: 'setOutline', text: '新大纲' }]).items).toEqual([{ kind: 'outline', mode: 'replace', before: '旧大纲', after: '新大纲' }]);
+  });
+});
