@@ -34,7 +34,8 @@ const tmp = mkdtempSync(join(tmpdir(), 'scripter-original-'));
 const { privatePem, publicPem } = generateKeypair(); writeFileSync(join(tmp, 'pub.pem'), publicPem);
 const app = await electron.launch({ args: [join(import.meta.dirname, '..')], colorScheme: null as never, env: { ...process.env, SCRIPTER_E2E: '1', SCRIPTER_USER_DATA: join(tmp, 'data'), SCRIPTER_LICENSE_PUBKEY: join(tmp, 'pub.pem'), SCRIPTER_ANCHER_BASE_URL: base } });
 const page = await app.firstWindow(); page.setDefaultTimeout(20000);
-await app.evaluate(({ BrowserWindow }) => { for (const window of BrowserWindow.getAllWindows()) window.hide(); });
+// Hidden Windows windows stop producing the animation frames Playwright needs for clicks.
+if (process.platform === 'darwin') await app.evaluate(({ BrowserWindow }) => { for (const window of BrowserWindow.getAllWindows()) window.hide(); });
 try {
   await page.locator('.mc .tnum').waitFor(); const mid = (await page.locator('.mc .tnum').textContent())!.trim();
   await page.locator('#code').fill(issueOfflineCode(privatePem, { mid, cust: '原文测试', seat: '1/1', exp: null })); await page.getByRole('button', { name: '激活', exact: true }).click();
