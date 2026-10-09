@@ -232,6 +232,18 @@ try {
   ({ app, page } = await launch());
   await page.getByText('最近').waitFor();
   await page.getByRole('button', { name: '最近项目', exact: true }).click();
+  step('project selection uses the same real navigation as the workspace');
+  assert.equal(await page.getByRole('button', { name: '快速视频 Beta', exact: true }).count(), 0);
+  assert.equal(await page.getByRole('button', { name: '社区', exact: true }).count(), 0);
+  for (const label of ['写作', '制作', '角色', '地点', '道具', '选题池', '知识库']) {
+    await page.getByRole('button', { name: label, exact: true }).click();
+    await page.getByText(`${label} · 选择项目`, { exact: true }).waitFor();
+    await page.locator('.recent[data-project-id]').first().getByRole('button').first().click();
+    assert.equal(await page.locator('.rail').getByRole('button', { name: label, exact: true }).getAttribute('aria-current'), 'page');
+    await page.locator(label === '写作' ? '.writing-center' : '.content-main > *').first().waitFor({ state: 'visible' });
+    await page.getByRole('button', { name: '返回首页', exact: true }).last().click();
+    await page.getByRole('button', { name: '最近项目', exact: true }).click();
+  }
   await page.locator('.recent[data-project-id]').first().getByRole('button').first().click();
   await page.locator('.paper .node').first().waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
