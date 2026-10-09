@@ -87,3 +87,6 @@ Ruling: 分集直接存在同一 Loro 的独立 nodes/outline 容器，保留旧
 - 客户验收表已加入交付脚本，便携文件名 `ACCEPTANCE.zh-CN.md`；五个包及两份说明共7项通过标准SHA256校验。草稿Release九个交付文件（含manifest和校验清单）均与本地digest一致，保持draft/prerelease；targetCommitish已纠正为a13bab2产品源码。
 - 测试窗口按用户最新要求优先外接副屏，选工作区最宽的非主屏；无副屏时Mac测试窗口退到普通窗口层级以下。本机检测到三屏，完整Electron E2E通过且每次启动确认实际显示器id=5（横屏）；截图对激活页和内容页均显式设置CSS视口并断言尺寸。
 - 上述改动仅涉及测试、交付脚本与文档，产品安装包源码仍为a13bab2，无需因测试变更重打产品包。客户发送/正式分发外部门禁仍保留。
+
+
+最终截图修正的 [CI 37898717632](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37898717632)（ce36e07）全部通过，包含双平台Electron E2E、typecheck/74单测、原型格式和gitleaks。已下载Mac截图并读取PNG头确认1360×860和1440×960各22张，关闭先前宿主屏幕截断的证据缺口；这不等于所有像素或外部服务验收。产品安装包仍来自a13bab2。技术候选与交付材料已就绪，客户签名/真实服务/Intel硬件/升级卸载/机器码及发送仍待外部条件。

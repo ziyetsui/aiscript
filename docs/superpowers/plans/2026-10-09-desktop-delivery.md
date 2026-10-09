@@ -26,6 +26,6 @@
 - [x] T3 首页/分级菜单：Chat.tsx PlusMenu、Home.tsx Composer。菜单方向键、Esc 返回、首页附件 E2E。
 - [x] T4 最近/回收站：main/projects.ts、Recents.tsx、IPC。软删→重启→恢复 E2E、purge 确认。
 - [x] T5 发布工程与候选包：新 owner/repo、手动更新、脚本收集全部必需包和校验和；原生 CI 全部通过、ARM64/x64 dmg 本机启动、Windows 安装冒烟及包扫描通过。正式签名和客户交付仍待外部条件。
-- [ ] T6 门禁、独立审查、规格回写、执行报告：typecheck / vitest / Electron E2E / 安装包冷启动。
+- [x] T6 技术门禁、独立审查、规格回写、执行报告：typecheck / 74单测 / 双平台Electron E2E / 安装包冷启动通过；最终截图尺寸修正CI 37898717632通过。证据见0005/0007；正式签名、真实服务及客户设备验收/发送仍待外部条件。
 
 任务按以上顺序执行。每个任务在 specs/0005-delivery-execution.md 记录验证结果和偏离理由。既有 0003 中陈旧 E1–E6 状态由实际证据更新。
