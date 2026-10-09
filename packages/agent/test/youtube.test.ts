@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { youtubeCaptions, youtubeVideoUrl, workflow, newRun, execute, type WorkflowEnv } from '../src/index.ts';
+import { youtubeCaptions, youtubeVideoUrl, workflow, newRun, type WorkflowEnv } from '../src/index.ts';
+import { execute } from '../src/workflows/mastra.ts';
 import { ScriptDoc } from '@scripter/core';
 
 describe('YouTube video input and captions', () => {

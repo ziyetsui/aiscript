@@ -1,7 +1,7 @@
 // Settings (prototype P8): activation, keys, data. No usage anywhere (spec 0002 §7).
 import { useEffect, useState } from 'react';
 import { SCRIPT_FONTS, applyFont, currentFont, type ScriptFont } from '../lib/editor-font.ts';
-import { bell, setSound, setVolume, soundOn, soundVolume } from '../lib/typewriter.ts';
+import { keyClick, setVolume, soundVolume } from '../lib/typewriter.ts';
 import type { KeyStatus, LicenseStatus, UpdateStatus } from '../../../shared/ipc.ts';
 import { LocalData } from './LocalData.tsx';
 import { KeyForm } from './Keys.tsx';
@@ -15,7 +15,6 @@ export function Settings({ license, keys, onChange, go, back }: { license: Extra
   const [typing, setTyping] = useState(() => localStorage.getItem('script-typing') !== 'false');
   const [defaultExport, setDefaultExport] = useState(() => localStorage.getItem('script-default-export') || 'pdf');
   const [font, setFont] = useState<ScriptFont>(currentFont());
-  const [sound, setSoundOn] = useState(soundOn());
   const [vol, setVol] = useState(soundVolume());
   const [theme, setTheme] = useState<'system' | 'light' | 'dark'>('system');
   useEffect(() => {
@@ -77,10 +76,9 @@ export function Settings({ license, keys, onChange, go, back }: { license: Extra
           </div>
           <label className="toggle"><input type="checkbox" checked={typing} onChange={(e) => { setTyping(e.target.checked); localStorage.setItem('script-typing', String(e.target.checked)); }} />AI 剧本逐字生成</label>
           <div className="field"><label>默认导出格式</label><div className="seg" role="radiogroup" aria-label="默认导出格式">{[['pdf', 'PDF'], ['docx', 'Word'], ['fdx', 'Final Draft'], ['fountain', 'Fountain'], ['txt', 'TXT']].map(([v, label]) => <button key={v} role="radio" aria-checked={defaultExport === v} onClick={() => { setDefaultExport(v!); localStorage.setItem('script-default-export', v!); }}>{label}</button>)}</div></div>
-          <label className="toggle"><input type="checkbox" checked={sound} onChange={(e) => { setSound(e.target.checked); setSoundOn(e.target.checked); }} />AI 写作时播放打字机音效</label>
-          <label className="fl" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>音量
-            <input type="range" min={0} max={1} step={0.05} value={vol} disabled={!sound} aria-label="打字机音量" style={{ flex: 1, accentColor: 'var(--primary)' }}
-              onChange={(e) => { const v = +e.target.value; setVol(v); setVolume(v); }} onPointerUp={() => bell()} />
+          <label className="fl" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>手动输入音量
+            <input type="range" min={0} max={1} step={0.05} value={vol} aria-label="打字机音量" style={{ flex: 1, accentColor: 'var(--primary)' }}
+              onChange={(e) => { const v = +e.target.value; setVol(v); setVolume(v); }} onPointerUp={() => keyClick('字')} />
             <span className="tnum muted" style={{ width: 36 }}>{Math.round(vol * 100)}%</span></label>
         </section>
         <section className="card">

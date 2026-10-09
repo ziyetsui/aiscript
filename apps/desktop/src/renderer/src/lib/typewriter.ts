@@ -1,7 +1,6 @@
 // Typewriter sound synthesised with Web Audio (spec 0002 §9.4): no audio files, no bundle weight.
-// A key click per character (random pitch, softer for punctuation), a carriage return per paragraph, a bell per turn.
+// Manual editor input only: key clicks and carriage returns. AI updates do not call these sounds.
 let ctx: AudioContext | null = null;
-let enabled = (() => { try { return localStorage.getItem('tw-sound') !== 'off'; } catch { return true; } })();
 let volume = (() => { try { const v = Number(localStorage.getItem('tw-volume')); return Number.isFinite(v) && localStorage.getItem('tw-volume') !== null ? v : 1; } catch { return 1; } })();
 
 export const soundVolume = () => volume;
@@ -9,17 +8,6 @@ export const soundVolume = () => volume;
 export function setVolume(v: number): void {
   volume = Math.max(0, Math.min(1, v));
   try { localStorage.setItem('tw-volume', String(volume)); } catch { /* storage may be unavailable */ }
-}
-
-const listeners = new Set<(on: boolean) => void>();
-export const soundOn = () => enabled;
-/** Keep every sound toggle (workspace header, settings) in step. */
-export function onSound(cb: (on: boolean) => void): () => void { listeners.add(cb); return () => { listeners.delete(cb); }; }
-export function setSound(on: boolean): void {
-  enabled = on;
-  listeners.forEach((l) => l(on));
-  try { localStorage.setItem('tw-sound', on ? 'on' : 'off'); } catch { /* storage may be unavailable */ }
-  if (on) ensure();
 }
 
 function ensure(): AudioContext | null {
@@ -34,7 +22,7 @@ function ensure(): AudioContext | null {
 
 function noiseBurst(dur: number, freq: number, gain: number): void {
   const c = ensure();
-  if (!c || !enabled) return;
+  if (!c || volume === 0) return;
   const len = Math.max(1, Math.floor(c.sampleRate * dur));
   const buf = c.createBuffer(1, len, c.sampleRate);
   const d = buf.getChannelData(0);
@@ -52,25 +40,11 @@ function noiseBurst(dur: number, freq: number, gain: number): void {
 }
 
 export function keyClick(ch: string): void {
-  if (/\s/.test(ch)) return;
+  if (!ch) return;
   const punct = /[，。、；：！？,.;:!?“”"'（）()—…]/.test(ch);
   noiseBurst(0.03, 1800 + Math.random() * 1400, punct ? 0.12 : 0.22);
 }
 
 export function carriageReturn(): void {
   noiseBurst(0.12, 700, 0.18);
-}
-
-export function bell(): void {
-  const c = ensure();
-  if (!c || !enabled) return;
-  const o = c.createOscillator();
-  const g = c.createGain();
-  o.frequency.value = 2093;
-  g.gain.setValueAtTime(0.0001, c.currentTime);
-  g.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.08 * volume), c.currentTime + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.9);
-  o.connect(g).connect(c.destination);
-  o.start();
-  o.stop(c.currentTime + 0.95);
 }

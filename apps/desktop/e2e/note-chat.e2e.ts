@@ -43,11 +43,20 @@ try {
  assert.equal(await page.locator('#agent-in').inputValue(),'');await page.getByLabel('待发送笔记',{exact:true}).waitFor();
  await page.getByRole('button',{name:'移除笔记 官网保存的视频笔记',exact:true}).click();
  // Local notes are per-message references and do not become permanently pinned.
- await page.getByRole('tab',{name:'项目笔记',exact:true}).click();
+ await page.getByRole('button',{name:'知识库',exact:true}).click();
+ assert.equal(await page.getByRole('tab',{name:'项目笔记',exact:true}).count(),1);
  const fileId=await page.evaluate(async(id)=>{const state=await window.api.files.createNote(id,'本地参考','本地正文证据');window.dispatchEvent(new CustomEvent('scripter:project',{detail:id}));return state.bible.files.at(-1)!.id;},id);
- await page.getByLabel('笔记标题',{exact:true}).waitFor();await page.getByRole('button',{name:'添加到对话',exact:true}).click();await page.getByLabel('待发送笔记',{exact:true}).waitFor();
+ await page.evaluate(({id,fileId})=>window.dispatchEvent(new CustomEvent('scripter:attach-note',{detail:{projectId:id,note:{source:'project',id:fileId,title:'本地参考'}}})),{id,fileId});await page.getByLabel('待发送笔记',{exact:true}).waitFor();
  await page.locator('#agent-in').fill('只参考本地笔记');await page.getByRole('button',{name:'发送',exact:true}).click();await page.waitForFunction(()=>document.querySelectorAll('.ag-ai').length===3&&!document.querySelector('.cmp-card.busy'));
  assert.ok(requests[2]!.content.includes('本地正文证据'));assert.equal(requests[2]!.attachments,undefined);
  assert.equal((await page.evaluate(async({id,fileId})=>(await window.api.projects.open(id)).bible.files.find(f=>f.id===fileId)!,{id,fileId})).pinned,false);
+ await page.getByRole('button',{name:'知识库',exact:true}).click();
+ await page.getByRole('tab',{name:'项目笔记',exact:true}).click();
+ await page.getByLabel('笔记标题',{exact:true}).waitFor();
+ assert.equal(await page.getByLabel('笔记标题',{exact:true}).inputValue(),'本地参考');
+ await page.getByRole('tab',{name:'原文',exact:true}).click();
+ await page.locator('.note-body').filter({hasText:'本地正文证据'}).waitFor();
+ await page.getByRole('tab',{name:'Ancher 笔记',exact:true}).click();
+ await page.locator('.note-all [data-note-id="cloud-n1"]').waitFor();
  console.log('PASS: fixed note icon geometry, search/list keyboard navigation, Add to chat, hidden dock focus, dedupe/remove, cloud resource IDs, @+Tab, local reference without pinning');
 } catch(e){console.log(await page.locator('body').innerText());throw e;}finally{await app.close();fake.server.close();rmSync(tmp,{recursive:true,force:true});}

@@ -49,6 +49,11 @@ jobs:
       - run: pnpm --filter @scripter/desktop e2e
       - run: pnpm --filter @scripter/desktop exec node e2e/ancher-original.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/note-chat.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/new-note.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/typewriter.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/writing-documents.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/mastra-episode.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/topics-artifacts.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node --experimental-transform-types e2e/local-data.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/writing-skills.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/gemini.e2e.ts

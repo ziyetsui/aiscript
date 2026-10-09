@@ -127,7 +127,7 @@ try {
   assert.ok(fake.prompts[0]!.includes('<ops>') && fake.prompts[0]!.includes('门墩儿会说话'), 'prompt carries the ops contract and the idea');
   await page.getByRole('button', { name: /1\. 外景 胡同口/ }).waitFor();
   const sum = page.locator('.ag-ai .act-sum');
-  assert.equal(await sum.textContent(), '完成 3 个步骤 · 联网搜索、读取网页', 'activity folds into one line once the turn ends');
+  assert.equal(await sum.textContent(), '完成 6 个步骤 · 校验文档修改、处理文档修改', 'activity includes the writing workflow and folds into one line once the turn ends');
   await sum.click();
   await page.locator('.ag-ai .act-row', { hasText: '联网搜索' }).locator('.an', { hasText: '×2' }).waitFor(); // same-tool calls merged
   await shot(page, '03-workspace-ai');
@@ -209,11 +209,11 @@ try {
   const before = await page.locator('.paper .node').allTextContents();
   await quick(page, '总结大纲');
   await page.getByText('已写进大纲，点左侧「大纲」查看').waitFor({ timeout: 20_000 });
-  assert.deepEqual(await page.locator('.paper .node').allTextContents(), before);
   await page.getByRole('tab', { name: '大纲' }).click();
   assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /一、豆豆发现门墩儿会说话\n二、两人约定保守秘密/);
   await page.getByRole('tab', { name: '剧本' }).click();
   await page.locator('.paper .node').first().waitFor();
+  assert.deepEqual(await page.locator('.paper .node').allTextContents(), before);
 
   step('export FDX and PDF (save dialog stubbed)');
   for (const [fmt, label] of [['fdx', 'Final Draft'], ['pdf', 'PDF'], ['docx', 'Word']] as const) {
@@ -491,12 +491,16 @@ try {
   await shoeTopic.getByText('门墩儿想修好姥爷的旧鞋', { exact: true }).waitFor();
   assert.equal(await page.getByRole('article').count(), 3);
   await page.getByRole('button', { name: '关于这些选题', exact: true }).waitFor();
-  await shoeTopic.getByRole('button', { name: '选这个', exact: true }).click();
+  await shoeTopic.getByRole('button', { name: '查看选题 修鞋铺', exact: true }).click();
+  await page.getByRole('dialog', { name: '修鞋铺', exact: true }).getByRole('button', { name: '选这个', exact: true }).click();
+  await page.getByRole('dialog', { name: '修鞋铺', exact: true }).getByText('已选', { exact: true }).waitFor();
+  await page.keyboard.press('Escape');
   await shoeTopic.getByText('已选', { exact: true }).waitFor();
   await page.getByRole('tab', { name: '已选', exact: true }).click();
   assert.equal(await page.getByRole('article').count(), 1);
   await page.getByRole('tab', { name: '全部', exact: true }).click();
-  const rainTopic = page.getByRole('article', { name: '雨天', exact: true });
+  await page.getByRole('button', { name: '查看选题 雨天', exact: true }).click();
+  const rainTopic = page.getByRole('dialog', { name: '雨天', exact: true });
   await rainTopic.getByLabel('否掉的原因').fill('不符合这集的主题');
   await rainTopic.getByRole('button', { name: '否掉', exact: true }).click();
   await rainTopic.getByText('已否', { exact: true }).waitFor();
@@ -506,6 +510,7 @@ try {
   await rainTopic.getByLabel('否掉的原因').fill('不符合这集的主题');
   await rainTopic.getByLabel('否掉的原因').press('Enter');
   await rainTopic.getByText('已否', { exact: true }).waitFor();
+  await page.keyboard.press('Escape');
   for (const theme of ['light', 'dark'] as const) {
     await page.evaluate(async (t) => window.api.app.setTheme(t), theme);
     await page.waitForFunction((t) => matchMedia('(prefers-color-scheme: dark)').matches === (t === 'dark'), theme);
@@ -529,7 +534,9 @@ try {
   assert.ok(await page.evaluate(async () => { const id = (await window.api.projects.list())[0]!.id; return (await window.api.projects.open(id)).bible.world.some(s => s.value.includes('只能“借”')); }));
   await page.getByRole('button', { name: '选题池', exact: true }).click();
   await page.getByRole('article', { name: '修鞋铺', exact: true }).getByText('已选', { exact: true }).waitFor();
-  await page.getByRole('article', { name: '雨天', exact: true }).getByText('否掉的原因：不符合这集的主题', { exact: true }).waitFor();
+  await page.getByRole('button', { name: '查看选题 雨天', exact: true }).click();
+  await page.getByRole('dialog', { name: '雨天', exact: true }).getByText('否掉的原因：不符合这集的主题', { exact: true }).waitFor();
+  await page.keyboard.press('Escape');
   assert.equal(await page.getByRole('button', { name: '世界观', exact: true }).count(), 0);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
   await page.getByRole('tab', { name: '项目笔记', exact: true }).click();

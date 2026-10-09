@@ -5,6 +5,8 @@ import { app, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { applyOps, bibleBrief, needsReview, parseReply, previewOps, referenceBrief, type Op } from '@scripter/core';
 import { prepareChatNotes, outlineSummaryReply, decodeChatImages, uploadChatImages, addCall, buildMessage, checkAncherKey, endCall, toolLabel, type ActivityRow, createAncher, describeError, parseScenePrompt, reversePrompt, runChat, scenePromptMessage, selectionAction } from '@scripter/agent';
+import { runWritingWorkflow } from '@scripter/agent/writing';
+import { writingTargets } from '@scripter/agent';
 import type { AiWriteRequest, AiWriteResult, ChatMsg, TurnInfo } from '../shared/ipc.ts';
 import { filePath, get, pushChat, saveNow, state } from './projects.ts';
 import { openAsBlob, mkdirSync, writeFileSync } from 'node:fs';
@@ -26,6 +28,8 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   const p = get(req.projectId);
   const key = getSecret('ancher');
   if (!key) return { ok: false, narration: '', applied: 0, errors: [], citations: [], message: '还没有填写 Ancher API key，请到设置里填写' };
+  const episodeId = p.doc.activeEpisodeId;
+  const targets = req.target === 'outline' ? ['outline' as const] : writingTargets(req.instruction, req.pageContext?.document);
   const noteInput = prepareChatNotes(req.notes ?? [], p.doc.readBible());
   const images = decodeChatImages(req.images ?? []);
   const storedImages = images.map((image) => {
@@ -48,54 +52,68 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
     const sdk = ancher(key);
     const attachments = [...await uploadChatImages(sdk, images, ac.signal), ...noteInput.attachments];
     const bible = p.doc.readBible();
-    // Full rules only when this starts a new Ancher conversation; later turns carry a one-line reminder.
+    // Write commands always carry the full local editing contract; ordinary chat can use the reminder.
     const content = buildMessage(req.target === 'outline' ? '根据当前剧本和已有大纲，总结这一集的完整大纲，包含故事起因、主要情节和结尾。直接输出完整大纲正文，使用 Markdown 标题和列表，不要输出说明、剧本节点或其他修改。' : req.instruction, `${p.meta.title} · ${p.doc.episodes().find((e) => e.id === p.doc.activeEpisodeId)?.title}`,  p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible) + (noteInput.reference ? `\n本次消息添加的笔记：\n${noteInput.reference}` : '') + (req.pageContext ? `\n当前页面：${req.pageContext.page.slice(0, 80)}\n` + (() => {
       const f = bible.files.find((x) => x.id === req.pageContext?.fileId);
       return f ? `当前笔记（素材）：${f.title || f.name}\n${f.summary}\n${f.excerpt.slice(0, 8000)}` : '';
-    })() : ''), p.doc.outline, !p.meta.conversationId, req.skillActionId);
-    const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, attachments, webSearch: req.webSearch, signal: ac.signal }, {
-      onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
-      onTool: (e) => {
-        if (e.phase === 'call') { const t = toolLabel(e.name, e.args); labels.set(e.id, t.label); rows = addCall(rows, t.label, t.obj); }
-        else rows = endCall(rows, labels.get(e.id) ?? toolLabel(e.name).label);
-        if (!sender.isDestroyed()) sender.send('ai:activity', { reqId: req.reqId, rows });
+    })() : ''), p.doc.outline, targets.length > 0 || !p.meta.conversationId, req.skillActionId, p.doc.beats);
+    let citations: { url: string; title: string }[] = [];
+    return await runWritingWorkflow({ instruction: req.instruction, targets }, {
+      signal: ac.signal,
+      parse: req.target === 'outline' ? outlineSummaryReply : parseReply,
+      validate: (ops) => {
+        if (p.doc.activeEpisodeId !== episodeId) return ['当前集已切换，请在目标集重新发送写入指令'];
+        return previewOps(p.doc, ops).missing.map((nodeId) => `找不到目标段落或场景：${nodeId}`);
+      },
+      onStep: (label, active) => {
+        rows = active ? addCall(rows, label) : endCall(rows, label);
+        if (!sender.isDestroyed()) sender.send('ai:activity', {reqId:req.reqId,rows});
+      },
+      generate: async (suffix, repair) => {
+        const r = await runChat(sdk, { conversationId: p.meta.conversationId, content: `${content}${suffix}`, attachments: repair ? [] : attachments, webSearch: repair ? false : req.webSearch, signal: ac.signal }, {
+          onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
+          onTool: (e) => {
+            if (e.phase === 'call') { const t = toolLabel(e.name, e.args); labels.set(e.id, t.label); rows = addCall(rows, t.label, t.obj); }
+            else rows = endCall(rows, labels.get(e.id) ?? toolLabel(e.name).label);
+            if (!sender.isDestroyed()) sender.send('ai:activity', { reqId: req.reqId, rows });
+          },
+        });
+        p.meta.conversationId = r.conversationId;
+        for (const c of r.citations) if (!citations.some((old) => old.url === c.url)) citations.push({url:c.url,title:c.title});
+        return r;
+      },
+      commit: (parsed): AiWriteResult => {
+        if (p.doc.activeEpisodeId !== episodeId) throw new Error('当前集已切换，修改未写入，请在目标集重试');
+
+        if (!parsed.ops.length) {
+          reply({ text: parsed.narration || '好的。', citations });
+          return { ok: true, narration: parsed.narration, applied: 0, errors: parsed.errors, citations };
+        }
+        if (req.target !== 'outline' && needsReview(parsed.ops, p.doc.outline, p.doc.readBible().shots, p.doc.beats)) {
+          const pv = previewOps(p.doc, parsed.ops);
+          if (pv.missing.length) {
+            reply({ text: '', citations, error: 'AI 要改的段落找不到了，剧本没有改动。请再说一次' });
+            return { ok: false, narration: parsed.narration, applied: 0, errors: parsed.errors, citations, message: 'AI 要改的段落找不到了' };
+          }
+          const m = propose(p, parsed.ops, '修改已准备好，接受后写入对应文档。', req.instruction.slice(0, 24), { ...steps(), citations });
+          return { ok: true, narration: parsed.narration, applied: 0, errors: parsed.errors, citations, previewId: m.id };
+        }
+        let turn;
+        try {
+          turn = applyOps(p.doc, parsed.ops, req.instruction.slice(0, 24));
+        } catch (e) {
+          reply({ text: '', citations, error: 'AI 给出的修改无法执行，剧本没有改动' });
+          return { ok: false, narration: parsed.narration, applied: 0, errors: [...parsed.errors, String((e as Error).message)], citations, message: 'AI 给出的修改无法执行，剧本没有改动' };
+        }
+        reply({ text: parsed.narration || '好的。', citations, turnId: turn.id, applied: parsed.ops.length });
+        return { ok: true, narration: parsed.narration, applied: parsed.ops.length, errors: parsed.errors, citations, turn: { id: turn.id, label: turn.label, undone: false } };
       },
     });
-    p.meta.conversationId = r.conversationId;
-    const citations = r.citations.map(({ url, title }) => ({ url, title }));
-    if (r.finish === 'cancelled') {
-      reply({ text: '', error: '已取消，剧本没有改动' });
-      return { ok: false, cancelled: true, narration: '', applied: 0, errors: [], citations, message: '已取消，剧本没有改动' };
-    }
-    const parsed = req.target === 'outline' ? outlineSummaryReply(r.text) : parseReply(r.text);
-    const skipped = parsed.errors.length ? `有 ${parsed.errors.length} 处修改格式不对，已跳过` : undefined;
-    if (!parsed.ops.length) {
-      reply({ text: parsed.narration || '好的。', citations, error: skipped });
-      return { ok: true, narration: parsed.narration, applied: 0, errors: parsed.errors, citations };
-    }
-    if (req.target !== 'outline' && needsReview(parsed.ops, p.doc.outline, p.doc.readBible().shots)) {
-      const pv = previewOps(p.doc, parsed.ops);
-      if (pv.missing.length) {
-        reply({ text: parsed.narration, citations, error: 'AI 要改的段落找不到了，剧本没有改动。请再说一次' });
-        return { ok: false, narration: parsed.narration, applied: 0, errors: parsed.errors, citations, message: 'AI 要改的段落找不到了' };
-      }
-      const m = propose(p, parsed.ops, parsed.narration || '我想这样改，确认后再写入：', req.instruction.slice(0, 24), { ...steps(), citations, error: skipped });
-      return { ok: true, narration: parsed.narration, applied: 0, errors: parsed.errors, citations, previewId: m.id };
-    }
-    let turn;
-    try {
-      turn = applyOps(p.doc, parsed.ops, req.instruction.slice(0, 24));
-    } catch (e) {
-      reply({ text: parsed.narration, citations, error: 'AI 给出的修改无法执行，剧本没有改动' });
-      return { ok: false, narration: parsed.narration, applied: 0, errors: [...parsed.errors, String((e as Error).message)], citations, message: 'AI 给出的修改无法执行，剧本没有改动' };
-    }
-    reply({ text: parsed.narration || '好的。', citations, error: skipped, turnId: turn.id, applied: parsed.ops.length });
-    return { ok: true, narration: parsed.narration, applied: parsed.ops.length, errors: parsed.errors, citations, turn: { id: turn.id, label: turn.label, undone: false } };
   } catch (e) {
     const message = describeError(e);
     log('warn', `ai.write failed: ${message}`);
     reply({ text: '', error: message });
-    return { ok: false, narration: '', applied: 0, errors: [], citations: [], message };
+    return { ok: false, ...(ac.signal.aborted || message === '已取消' ? { cancelled: true } : {}), narration: '', applied: 0, errors: [], citations: [], message };
   } finally {
     running.delete(req.reqId);
     busyProjects.delete(req.projectId);

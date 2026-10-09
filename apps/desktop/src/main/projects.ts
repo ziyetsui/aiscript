@@ -103,7 +103,7 @@ export function state(p: Open): ProjectState {
   const nodes = p.doc.nodes();
   const { conversationId: _c, turns: _t, chat = [], pending: _p, workflows = [], archive = [], ...meta } = p.meta;
   const episodes = p.doc.episodes().map((e) => { const ns = p.doc.episode(e.id).nodes(); return { ...e, words: wordCount(ns), scenes: scenes(ns).length }; });
-  return { meta: { ...meta, words: episodes.reduce((n, e) => n + e.words, 0) }, episodes, activeEpisodeId: p.doc.activeEpisodeId, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {} })), outline: p.doc.outline, beats: p.doc.beats, cover: p.doc.cover, production: p.doc.production, conversations: archive.map((a) => ({ id: a.id, title: a.title, at: a.at, messages: a.chat.length })).reverse() };
+  return { meta: { ...meta, words: episodes.reduce((n, e) => n + e.words, 0) }, episodes, activeEpisodeId: p.doc.activeEpisodeId, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {}, mastra: undefined })), outline: p.doc.outline, beats: p.doc.beats, cover: p.doc.cover, production: p.doc.production, conversations: archive.map((a) => ({ id: a.id, title: a.title, at: a.at, messages: a.chat.length })).reverse() };
 }
 
 export function edit(id: string, edits: Edit[]): ProjectState {

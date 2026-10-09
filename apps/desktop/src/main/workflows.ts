@@ -1,3 +1,4 @@
+import { execute } from '@scripter/agent/workflows';
 import { createRequire } from 'node:module';
 // Workflow runs (spec 0002 §5.6): started from the chat, persisted with the project after every step,
 // cancellable, retryable from the failed step, and recovered after a quit. Results are only applied
@@ -6,7 +7,7 @@ import { app, type WebContents } from 'electron';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdirSync, openAsBlob, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { confirm, execute, fetchNewsNow, stopNewsNowProcesses, geminiService, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, transcribeWithGoogleCloud, transcribeGeminiAudio, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
+import { confirm, fetchNewsNow, stopNewsNowProcesses, geminiService, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, transcribeWithGoogleCloud, transcribeGeminiAudio, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
 import { ancher, propose } from './ai.ts';
 import { filePath, filesDir, get, pushChat, saveNow, state } from './projects.ts';
 import { getSecret } from './secrets.ts';
@@ -30,7 +31,7 @@ function emit(projectId: string, run: RunState): void {
 }
 
 /** ctx can hold large intermediate text; the renderer only needs steps and the result. */
-export const publicRun = (r: RunState): RunState => ({ ...r, ctx: {} });
+export const publicRun = (r: RunState): RunState => ({ ...r, ctx: {}, mastra: undefined });
 
 async function fileBlob(path: string): Promise<File> {
   return new File([await openAsBlob(path)], basename(path), { type: mimeFor(path) });
@@ -111,7 +112,7 @@ function saveTranscript(p: Open, run: RunState): void {
   for (const [name, content] of files) {
     const file = `${randomBytes(8).toString('hex')}.${name.split('.').pop()}`;
     writeFileSync(filePath(p.meta.id, file), content, 'utf8');
-    p.doc.bible('files').add({ name, size: Buffer.byteLength(content), src: 'chat', file, addedAt: Date.now() });
+    p.doc.bible('files').add({ name, title: r.title ? `${r.title} · ${name.endsWith('.srt') ? '字幕' : '逐字稿'}` : '', summary: r.summary ?? '', excerpt: content, extract: 'ready', size: Buffer.byteLength(content), src: 'chat', file, addedAt: Date.now() });
   }
   p.doc.commit('transcript');
   run.applied = `已存进知识库：${files.map(([n]) => n).join('、')}`;

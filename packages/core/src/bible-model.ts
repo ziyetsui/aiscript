@@ -34,7 +34,7 @@ export const ART_STYLES = [
   { name: '剪纸皮影', era: '现代' },
 ] as const;
 /** Topic pool (选题池). */
-export interface Topic { id: string; title: string; logline: string; why: string; source: string; status: 'idea' | 'picked' | 'dropped'; reason: string; addedAt: number }
+export interface Topic { id: string; title: string; logline: string; why: string; source: string; status: 'idea' | 'picked' | 'dropped'; reason: string; addedAt: number; reaction?: 'like' | 'dislike' | null }
 
 export interface Bible {
   characters: Character[]; relations: Relation[]; locations: Location[];

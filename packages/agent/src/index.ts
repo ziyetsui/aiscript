@@ -12,3 +12,7 @@ export * from './chat-notes.ts';
 export * from "./newsnow.ts";
 
 export * from './youtube.ts';
+
+export * from './create-note.ts';
+
+export * from './writing-intent.ts';

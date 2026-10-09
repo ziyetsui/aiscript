@@ -34,3 +34,9 @@
 客户端使用现有 React/TypeScript、CSS tokens 与 SDK，适配组件结构，不引入官网的路由、i18n、TanStack Query 或 react-youtube 依赖。YouTube URL 仅允许明确的官方主机名和 11 位视频 ID；本窗口 YouTube embed 子框架使用安装包 bundle ID 作为 Referer，按 Google 的桌面应用嵌入要求识别客户端。其它来源提供打开原文入口。
 
 验证：URL 格式及伪造主机名单测，源 URL / 转录槽映射单测，以及原生 Electron 的同页播放器 + 转录、生成中字幕、上传源文件兼容和两种主题回归。CI 使用受控播放器响应，不将其视为公网 YouTube 播放验证。
+
+### 新建笔记与单一知识库入口
+
+知识库只展示 Ancher 账号笔记，移除「项目笔记」切换与编辑面板。侧栏「新建笔记」和 ⇧⌘O / Ctrl+Shift+O 打开居中弹窗，支持文本、URL、拖入或选择文件（最多 10 个，每个 50 MB）、可选背景与意图以及现有合集选择。SDK 上传、创建和合集关联均在主进程执行；创建后刷新并选中新笔记，沿用处理状态轮询。失败保留输入，合集关联失败仍返回成功创建的笔记，避免重试重复创建。文件与文本分开创建，补充说明可填入背景字段。本轮不含录音和 X 收藏导入。
+
+「保存到项目」继续保存写作参考副本，不再切换到本地笔记面板。新建流程验证见 `apps/desktop/e2e/new-note.e2e.ts`；创建路由与失败处理验证见 `packages/agent/test/create-note.test.ts`。

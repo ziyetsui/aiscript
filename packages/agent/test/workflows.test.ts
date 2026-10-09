@@ -1,7 +1,8 @@
+import { execute } from '../src/workflows/mastra.ts';
 import { ScriptDoc } from '@scripter/core';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { WORKFLOWS, confirm, execute, newRun, parseResult, recoverInterrupted, workflow, type WorkflowEnv } from '../src/index.ts';
+import { WORKFLOWS, confirm, newRun, parseResult, recoverInterrupted, workflow, type WorkflowEnv } from '../src/index.ts';
 
 function env(replies: (string | Error)[], over: Partial<WorkflowEnv> = {}) {
   const d = new ScriptDoc();
@@ -30,6 +31,25 @@ function env(replies: (string | Error)[], over: Partial<WorkflowEnv> = {}) {
 const ac = () => new AbortController();
 const res = (o: unknown) => `好的。<result>${JSON.stringify(o)}</result>`;
 const DIRS = { items: [1, 2, 3].map((i) => ({ title: `走向${i}`, conflict: `冲突${i}`, resolution: `解决${i}`, beats: ['起', '承', '转', '合'], joke: `笑点${i}` })) };
+
+describe('transcript note metadata', () => {
+  it('adds a content title and summary without changing the transcript or subtitles', async () => {
+    const { e } = env([res({ title: '朋友之间的问候', summary: '对白以一句你好开场。' })]);
+    const def = workflow('transcribe');
+    const run = await execute(def, newRun(def, { filePath: '/tmp/94e1fd.mp4' }, 'metadata'), e, ac().signal, () => {});
+    expect(run.status).toBe('done');
+    expect(run.result).toMatchObject({ kind: 'transcript', title: '朋友之间的问候', summary: '对白以一句你好开场。', text: '你好', srt: '1\n00:00:00,000 --> 00:00:01,000\n你好\n' });
+  });
+
+  it('keeps a successful transcription when metadata generation fails', async () => {
+    const { e } = env([new Error('服务不可用')]);
+    const def = workflow('transcribe');
+    const run = await execute(def, newRun(def, { filePath: '/tmp/94e1fd.mp4' }, 'fallback'), e, ac().signal, () => {});
+    expect(run.status).toBe('done');
+    expect(run.result).toMatchObject({ kind: 'transcript', text: '你好' });
+    expect(run.steps.find((s) => s.id === 'metadata')?.note).toContain('未生成');
+  });
+});
 
 describe('engine', () => {
   it('runs every step and produces a result; state is saved along the way', async () => {

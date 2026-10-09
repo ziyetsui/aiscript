@@ -1,12 +1,10 @@
-// Pain-point workflows (spec 0002 §5.6): plain TypeScript state machines, no Mastra yet (§0).
+// Serializable desktop workflow view models; execution lives in the main-only Mastra runtime.
 // Each run is a list of steps; state is persisted after every step, so a run can be cancelled,
 // a failed step retried, and a run interrupted by quitting resumes from where it stopped.
 // Nothing is written to the script by a run: it ends in a result the writer chooses to apply.
 import type { Bible, Op, ScriptNode } from '@scripter/core';
 import { z } from 'zod';
 import type { NewsNowDigest } from '../newsnow.ts';
-import { WORKFLOW_SKILLS } from '../skills/catalog.ts';
-import { skillContext } from '../skills/runtime.ts';
 
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped' | 'waiting';
 export type RunStatus = 'running' | 'waiting' | 'done' | 'failed' | 'cancelled';
@@ -19,7 +17,7 @@ export type WorkflowResult =
   | { kind: 'jokes'; target: { id: string; text: string } | null; items: { text: string; mechanism: string; conflict: string }[] }
   | { kind: 'issues'; items: { nodeId: string | null; quote: string; problem: string; suggestion: string }[]; summary: string }
   | { kind: 'rules'; items: { text: string; scope: string; level: 'hard' | 'pref'; conflict: string }[]; source: string }
-  | { kind: 'transcript'; fileName: string; text: string; srt: string; provider: string }
+  | { kind: 'transcript'; fileName: string; text: string; srt: string; provider: string; title?: string; summary?: string }
   | { kind: 'topics'; items: { title: string; logline: string; why: string }[]; citations: { url: string; title: string }[]; brief?: { headline: string; summary: string; citations: { url: string; title: string }[] }[]; sourceWarning?: string; fetchedAt?: number };
 
 export interface WorkflowInput { text?: string; url?: string; filePath?: string; focusId?: string; target?: number; provider?: 'gemini' | 'ancher'; minutes?: number; browser?: 'chrome' | 'safari' | 'edge' | 'firefox' }
@@ -32,6 +30,8 @@ export interface RunState {
   steps: StepState[];
   /** Intermediate values carried between steps (JSON-serialisable, persisted). */
   ctx: Record<string, unknown>;
+  /** Native Mastra snapshot, persisted with the project; never sent to the renderer. */
+  mastra?: { version: 1; snapshot: unknown };
   result?: WorkflowResult;
   /** Set while the run is paused for the writer (spec §5.4 "人工确认 suspend"). */
   waiting?: { stepId: string; title: string; text: string; hint: string };
@@ -55,6 +55,8 @@ export interface WorkflowEnv {
   youtube?(url: string, signal: AbortSignal): Promise<{ text: string; srt: string; fileName: string; provider: string }>;
   hotspots(signal: AbortSignal): Promise<NewsNowDigest>;
   hasGemini(): boolean;
+  /** Persist partial progress inside a long step (for example each three-scene batch). */
+  checkpoint?(): void;
 }
 
 export type WorkflowId = 'directions' | 'restructure' | 'jokes' | 'drift' | 'notes' | 'length' | 'transcribe' | 'youtube' | 'topics' | 'episode';
@@ -77,66 +79,6 @@ export class Cancelled extends Error { constructor() { super('已取消'); this.
 
 export function newRun(def: WorkflowDef, input: WorkflowInput, id: string): RunState {
   return { id, wf: def.id, status: 'running', input, steps: def.steps.map((s) => ({ id: s.id, label: s.label, status: 'pending' })), ctx: {}, startedAt: Date.now() };
-}
-
-/** Run (or resume) from the first step that isn't done. `save` is called after every state change. */
-export async function execute(def: WorkflowDef, run: RunState, env: WorkflowEnv, signal: AbortSignal, save: (r: RunState) => void): Promise<RunState> {
-  const chat = env.chat;
-  const craft = skillContext(WORKFLOW_SKILLS[def.id] ?? []);
-  env = { ...env, chat: (prompt, options) => chat(`${craft}\n\n${prompt}`, options) };
-  run.status = 'running';
-  run.error = undefined;
-  run.waiting = undefined;
-  for (const st of run.steps) if (st.status === 'failed' || st.status === 'running' || st.status === 'waiting') { st.status = 'pending'; st.error = undefined; }
-  save(run);
-  for (let i = 0; i < def.steps.length; i++) {
-    const st = run.steps[i]!;
-    if (st.status === 'done' || st.status === 'skipped') continue;
-    if (signal.aborted) return finishCancelled(run, save);
-    st.status = 'running';
-    save(run);
-    try {
-      const r = await def.steps[i]!.run(run.ctx, env, run.input, signal);
-      if (signal.aborted) return finishCancelled(run, save);
-      if (r?.wait) {
-        st.status = 'waiting';
-        run.status = 'waiting';
-        run.waiting = { stepId: st.id, ...r.wait };
-        save(run);
-        return run;
-      }
-      st.status = r?.skip ? 'skipped' : 'done';
-      if (r?.note) st.note = r.note;
-      save(run);
-    } catch (e) {
-      if (signal.aborted || e instanceof Cancelled || (e instanceof Error && e.name === 'AbortError')) return finishCancelled(run, save);
-      st.status = 'failed';
-      st.error = e instanceof Error ? e.message : String(e);
-      run.status = 'failed';
-      run.error = st.error;
-      run.endedAt = Date.now();
-      save(run);
-      return run;
-    }
-  }
-  try {
-    run.result = def.finish(run.ctx, run.input);
-    run.status = 'done';
-  } catch (e) {
-    run.status = 'failed';
-    run.error = e instanceof Error ? e.message : String(e);
-  }
-  run.endedAt = Date.now();
-  save(run);
-  return run;
-}
-
-function finishCancelled(run: RunState, save: (r: RunState) => void): RunState {
-  for (const st of run.steps) if (st.status === 'running') st.status = 'pending';
-  run.status = 'cancelled';
-  run.endedAt = Date.now();
-  save(run);
-  return run;
 }
 
 /** The writer confirmed (and possibly edited) what a waiting step showed; `execute` again to continue. */
