@@ -123,6 +123,16 @@ try {
   await shot(page, '03-workspace-ai');
   await sum.click();
 
+  step('the rail theme button switches dark/light without leaving the project and saves the preference');
+  await page.getByRole('button', { name: '切换亮暗模式', exact: true }).click();
+  await page.waitForFunction(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  assert.equal(await page.evaluate(() => window.api.app.getTheme()), 'dark');
+  assert.equal(JSON.parse(readFileSync(join(userData, 'settings.json'), 'utf8')).theme, 'dark');
+  assert.equal(await page.locator('.paper .node').count(), 4);
+  await page.getByRole('button', { name: '切换亮暗模式', exact: true }).click();
+  await page.waitForFunction(() => !matchMedia('(prefers-color-scheme: dark)').matches);
+  assert.equal(await page.evaluate(() => window.api.app.getTheme()), 'light');
+
   step('the AI turn registered 门墩儿 and 胡同口');
   await page.getByRole('button', { name: '角色', exact: true }).click();
   await page.getByText('住在石门墩里，嘴硬心软').waitFor();

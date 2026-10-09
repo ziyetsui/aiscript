@@ -14,6 +14,7 @@ import { Workspace } from './screens/Workspace.tsx';
 import { World } from './screens/World.tsx';
 import type { IconName } from './lib/icon-paths.ts';
 import { Icon, Logo } from './lib/ui.tsx';
+import { ThemeToggle } from './components/ThemeToggle.tsx';
 
 export type Tab = 'write' | 'production' | 'characters' | 'locations' | 'props' | 'world' | 'knowledge';
 export type Route = { name: 'home' } | { name: 'recents'; trash?: boolean } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string; pendingWeb?: boolean; pendingEpisode?: string };
@@ -55,6 +56,7 @@ export function App() {
       {!project && <><button className="no-drag" aria-label="新建" onClick={() => setRoute({ name: 'home' })}><Icon name="pen" size={17} /></button><button className="no-drag" aria-label="最近" onClick={() => setRoute({ name: 'recents' })}><Icon name="book" size={17} /></button><button className="no-drag" aria-label="回收站" onClick={() => setRoute({ name: 'recents', trash: true })}><Icon name="trash" size={17} /></button></>}
       <div className="grow" />
       <button className="no-drag" title="设置" aria-label="设置" aria-current={route.name === 'settings' ? 'page' : undefined} onClick={() => setRoute({ name: 'settings', back: route.name === 'settings' ? route.back : route })}><Icon name="gear" size={17} /></button>
+      <ThemeToggle />
       <button className="no-drag" title="返回首页" aria-label="返回首页" aria-current={route.name === 'home' ? 'page' : undefined} onClick={() => setRoute({ name: 'home' })}><Icon name="home" size={17} /></button>
     </nav>
   );
