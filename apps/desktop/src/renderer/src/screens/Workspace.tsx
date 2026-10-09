@@ -2,8 +2,9 @@
 // and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScriptNode } from '@scripter/core/script';
-import type { AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
+import type { ActivityRow, AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
 import { RunCard, WF_MENU, WorkflowLauncher } from '../components/Workflows.tsx';
+import { Activity } from '../components/Activity.tsx';
 import { AssistantMessage, ChatHeader, Composer, EmptyChat, JumpPill, Thinking, UserBubble } from '../components/Chat.tsx';
 import { SelectionBar } from '../components/SelectionBar.tsx';
 import type { Route } from '../App.tsx';
@@ -48,6 +49,8 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
   useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, apply]);
   useEffect(() => onSound(setSoundState), []);
   useEffect(() => window.api.ai.onDelta((d) => { if (d.reqId === running) setStream((s) => s + d.text); }), [running]);
+  const [acts, setActs] = useState<ActivityRow[]>([]); // live agent activity for the running request
+  useEffect(() => window.api.ai.onActivity((d) => { if (d.reqId === running) setActs(d.rows); }), [running]);
   const chatLen = st?.chat.length ?? 0;
   const prevLen = useRef(chatLen);
   useEffect(() => {
@@ -56,7 +59,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     if (stick.current) el.scrollTop = el.scrollHeight;
     else if (chatLen > prevLen.current) setUnread((u) => u + (chatLen - prevLen.current));
     prevLen.current = chatLen;
-  }, [chatLen, stream, asking, running, st?.runs]);
+  }, [chatLen, stream, asking, running, st?.runs, acts]);
   function onFeedScroll() {
     const el = feed.current!;
     const near = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
@@ -135,6 +138,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     setAsking(t);
     setInput('');
     setStream('');
+    setActs([]);
     setRunning(reqId);
     const focusId = (document.activeElement as HTMLElement | null)?.dataset?.id;
     const before = new Set(nodes.map((n) => n.id));
@@ -147,6 +151,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     const s = await window.api.projects.open(id);
     setRunning(null);
     setStream('');
+    setActs([]);
     setAsking(null);
     const newIds = s.nodes.filter((n) => !before.has(n.id)).map((n) => n.id);
     apply(s);
@@ -300,14 +305,14 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
               {st.chat.length === 0 && !running && !asking && <EmptyChat onAction={onAction} />}
               {st.chat.map((m) => {
                 const undone = !!m.turnId && st.turns.find((t) => t.id === m.turnId)?.undone;
+                const turnLine = m.turnId && (
+                      <div className="turn-line">{undone ? <span>已撤销本轮 {m.applied ?? 0} 处修改</span>
+                        : <><span className="tnum">本轮 {m.applied ?? 0} 处修改</span><span aria-hidden="true">·</span><button onClick={() => void undo(m.turnId!)}>撤销</button></>}</div>
+                );
                 const extras = (
                   <>
                     {m.runId && (() => { const run = st.runs.find((r) => r.id === m.runId); return run ? <RunCard run={run} projectId={id} onApplied={(s) => apply(s)} onJump={jumpTo} /> : null; })()}
                     {m.preview && <PreviewCard m={m} onResolve={(a) => void resolve(m, a)} />}
-                    {m.turnId && (
-                      <div className="turn-card"><Icon name="pen" size={13} /><span style={{ flex: 1 }}>{undone ? '已撤销' : `写入 ${m.applied ?? 0} 处修改`}</span>
-                        {!undone && <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void undo(m.turnId!)}><Icon name="undo" size={13} />撤销</button>}</div>
-                    )}
                     {m.citations && m.citations.length > 0 && (
                       <div className="chipset">{m.citations.slice(0, 5).map((c) => <a key={c.url} className="chip" href={c.url} target="_blank" rel="noreferrer">{c.title || new URL(c.url).hostname}</a>)}</div>
                     )}
@@ -317,9 +322,10 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
                 return m.role === 'user'
                   ? <UserBubble key={m.id} text={m.text} />
                   : <AssistantMessage key={m.id} m={m} onReact={async (r) => setSt(await window.api.chat.react(id, m.id, r))}
-                      onSave={async () => { try { const r = await window.api.chat.saveAsNote(id, m.id); setSt(r.state); toast(`已存进知识库：${r.name}`); } catch (e) { toast(cleanErr(e)); } }}>{extras}</AssistantMessage>;
+                      onSave={async () => { try { const r = await window.api.chat.saveAsNote(id, m.id); setSt(r.state); toast(`已存进知识库：${r.name}`); } catch (e) { toast(cleanErr(e)); } }} after={turnLine}>{extras}</AssistantMessage>;
               })}
               {asking && <UserBubble text={asking} />}
+              {running && acts.length > 0 && <Activity folded={false} items={acts.map((r) => ({ ...r, state: r.running ? 'running' : 'done' }))} />}
               {running && <Thinking partial={visibleReply(stream)} />}
             </div>
             <JumpPill show={awayFromBottom || unread > 0} unread={unread} onClick={toLatest} />

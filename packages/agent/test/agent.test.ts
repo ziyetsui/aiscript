@@ -129,3 +129,23 @@ describe('rules only on the first turn', async () => {
     expect(later).toContain('用户：续写');
   });
 });
+
+describe('agent activity rows', async () => {
+  const { toolLabel, addCall, endCall, activitySummary } = await import('../src/index.ts');
+  it('labels tool calls in Chinese with their object', () => {
+    expect(toolLabel('web_search', { query: '胡同 修鞋铺' })).toEqual({ label: '联网搜索', obj: '胡同 修鞋铺' });
+    expect(toolLabel('fetch_url', '{"url":"https://example.com/a"}')).toEqual({ label: '读取网页', obj: 'https://example.com/a' });
+    expect(toolLabel('list_project_files').label).toBe('读取文件');
+    expect(toolLabel('frobnicate_widget').label).toBe('frobnicate widget');
+  });
+  it('merges consecutive calls of one tool into ×N and folds into one line', () => {
+    let rows = addCall([], '联网搜索', 'a');
+    rows = endCall(rows, '联网搜索');
+    rows = addCall(rows, '联网搜索', 'b');
+    expect(rows).toEqual([{ label: '联网搜索', obj: 'b', n: 2, running: true }]);
+    rows = endCall(rows, '联网搜索');
+    rows = endCall(addCall(rows, '读取网页'), '读取网页');
+    expect(rows.every((r) => !r.running)).toBe(true);
+    expect(activitySummary(rows)).toBe('完成 3 个步骤 · 联网搜索、读取网页');
+  });
+});

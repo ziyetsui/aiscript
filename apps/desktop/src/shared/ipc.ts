@@ -1,6 +1,7 @@
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
 import type { PreviewItem } from '@scripter/core';
-import type { RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
+import type { ActivityRow, RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
+export type { ActivityRow };
 import type { Bible, BibleItem, BibleKind, ElementType, ScriptNode, SceneSummary } from '@scripter/core/script';
 
 export type LicenseStatus =
@@ -25,6 +26,8 @@ export interface ChatMsg {
   citations?: { url: string; title: string }[];
   /** A workflow run shown in the conversation. */
   runId?: string;
+  /** The agent's tool calls during this reply, folded into 「完成 N 个步骤」 above the text. */
+  steps?: ActivityRow[];
   /** Thumbs feedback on an assistant message (kept locally). */
   reaction?: 'like' | 'dislike';
   /** A rewrite waiting for the writer's decision (modification preview). */
@@ -136,6 +139,8 @@ export interface Api {
     /** Accept or reject a pending modification preview. */
     resolve(projectId: string, msgId: string, accept: boolean): Promise<{ ok: boolean; message?: string; turn?: TurnInfo; state: ProjectState }>;
     onDelta(cb: (e: { reqId: string; text: string }) => void): () => void;
+    /** Live agent activity for a running request: the whole block so far (merged rows). */
+    onActivity(cb: (e: { reqId: string; rows: ActivityRow[] }) => void): () => void;
   };
   chat: {
     /** Archive the current conversation and start a fresh one (new Ancher conversation too). */

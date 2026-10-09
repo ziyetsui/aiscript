@@ -73,12 +73,19 @@ try {
   step('send an idea → workspace → AI writes 4 nodes (+ registers a character and a location) as one turn, typed out');
   await page.locator('#ask').fill('胡同里的小男孩发现自家门墩儿会说话，写第一场');
   await page.getByRole('button', { name: '开始' }).click();
-  await page.getByText('写入 6 处修改').waitFor({ timeout: 20_000 });
+  await page.locator('.act-row.is-running', { hasText: '联网搜索' }).waitFor({ timeout: 20_000 }); // live agent activity rows
+  await shot(page, '03a-activity-live');
+  await page.getByText('本轮 6 处修改').waitFor({ timeout: 20_000 });
   await page.waitForFunction(() => !document.querySelector('.node.caret') && document.querySelectorAll('.paper .node').length === 4, null, { timeout: 20_000 });
   assert.deepEqual(await page.locator('.paper .node').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.type)), ['heading', 'action', 'character', 'dialogue']);
   assert.ok(fake.prompts[0]!.includes('<ops>') && fake.prompts[0]!.includes('门墩儿会说话'), 'prompt carries the ops contract and the idea');
   await page.getByRole('button', { name: /1\. 外景 胡同口/ }).waitFor();
+  const sum = page.locator('.ag-ai .act-sum');
+  assert.equal(await sum.textContent(), '完成 3 个步骤 · 联网搜索、读取网页', 'activity folds into one line once the turn ends');
+  await sum.click();
+  await page.locator('.ag-ai .act-row', { hasText: '联网搜索' }).locator('.an', { hasText: '×2' }).waitFor(); // same-tool calls merged
   await shot(page, '03-workspace-ai');
+  await sum.click();
 
   step('the AI turn registered 门墩儿 and 胡同口');
   await page.getByRole('button', { name: '角色', exact: true }).click();
@@ -106,7 +113,7 @@ try {
 
   step('undo the AI turn: its 4 nodes and its bible entries go, the writer’s 2 lines stay');
   await page.getByRole('button', { name: '撤销' }).click();
-  await page.getByText('已撤销', { exact: true }).waitFor();
+  await page.getByText('已撤销本轮 6 处修改').waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
   await page.getByRole('button', { name: '角色', exact: true }).click();
   await page.getByText('剧本里出现了还没建档的角色：豆豆').waitFor();
@@ -261,12 +268,12 @@ try {
   await page.getByLabel('创意', { exact: true }).fill('__SLOW__ 门墩儿会说话');
   await page.getByRole('button', { name: '开始' }).click();
   const run1 = page.locator('.run').last();
-  await run1.locator('li.st-running', { hasText: 'Ancher 联网调研' }).waitFor();
+  await run1.locator('.act-row.is-running', { hasText: 'Ancher 联网调研' }).waitFor();
   await run1.getByRole('button', { name: '取消' }).click();
   await run1.getByText('已取消，没有写入任何内容').waitFor();
   await run1.getByRole('button', { name: '重试' }).click();
   await run1.getByText('走向1：门墩儿的秘密1').waitFor({ timeout: 20_000 });
-  assert.equal(await run1.locator('li.st-done').count(), 4);
+  await run1.locator('.act-sum', { hasText: '完成 4 个步骤' }).waitFor(); // finished run folds its steps
   await shot(page, '10-workflow-directions');
   await run1.getByRole('button', { name: '写进大纲' }).nth(1).click();
   await run1.getByText('已写进大纲：走向2：门墩儿的秘密2').waitFor();
@@ -302,7 +309,7 @@ try {
   await run8.getByText('已加入选题池 3 个').waitFor();
   await page.getByLabel('给 AI 的指令').fill('续写下一场');
   await page.keyboard.press('Enter');
-  await page.getByText('写入 6 处修改').last().waitFor({ timeout: 20_000 });
+  await page.getByText('本轮 6 处修改').last().waitFor({ timeout: 20_000 });
   assert.ok(fake.prompts.at(-1)!.includes('笑点要来自孩子的视角'), 'confirmed rules are sent with the next writing request');
   assert.ok(!fake.prompts.at(-1)!.includes('不要出现手机'), 'unconfirmed rules are not');
   assert.match(fake.prompts.at(-1)!, /<reference>[\s\S]*《导演意见\.txt》[\s\S]*不要大人式的抖机灵[\s\S]*<\/reference>/, 'pinned knowledge goes along as reference material');
@@ -388,7 +395,7 @@ try {
   assert.equal((await scenesBox.inputValue()).split('\n').length, 13);
   await ep.getByRole('button', { name: '确认，继续' }).click();
   await ep.getByRole('button', { name: '查看修改预览' }).waitFor({ timeout: 30_000 });
-  assert.equal(await ep.locator('li.st-done').count(), 9);
+  await ep.locator('.act-sum', { hasText: '完成 9 个步骤' }).waitFor();
   await ep.getByRole('button', { name: '查看修改预览' }).click();
   await page.locator('.preview').last().getByRole('button', { name: '接受' }).click();
   await page.waitForFunction(() => document.querySelectorAll('.paper .node[data-type="heading"]').length === 13, null, { timeout: 30_000 });
@@ -414,7 +421,7 @@ try {
   await shot(page, '13-chat-running');
   await ask.press('Enter');
   await page.locator('.q-item', { hasText: '第二条' }).waitFor(); // queued message shown above the box
-  await page.waitForFunction(() => document.querySelectorAll('.turn-card').length >= 2 && !document.querySelector('.ag-thinking'), null, { timeout: 30_000 });
+  await page.waitForFunction(() => document.querySelectorAll('.turn-line').length >= 2 && !document.querySelector('.ag-thinking'), null, { timeout: 30_000 });
   const firstChat = fake.prompts.find((x) => x.includes('用户：__SLOW__ 第一条'))!;
   const secondChat = fake.prompts.find((x) => x.includes('用户：第二条'))!;
   assert.ok(firstChat.includes('## 你怎么改剧本'), 'a new conversation starts with the full rules');
@@ -459,6 +466,22 @@ try {
   await page.getByRole('button', { name: '设置', exact: true }).click();
   await page.getByRole('radio', { name: '亮色' }).click();
   await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(249, 249, 248)');
+  // A finished turn in both themes: folded activity (opened), the reply, the quiet 「本轮 N 处修改 · 撤销」 line.
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await ask2.fill('写一场豆豆和门墩儿拌嘴的戏');
+  await ask2.press('Enter');
+  const turnSum = page.locator('.ag-ai .act-sum').filter({ visible: true }).last();
+  await turnSum.waitFor({ timeout: 20_000 });
+  await page.locator('.turn-line').filter({ visible: true }).last().waitFor();
+  await page.waitForFunction(() => !document.querySelector('.node.caret'), null, { timeout: 20_000 });
+  await turnSum.click();
+  await shot(page, '16-activity-light');
+  await page.getByRole('button', { name: '设置', exact: true }).click();
+  await page.getByRole('radio', { name: '暗色' }).click();
+  await page.waitForFunction(() => getComputedStyle(document.body).backgroundColor === 'rgb(17, 17, 16)');
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await shot(page, '16-activity-dark');
+  await page.getByRole('button', { name: '设置', exact: true }).click();
   await page.getByRole('radio', { name: '跟随系统' }).click();
   console.log('\nE2E passed');
 } catch (e) {
