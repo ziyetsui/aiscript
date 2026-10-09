@@ -49,3 +49,10 @@
 - 首轮 CI 37889576878：原型格式、typecheck/70 单测、gitleaks 通过；E2E 的 End 键没有建立 macOS 行尾光标前提，在对白中间分行，断言失败。测试改为明确设置折叠到行尾的 selection，并等待新角色行获得焦点；不改变编辑器产品行为。
 - 首轮 Release 37889573433：macOS 读取空 CSC_LINK 时解析为工作目录，报 not a file。已根据本地 electron-builder 证书读取实现确认原因，构建前清理为空的可选签名环境变量，保留实际已有凭证。
 - 修复后本机完整 E2E 与云端原生打包继续验证；结果按实际 run 回写。
+- 修复提交 `6b82f14`：本机完整 E2E 通过；云端 [CI 37889824766](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37889824766) 全部通过（原型格式、typecheck/70 单测、完整 Electron E2E、gitleaks）。
+- [Release 37889834662](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37889834662) 双平台全部通过：Windows 原生 NSIS 静默安装后启动到激活页；macOS ARM64 原生包启动到激活页；两者 `app.isPackaged=true`，无开发覆盖变量。mac ARM64/x64 dmg+zip 与 Windows x64 exe 已下载，证据保存在忽略目录 delivery/evidence/native-6b82f14。
+- 并发首轮/修复轮曾创建同标签的两个 draft；保留含完整五包的草稿 407555414，备份元数据后清理本会话冗余草稿 407555412。发布流程增加 prepare 单草稿步骤及同 ref 并发排队，避免平台矩阵重复创建。
+- 交付脚本允许从下载的原生产物目录收集，manifest 另记 artifactSourceCommit/artifactBuildRun，区分包源码与后续文档/流水线修复提交。
+- Windows 原生安装冒烟已通过，不等于客户激活/完整编辑导出/覆盖升级/卸载验收；发行签名、公证、客户机器码与接收渠道仍未提供。
+- 下载的 Windows 安装器提取 app.asar，以及只读挂载两种架构的 CI dmg，237 文本文件扫描与正式公钥检查均通过；两个 CI dmg 在本机分别 ARM64 原生、x64 Rosetta 启动到激活页，已卸载挂载卷。云端原生包证据与客户完整验收明确分开。
+- 草稿 Windows 资产因先前并发轮次与新 run artifact 不一致，已以第二轮实际安装验证的 artifact 替换；候选包与草稿必须逐文件核对 SHA256 后才作为交付来源。

@@ -9,8 +9,23 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare one draft for both platforms
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || github.token }}
+        run: |
+          version=$(node -p "require('./apps/desktop/package.json').version")
+          gh release view "v$version" >/dev/null 2>&1 || gh release create "v$version" --draft --target "$GITHUB_SHA" --title "$version" --notes 'Candidate build; signing and customer acceptance pending.'
   build:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
