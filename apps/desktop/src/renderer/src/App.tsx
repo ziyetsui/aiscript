@@ -15,6 +15,7 @@ import { Topics } from './screens/Topics.tsx';
 import { PROJECT_NAV, type Tab } from './lib/project-navigation.ts';
 export type { Tab } from './lib/project-navigation.ts';
 import { Icon, Logo } from './lib/ui.tsx';
+import { RecentProjects } from './components/RecentProjects.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 
 export type Route = { name: 'home' } | { name: 'recents'; trash?: boolean; tab?: Tab } | { name: 'settings'; back?: Route } | { name: 'project'; id: string; tab: Tab; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingSkillActionId?: string; pendingEpisode?: string };
@@ -61,6 +62,7 @@ export function App() {
   const nav = (
     <nav className="rail drag" aria-label="导航">
       <div className="no-drag" style={{ marginBottom: 10 }}><Logo size={24} /></div>
+      {project && <RecentProjects key={project.id} currentId={project.id} onSelect={(id) => setRoute({ name: 'project', id, tab: project.tab })} onAll={() => setRoute({ name: 'recents' })} />}
       {project && TABS.map(([t, ic, label]) => (
         <button key={t} className="no-drag" title={label} aria-label={label} aria-current={route.name === 'project' && route.tab === t ? 'page' : undefined}
           onClick={() => setRoute({ name: 'project', id: project.id, tab: t })}><Icon name={ic} size={17} /></button>
@@ -69,7 +71,6 @@ export function App() {
       <div className="grow" />
       <button className="no-drag" title="设置" aria-label="设置" aria-current={route.name === 'settings' ? 'page' : undefined} onClick={() => setRoute({ name: 'settings', back: route.name === 'settings' ? route.back : route })}><Icon name="gear" size={17} /></button>
       <ThemeToggle />
-      {project && <button className="no-drag" title="切换项目" aria-label="最近项目" onClick={() => setRoute({ name: 'recents' })}><Icon name="book" size={17} /></button>}
       <button className="no-drag" title="返回首页" aria-label="返回首页" aria-current={route.name === 'home' ? 'page' : undefined} onClick={() => setRoute({ name: 'home' })}><Icon name="home" size={17} /></button>
     </nav>
   );

@@ -242,6 +242,25 @@ try {
   const lastProjectId = await page.evaluate(() => localStorage.getItem('last-project'));
   assert.ok(lastProjectId);
   const decoy = await page.evaluate(() => window.api.projects.create('较新但未打开的项目', 'script'));
+  step('the top rail picker switches projects in place and closes with Escape');
+  await page.getByRole('button', { name: '道具', exact: true }).click();
+  const picker = page.getByRole('dialog', { name: '最近项目', exact: true });
+  await page.locator('.rail').getByRole('button', { name: '最近项目', exact: true }).click();
+  await picker.locator(`[data-project-id="${lastProjectId}"]`).waitFor();
+  assert.equal(await picker.locator(`[data-project-id="${lastProjectId}"]`).getAttribute('aria-current'), 'true');
+  await picker.locator(`[data-project-id="${decoy.id}"]`).click();
+  await page.waitForFunction((id) => localStorage.getItem('last-project') === id, decoy.id);
+  assert.equal(await page.locator('.rail').getByRole('button', { name: '道具', exact: true }).getAttribute('aria-current'), 'page');
+  assert.equal(await page.locator('.collection-shell').count(), 0);
+  await page.locator('.rail').getByRole('button', { name: '最近项目', exact: true }).click();
+  await picker.locator(`[data-project-id="${lastProjectId}"]`).click();
+  await page.waitForFunction((id) => localStorage.getItem('last-project') === id, lastProjectId);
+  await page.locator('.rail').getByRole('button', { name: '最近项目', exact: true }).click();
+  await picker.waitFor();
+  await page.keyboard.press('Escape');
+  await picker.waitFor({ state: 'detached' });
+  await page.locator('.rail').getByRole('button', { name: '最近项目', exact: true }).click();
+  await picker.getByRole('button', { name: '查看全部项目', exact: true }).click();
   assert.equal(await page.getByRole('button', { name: '快速视频 Beta', exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: '社区', exact: true }).count(), 0);
   for (const label of ['写作', '制作', '角色', '地点', '道具', '选题池', '知识库']) {
@@ -252,6 +271,7 @@ try {
     assert.equal(await page.locator('.rail').getByRole('button', { name: label, exact: true }).getAttribute('aria-current'), 'page');
     await page.locator(label === '写作' ? '.writing-center' : '.content-main > *').first().waitFor({ state: 'visible' });
     await page.locator('.rail').getByRole('button', { name: '最近项目', exact: true }).click();
+    await page.getByRole('dialog', { name: '最近项目', exact: true }).getByRole('button', { name: '查看全部项目', exact: true }).click();
     await page.locator('.recent[data-project-id]').first().waitFor();
   }
   await page.evaluate(async (id) => {
@@ -263,6 +283,7 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem('last-project')), lastProjectId, 'a deleted last project falls back to an available project');
   await page.evaluate((id) => window.api.projects.purge(id), decoy.id);
   await page.locator('.rail').getByRole('button', { name: '最近项目', exact: true }).click();
+  await page.getByRole('dialog', { name: '最近项目', exact: true }).getByRole('button', { name: '查看全部项目', exact: true }).click();
   await page.locator('.recent[data-project-id]').first().getByRole('button').first().click();
   await page.locator('.paper .node').first().waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
