@@ -150,7 +150,7 @@ const KINDS = ['Dock 形变', '命令面板', '底部胶片条', '可拖拽圆�
 const VARS = { a: 'Laper 原样', b: '专注稿纸', c: '编辑部', d: '卡片桌面', e: '键盘优先' };
 const VAR_NOTE = { a: '三栏 + 浮动 AI 面板（laper 走查原样）', b: '只留一张稿纸；AI 收成底部指令条，悬停才展开；工具栏只在指向稿纸时出现', c: 'AI 固定停靠右侧整列，信息更密；动效 120ms、无错开', d: '点阵桌面 + 索引卡；AI 是可拖拽甩开的侧边面板；柔和的抽屉曲线', e: '全等宽、直角、无阴影；AI 是底部控制台；完全没有动画' };
 const VK = Object.keys(VARS);
-const state = { page: PAGES[0].id, dir: DIRS[0], os: 'mac', kind: 1, v: 'a' };
+const state = { page: PAGES[0].id, dir: 'd2', os: 'mac', kind: 1, v: 'a' };
 let open = true, loaded = '', viaKeyboard = false;
 const $ = (id) => document.getElementById(id);
 const store = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} } };

@@ -206,12 +206,17 @@ const p3 = () => chrome('Ancher Scripter', `
     <div style="align-self:stretch;display:flex;justify-content:space-between;align-items:center"><button class="btn btn-quiet" style="width:34px;padding:0" aria-label="菜单">${icon('menu', 16)}</button><span class="chip" style="height:30px"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span> 已激活 · Ancher 已连接</span></div>
     <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:16px;width:min(680px,100%)">
       <div style="display:flex;align-items:center;gap:12px"><div class="logo" style="margin:0;width:36px;height:36px" aria-label="Ancher" role="img">${symbolSvg(36)}</div><h1 class="display" style="font-size:28px;margin:0">下午好，林</h1></div>
-      <form class="card" id="ask-f" style="padding:16px;box-shadow:var(--shadow-pop)"><label for="ask" class="sr-only">输入</label>
-        <textarea id="ask" style="width:100%;min-height:84px;border:0;outline:none;resize:none;background:transparent;font-size:17px" placeholder="帮您处理剧本格式或从新点子开始？"></textarea>
-        <div style="display:flex;gap:8px;align-items:center"><button type="button" class="btn btn-ghost" style="height:34px">${icon('plus', 14)} 添加文件</button>
-          <span class="kind-wrap" style="position:relative"><button type="button" class="btn btn-ghost" style="height:34px" id="kind-btn" aria-haspopup="listbox" aria-expanded="false">${icon('doc', 14)} <span id="kind">剧本项目</span> ${icon('chev', 12)}</button>
+      <form class="cmp home-cmp" id="ask-f">
+        <div class="plus-menu" id="plus-menu" role="menu" aria-label="添加" hidden><div class="pm-h">添加</div>${[['clip', '文件和图片', '剧本、小说、人物小传、参考图', "toast('选择文件或图片')"], ['video', '本地视频', '让 AI 看完再拆解', "toast('选择视频，Ancher 读取后拆解')"], ['note', '知识库笔记', '把已有笔记带进新项目', "toast('从知识库挑选笔记')"], ['link', '链接', '网页或视频链接', "toast('粘贴一个链接')"]].map(([ic, t, d, act]) => `<button type="button" class="pm-item" role="menuitem" onclick="closePlus();${act}">${icon(ic, 15)}<b>${t}</b><span>${d}</span></button>`).join('')}</div>
+        <div class="cmp-card"><label for="ask" class="sr-only">输入</label>
+          <textarea id="ask" rows="3" placeholder="帮您处理剧本格式或从新点子开始？"></textarea>
+          <div class="cmp-bar"><button type="button" class="ico-btn" aria-label="提及" onclick="ask.value+='@';ask.focus()">${icon('at', 16)}</button><button type="button" class="ico-btn" id="plus" aria-label="添加" aria-haspopup="menu" aria-expanded="false" onclick="plusMenu()">${icon('plus', 16)}</button>
+            <button type="button" class="ico-btn" aria-pressed="false" aria-label="联网搜索" title="联网搜索" onclick="this.setAttribute('aria-pressed',this.getAttribute('aria-pressed')!=='true')">${icon('globe', 15)}</button>
+            <span class="kind-wrap" style="position:relative"><button type="button" class="chip" style="height:28px;font-weight:600" id="kind-btn" aria-haspopup="listbox" aria-expanded="false">${icon('doc', 13)} <span id="kind">剧本项目</span> ${icon('chev', 11)}</button>
             <div class="kind-menu card" id="kind-menu" role="listbox" aria-label="项目类型">${[['doc', '剧本项目', '写出专业、结构清晰的剧本'], ['video', '快速视频', '为 AI 视频创作而生']].map(([ic, t, d], i) => `<button type="button" role="option" aria-selected="${i === 0}" class="kind-opt" data-t="${t}">${icon(ic, 15)}<span><b>${t}</b><br><span class="muted" style="font-size:12px">${d}</span></span></button>`).join('')}</div></span>
-          <span style="flex:1"></span><button class="btn btn-primary" style="width:38px;height:38px;padding:0;border-radius:50%" aria-label="发送">${icon('send', 16)}</button></div></form>
+            <span style="flex:1"></span><button type="button" class="ico-btn" aria-label="语音输入" onclick="toast('按住说话')">${icon('mic', 16)}</button>
+            <button type="submit" class="cmp-send" aria-label="发送">${icon('send', 15)}</button></div></div>
+      </form>
       <div class="intents" id="intents">${INTENTS.map(([ic, t], i) => `<button type="button" class="btn btn-ghost intent" data-i="${i}" style="height:34px">${icon(ic, 14)} ${t}</button>`).join('')}</div>
       <section class="sugg card" id="sugg" hidden aria-labelledby="sugg-t"><div class="sugg-hd"><span id="sugg-ic"></span><b id="sugg-t"></b><span style="flex:1"></span>
         <button type="button" class="sugg-x" id="sugg-x" aria-label="关闭建议">${icon('x', 16)}</button></div><div class="sugg-list" id="sugg-list" role="listbox"></div></section>
@@ -219,6 +224,8 @@ const p3 = () => chrome('Ancher Scripter', `
     <div class="muted" style="font-size:11.5px;display:flex;gap:16px">Ancher Scripter · 剧本博物馆 · 帮助与支持 · 服务条款 · 隐私政策</div>
   </div>`, `
   <style>
+  .home-cmp{margin:0;box-shadow:var(--shadow-pop)}.home-cmp .cmp-card textarea{min-height:84px;font-size:16px;padding:14px 16px 6px}
+  .home-cmp .plus-menu{top:calc(100% + 6px);bottom:auto;transform-origin:top left}
   .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   .intents{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}.intents[hidden],.sugg[hidden]{display:none}
   /* Suggestion panel opens from under the input (origin top), 180ms ease-out; closing is faster (120ms). Switching category is instant. */
@@ -254,6 +261,13 @@ const p3 = () => chrome('Ancher Scripter', `
   intents.querySelectorAll('.intent').forEach(b=>{ b.onclick=e=>open(+b.dataset.i, e.detail===0); });
   document.getElementById('sugg-x').onclick=close;
   sugg.addEventListener('keydown',e=>{ const n=list.children.length; if(e.key==='ArrowDown'){ sel=(sel+1)%n; mark(); list.children[sel].focus(); e.preventDefault(); } else if(e.key==='ArrowUp'){ sel=(sel-1+n)%n; mark(); list.children[sel].focus(); e.preventDefault(); } else if(e.key==='Escape'){ close(); e.preventDefault(); } });
+  // 「+」 menu — opens on click, ↑↓ to move, Esc closes and returns focus
+  const pm=document.getElementById('plus-menu'), pb=document.getElementById('plus');
+  function plusMenu(){ if(!pm.hidden){ closePlus(); return; } pm.hidden=false; pb.setAttribute('aria-expanded','true'); pm.querySelector('.pm-item').focus(); }
+  function closePlus(){ if(pm.hidden) return; pm.hidden=true; pb.setAttribute('aria-expanded','false'); }
+  pm.addEventListener('keydown',e=>{ const it=[...pm.querySelectorAll('.pm-item')], i=it.indexOf(document.activeElement);
+    if(e.key==='ArrowDown'){ it[(i+1)%it.length].focus(); e.preventDefault(); } else if(e.key==='ArrowUp'){ it[(i-1+it.length)%it.length].focus(); e.preventDefault(); } else if(e.key==='Escape'){ closePlus(); pb.focus(); e.preventDefault(); } });
+  document.addEventListener('pointerdown',e=>{ if(!e.target.closest('#plus-menu,#plus')) closePlus(); });
   // project type dropdown
   const kb=document.getElementById('kind-btn'), km=document.getElementById('kind-menu');
   const setKind=o=>{ km.classList.toggle('open',o); kb.setAttribute('aria-expanded',o); };
@@ -655,6 +669,52 @@ TW.ui(); setTimeout(turn1, 700);
 `;
 const ICONS_JS = `<script>window.ICON=${JSON.stringify({ copy: icon('copy', 13), up: icon('up', 13), down: icon('down', 13), undo: icon('undo', 13), send: icon('send', 15), stop: icon('stop', 13), video: icon('video', 12), check: icon('check', 13), note: icon('note', 13), square: '<svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>', chevD: icon('chev', 12), chevR: icon('chev', 12).replace('<svg', '<svg style="transform:rotate(-90deg)"'), bulb: icon('bulb', 15), x: icon('x', 12) })};</script>`;
 
+/* ═════ Shared: docked AI chat (app.ancher.ai right panel). Each page sets window.DOCK = { kind, reading, ghost:[a,b], ctx(), answer(q, ctx) } ═════ */
+const dockHtml = (title) => `<aside class="nt-chat" id="nt-chat" aria-label="AI 对话">
+    <div class="ag-hd"><button class="ag-title" aria-label="对话列表"><span id="nc-title">${title}</span>${icon('chev', 13)}</button><span style="flex:1"></span>
+      <button class="ag-save" onclick="toast('已把这段对话存为笔记')">${icon('note', 15)}保存</button><button class="ico-btn" aria-label="新对话" onclick="ncReset()">${icon('newchat', 16)}</button></div>
+    <div class="ag-feed" id="nc-feed"></div>
+    <div class="nc-ft">
+      <div class="nc-ref" id="nc-ref"><span class="nc-ref-ic">${icon('doc', 16)}</span><span><b id="nc-ref-t"></b><small id="nc-ref-k">Note</small></span><button class="ico-btn xs" aria-label="移除引用" onclick="this.parentElement.hidden=true">${icon('x', 12)}</button></div>
+      <div class="cmp"><div class="cmp-card" id="nc-card"><div class="ghost" id="nc-ghost"><span></span><kbd>Tab</kbd></div>
+        <textarea id="nc-ask" aria-label="问 AI" placeholder="随便问，@ 提及笔记、合集或作品" rows="2" onkeydown="ncKey(event)" oninput="ncSync()"></textarea>
+        <div class="cmp-bar"><button class="ico-btn" aria-label="提及" onclick="ncAsk().value+='@';ncAsk().focus();ncSync()">${icon('at', 16)}</button><button class="ico-btn" aria-label="添加文件" onclick="toast('选择文件或图片')">${icon('plus', 16)}</button><span style="flex:1"></span>
+          <button class="ico-btn" aria-label="语音输入" onclick="toast('按住说话')">${icon('mic', 16)}</button>
+          <button class="cmp-send" id="nc-send" aria-label="发送" hidden onclick="ncSend()">${icon('send', 15)}</button></div></div>
+        <div class="cmp-note">AI 可能会出错。请核对重要信息。</div></div>
+    </div>
+  </aside>`;
+const DOCK_JS = String.raw`
+  { const $=id=>document.getElementById(id); const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); const toast=m=>window.toast?window.toast(m):console.log(m); window.esc=window.esc||esc;
+  // Docked chat (app.ancher.ai notes view): grounded in the open note, activity row while it reads, markdown reply,
+  // ghost suggestion with Tab, send button only when there is text (as on ancher.ai).
+  const NC={copy:${JSON.stringify(icon('copy', 13))},note:${JSON.stringify(icon('note', 13))},up:${JSON.stringify(icon('up', 13))},down:${JSON.stringify(icon('down', 13))},check:${JSON.stringify(icon('check', 12))},stop:'<svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>',send:${JSON.stringify(icon('send', 15))}};
+  const ncAsk=()=>$('nc-ask'); let ncBusy=false;
+  function ncGhost(t){ const g=$('nc-ghost'); g.querySelector('span').textContent=t||''; g.hidden=!t||!!ncAsk().value; ncAsk().placeholder=g.hidden?'随便问，@ 提及笔记、合集或作品':''; }
+  function ncSync(){ const has=!!ncAsk().value.trim(); $('nc-send').hidden=!has&&!ncBusy; $('nc-ghost').hidden=has||!$('nc-ghost').querySelector('span').textContent; ncAsk().placeholder=$('nc-ghost').hidden?'随便问，@ 提及笔记、合集或作品':''; }
+  function ncKey(e){ if(e.key==='Tab'&&!ncAsk().value&&!$('nc-ghost').hidden){ e.preventDefault(); ncAsk().value=$('nc-ghost').querySelector('span').textContent; ncSync(); return; }
+    if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); ncSend(); } }
+  function ncAdd(html){ const f=$('nc-feed'), d=document.createElement('div'); d.className='enter'; d.innerHTML=html; f.appendChild(d); f.scrollTop=f.scrollHeight; return d; }
+  function ncActs(){ const t=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}); return '<div class="msg-acts"><button class="ico-btn" aria-label="复制">'+NC.copy+'</button><button class="ico-btn" aria-label="存为笔记">'+NC.note+'</button><button class="ico-btn" aria-label="好的回答">'+NC.up+'</button><button class="ico-btn" aria-label="不好的回答">'+NC.down+'</button><span class="msg-time">'+t+'</span></div>'; }
+  async function ncSend(){ const q=ncAsk().value.trim(); if(!q||ncBusy) return; ncAsk().value=''; ncGhost(''); ncBusy=true; $('nc-card').classList.add('busy'); const sb=$('nc-send'); sb.innerHTML=NC.stop; sb.classList.add('stop'); ncSync();
+    const u=ncAdd('<div class="ag-user"><div class="bubble"><div class="bd"></div></div></div>'); u.querySelector('.bd').textContent=q;
+    const ctx=DOCK.ctx();
+    const act=ncAdd('<div class="act"><div class="act-rows"><div class="act-row run"><span class="ai">⠋</span><span class="al"><span>'+DOCK.reading+'</span><span class="ao"> · '+esc(ctx.title)+'</span></span></div></div></div>');
+    let k=0; const dt=setInterval(()=>{ const a=act.querySelector('.ai'); if(a) a.textContent='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'[k++%10]; },90);
+    await new Promise(r=>setTimeout(r,1300)); clearInterval(dt);
+    act.innerHTML='<button class="act-sum" aria-expanded="false">'+${JSON.stringify(icon('chev', 12))}.replace('<svg','<svg style="transform:rotate(-90deg)"')+'<span>完成 1 个步骤 · '+DOCK.reading.replace(/中$/,'')+'</span></button>';
+    const body=DOCK.answer(q,ctx);
+    ncAdd('<div class="ag-ai"><div>'+body+'</div>'+ncActs()+'</div>');
+    ncBusy=false; $('nc-card').classList.remove('busy'); sb.innerHTML=NC.send; sb.classList.remove('stop'); ncSync(); ncGhost(DOCK.ghost[1]); }
+  function ncReset(){ $('nc-feed').innerHTML=''; ncGhost(DOCK.ghost[0]); toast('新对话'); }
+  function ncRef(){ const c=DOCK.ctx(); $('nc-ref-t').textContent=c.title; $('nc-ref-k').textContent=DOCK.kind; $('nc-ref').hidden=false; }
+  function toggleChat(){ const c=$('nt-chat'), o=c.hidden; c.hidden=!o; const t=$('chat-toggle'); t&&t.setAttribute('aria-pressed',o); typeof moveInd==='function'&&setTimeout(()=>moveInd(false),0); }
+  window.ncRefresh=ncRef;
+  ncRef(); ncGhost(DOCK.ghost[0]); ncSync();
+
+  window.ncSend=ncSend; window.ncKey=ncKey; window.ncSync=ncSync; window.ncReset=ncReset; window.toggleChat=toggleChat; window.ncAsk=ncAsk; }
+`;
+
 /* ═════ P5 角色画布（laper /characters） ═════ */
 const RELS = [[0, 1, '秘密朋友', '只有豆豆看得见门墩儿'], [0, 2, '祖孙', '豆豆跟姥爷住，姥爷不知道门墩儿的事'], [0, 3, '同学 · 较劲', '大壮总拿新鞋显摆，豆豆不服又不敢说'],
   [1, 2, '旧相识', '那双白球鞋是姥爷小时候的——门墩儿认得他'], [1, 3, '捉弄', '门墩儿偷偷让大壮的鞋灯不亮']];
@@ -663,7 +723,7 @@ const LOOKS = ['圆脸短发 · 蓝校服', '寸头 · 红毛衣', '大眼 · �
 const p5 = () => chrome('Ancher Scripter — 角色', `${rail('角色')}
   <section class="center" style="background-image:radial-gradient(var(--line-strong) 1px, transparent 1px);background-size:20px 20px">
     <div class="center-hd" style="background:var(--bg)"><b>角色</b><span class="chip tnum" style="height:20px">4</span><span style="flex:1"></span><div class="seg" role="tablist" id="cv-tabs">${['概览', '关系', '选角'].map((t, i) => `<button role="tab" data-v="${i}" class="${i ? '' : 'on'}" aria-selected="${!i}">${t}</button>`).join('')}</div><span style="flex:1"></span>
-      <button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出">${icon('export', 14)}</button><button class="btn btn-primary" style="height:28px">${icon('plus', 13)} 新角色</button></div>
+      <button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出">${icon('export', 14)}</button><button class="btn btn-quiet" style="width:28px;padding:0" id="chat-toggle" aria-label="AI 对话" aria-pressed="true" title="AI 对话" onclick="toggleChat()">${icon('chat', 15)}</button><button class="btn btn-primary" style="height:28px">${icon('plus', 13)} 新角色</button></div>
     <div class="cv" data-v="0" style="flex:1;display:flex;flex-direction:column;min-height:0;position:relative">
     <div class="card" style="position:absolute;right:16px;top:10px;display:flex;gap:2px;padding:4px;z-index:2">${['chat', 'trash', 'expand', 'zoom', 'zoom'].map((ic) => `<button class="btn btn-quiet" style="width:26px;height:26px;padding:0">${icon(ic, 13)}</button>`).join('')}</div>
     <div class="chars-row" style="flex:1;overflow:auto;padding:40px 32px;display:flex;gap:20px;align-items:flex-start">
@@ -700,7 +760,8 @@ const p5 = () => chrome('Ancher Scripter — 角色', `${rail('角色')}
         <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end"><span class="chip cast-st" style="height:22px">待定</span><button type="button" class="btn btn-primary cast-ok" style="height:30px">定角</button></div>
       </section>`).join('')}</div>
     </div>
-  </section>`, `
+  </section>
+  ${dockHtml('关于这些角色')}`, `
   <style>
   .ch-adv{margin:0;padding:12px 12px 0;display:grid;grid-template-columns:auto 1fr;gap:6px 10px;font-size:12.5px}.ch-adv[hidden]{display:none}.ch-adv dt{color:var(--ink-3)}.ch-adv dd{margin:0}
   .cv[hidden]{display:none!important}
@@ -766,6 +827,10 @@ const p5 = () => chrome('Ancher Scripter — 角色', `${rail('角色')}
     ok.onclick=()=>{ if(c.classList.contains('done')){ c.classList.remove('done'); st.textContent='待定'; ok.textContent='定角'; return; }
       const v=c.querySelector('input[name^=v]:checked'), l=c.querySelector('input[name^=l]:checked'); if(!v||!l){ toast('先选一个配音和一个形象'); return; }
       c.classList.add('done'); st.textContent='已定角'; ok.textContent='改选'; toast(CH[+c.dataset.c]+' 已定角：'+v.closest('label').querySelector('b').textContent); }; });
+    window.DOCK={ kind:'角色', reading:'翻阅角色档案中', ghost:['豆豆和门墩儿的关系还能怎么加戏？','给大壮补一场让人心软的戏'],
+    ctx:()=>({title:'角色表 · '+CH.length+' 个角色'}),
+    answer:(q,c)=>'<p>你现在有 <b>'+CH.length+' 个角色</b>：'+CH.map(esc).join('、')+'，已经连了 '+RELS.length+' 条关系。</p><p>结合你的问题，我建议：</p><ul><li><b>豆豆 — 门墩儿</b>是主线，可以加一个「借了还不回去」的小危机，让两人第一次闹别扭。</li><li><b>大壮</b>目前只出场 1 次，给他一场输了不敢哭的戏，后面和解才立得住。</li></ul><p>要我把这两条写成角色卡的「人物弧光」吗？</p>' };
+${DOCK_JS}
   </script>`);
 
 
@@ -797,7 +862,7 @@ const PROPS = [['白球鞋', '服装', '琥珀', '一双落满灰的白球鞋，
 const p9 = () => chrome('Ancher Scripter — 道具', `${rail('道具')}
   <section class="center" id="pr-center">
     ${pageHd('道具管理', PROPS.length, `<div class="seg" role="tablist" id="pr-tabs"><button class="on" data-v="0">${icon('pen', 12)} 道具总览</button><button data-v="1">${icon('panel', 12)} 道具清单</button></div>`,
-      `<button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出" onclick="toast('已导出道具清单 道具.csv')">${icon('export', 14)}</button><button class="btn btn-primary" style="height:28px" id="pr-new" onclick="dwOpen('pr-dw')">${icon('plus', 13)} 新建道具</button>`)}
+      `<button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出" onclick="toast('已导出道具清单 道具.csv')">${icon('export', 14)}</button><button class="btn btn-quiet" style="width:28px;padding:0" id="chat-toggle" aria-label="AI 对话" aria-pressed="true" title="AI 对话" onclick="toggleChat()">${icon('chat', 15)}</button><button class="btn btn-primary" style="height:28px" id="pr-new" onclick="dwOpen('pr-dw')">${icon('plus', 13)} 新建道具</button>`)}
     <div class="pr-v" data-v="0" id="pr-board" style="flex:1;position:relative;overflow:hidden;background-image:radial-gradient(var(--line-strong) 1px, transparent 1px);background-size:20px 20px;touch-action:none"></div>
     <div class="pr-v" data-v="1" hidden style="flex:1;overflow:auto;padding:16px 20px"><table class="pr-tb"><thead><tr><th>名称</th><th>分类</th><th>主题色</th><th>描述</th><th>出场</th><th></th></tr></thead><tbody id="pr-rows"></tbody></table></div>
   </section>
@@ -807,7 +872,8 @@ const p9 = () => chrome('Ancher Scripter — 道具', `${rail('道具')}
         <div class="card pr-pal" id="pc-pal" role="listbox">${PROP_COLORS.map(([t, c]) => `<button type="button" role="option" data-t="${t}" data-c="${c}"><i class="pr-sw" style="background:${c}"></i>${t}</button>`).join('')}</div></div>
       <label class="fl" for="pk" style="margin-top:6px">分类</label><input class="fi" id="pk" placeholder="道具 / 服装 / 车辆 / 武器 / 食物 / 装饰…" list="pk-l" autocomplete="off"><datalist id="pk-l">${['道具', '服装', '车辆', '武器', '食物', '装饰'].map((t) => `<option value="${t}">`).join('')}</datalist></div></div>
     <div class="fs"><b>描述</b><div class="in"><textarea class="fi" id="pd" aria-label="描述" placeholder="形态 / 材质 / 用途 / 状态 / 故事意义…"></textarea></div></div>
-    <div class="fs"><b>形象备注<br><span class="muted" style="font-weight:400;font-size:11.5px">AI 生图参考 · 质感 / 色调 / 光线 / 镜头语言</span></b><div class="in"><textarea class="fi" id="pv" aria-label="形象备注" placeholder="例如：暖黄台灯下的特写，金属反光，略带锈迹"></textarea></div></div>`, '创建')}`, `
+    <div class="fs"><b>形象备注<br><span class="muted" style="font-weight:400;font-size:11.5px">AI 生图参考 · 质感 / 色调 / 光线 / 镜头语言</span></b><div class="in"><textarea class="fi" id="pv" aria-label="形象备注" placeholder="例如：暖黄台灯下的特写，金属反光，略带锈迹"></textarea></div></div>`, '创建')}
+  ${dockHtml('关于这些道具')}`, `
   <style>${DRAWER_CSS}
   .pr-v[hidden]{display:none}
   .pr-card{position:absolute;width:220px;background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-card),inset 0 0 0 1px var(--line);overflow:hidden;cursor:grab;user-select:none;text-align:left}
@@ -844,6 +910,10 @@ const p9 = () => chrome('Ancher Scripter — 道具', `${rail('道具')}
   document.getElementById('pr-dw').onsubmit=e=>{ e.preventDefault(); const n=document.getElementById('pn'); if(!n.value.trim()){ n.focus(); return; }
     props.push({n:n.value.trim(),k:document.getElementById('pk').value.trim(),c:color,d:document.getElementById('pd').value.trim(),v:document.getElementById('pv').value.trim(),x:60+(props.length%3)*260,y:60+Math.floor(props.length/3)*200+(props.length%2)*30,sc:0,fresh:true});
     e.target.reset(); dwClose('pr-dw'); render(); toast('已创建道具：'+props.at(-1).n); };
+    window.DOCK={ kind:'道具', reading:'翻阅道具清单中', ghost:['白球鞋还能在哪几场里埋伏笔？','按出场顺序给我一份道具准备清单'],
+    ctx:()=>({title:'道具清单 · '+props.length+' 件'}),
+    answer:(q,c)=>'<p>清单里有 <b>'+props.length+' 件道具</b>：'+props.map(p=>esc(p.n)).join('、')+'。</p><p>结合你的问题，我建议：</p><ul><li><b>'+esc(props[0].n)+'</b>是全集的情感钩子，第 1 场露一次鞋底的「林」字，结尾再给特写，前后呼应。</li><li>道具组按场次备货：每件写清楚首次出场、是否需要做旧、要不要备份。</li></ul><p>要我把出场场次写进每张道具卡吗？</p>' };
+${DOCK_JS}
   </script>`);
 
 /* ═════ P10 世界观（laper /world）：左侧设定目录 + 官方模版 + 设定卡 ═════ */
@@ -853,7 +923,7 @@ const WORLD_TPL = [['竖屏短剧设定合同——主题、钩子、付费点',
 const p10 = () => chrome('Ancher Scripter — 世界观', `${rail('世界观')}
   <aside class="wd-side"><div style="display:flex;align-items:center;padding:4px 4px 10px"><b style="flex:1">世界观</b><button class="btn btn-quiet" style="width:28px;height:28px;padding:0" aria-label="添加设定" onclick="addSet()">${icon('plus', 15)}</button></div><ol id="wd-toc" class="wd-toc"></ol></aside>
   <section class="center" style="overflow:auto">
-    ${pageHd('设定', 2, '', `<button class="btn btn-primary" style="height:28px" onclick="addSet()">${icon('plus', 13)} 添加设定</button>`)}
+    ${pageHd('设定', 2, '', `<button class="btn btn-quiet" style="width:28px;padding:0" id="chat-toggle" aria-label="AI 对话" aria-pressed="true" title="AI 对话" onclick="toggleChat()">${icon('chat', 15)}</button><button class="btn btn-primary" style="height:28px" onclick="addSet()">${icon('plus', 13)} 添加设定</button>`)}
     <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px">
       <div class="muted" style="font-size:12.5px">官方模版</div>
       <div class="wd-tpls">${WORLD_TPL.map(([sub, t, ic, f], i) => `<button class="card wd-tpl" data-i="${i}"><span class="muted" style="font-size:12px">${sub}</span><b class="display" style="font-size:24px">${t}</b>
@@ -861,7 +931,8 @@ const p10 = () => chrome('Ancher Scripter — 世界观', `${rail('世界观')}
       <div class="muted" style="font-size:12.5px;margin-top:8px">设定</div>
       <div class="wd-grid" id="wd-grid"></div>
     </div>
-  </section>`, `
+  </section>
+  ${dockHtml('关于这个世界观')}`, `
   <style>
   .wd-side{width:240px;flex:none;border-right:1px solid var(--line);padding:14px 10px;background:var(--bg);overflow:auto}
   .wd-toc{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;counter-reset:n}
@@ -892,6 +963,10 @@ const p10 = () => chrome('Ancher Scripter — 世界观', `${rail('世界观')}
   document.querySelectorAll('.wd-tpl').forEach(b=>b.onclick=()=>{ const [,name,,fields]=TPL[+b.dataset.i]; let added=0; fields.forEach(f=>{ if(!sets.some(s=>s.t===f)){ sets.push({t:f,v:'',fresh:true}); added++; } });
     const u=b.querySelector('[data-used]'); u.textContent=+u.textContent+1; render(); toast(added?'已套用「'+name+'」模版，新增 '+added+' 个设定':'「'+name+'」的设定都已在了'); });
   render();
+    window.DOCK={ kind:'设定', reading:'翻阅世界观设定中', ghost:['帮我把「一句话故事」写出来','门墩儿的能力边界还缺什么规则？'],
+    ctx:()=>({title:'世界观 · '+sets.length+' 条设定'}),
+    answer:(q,c)=>'<p>现在有 <b>'+sets.length+' 条设定</b>：'+sets.map(x=>esc(x.t||'未命名设定')).join('、')+(sets.some(x=>!x.v)?'，其中还有空着没写的。':'。')+'</p><p>结合你的问题，我建议：</p><ul><li><b>一句话故事</b>：胡同男孩发现门墩里住着只有他看得见的精灵，借来的东西总要还回去。</li><li><b>能力边界</b>：门墩儿只能「借」不能「变」，借走的东西天黑前必须还——这条规则会制造每集的倒计时。</li></ul><p>要我直接填进对应的设定卡吗？</p>' };
+${DOCK_JS}
   </script>`);
 
 /* ═════ P11 知识库 — rebuilt after app.ancher.ai 笔记（streamify-one-design-system: product/sidebar + product/notes） ═════ */
@@ -935,20 +1010,7 @@ const p11 = () => chrome('Ancher Scripter — 知识库', `${rail('知识库')}
       <div class="nt-scrollarea"><article class="nt-article" id="article"></article></div>
     </div>
   </section>
-  <aside class="nt-chat" id="nt-chat" aria-label="AI 对话">
-    <div class="ag-hd"><button class="ag-title" aria-label="对话列表"><span id="nc-title">关于这条笔记</span>${icon('chev', 13)}</button><span style="flex:1"></span>
-      <button class="ag-save" onclick="toast('已把这段对话存为笔记')">${icon('note', 15)}保存</button><button class="ico-btn" aria-label="新对话" onclick="ncReset()">${icon('newchat', 16)}</button></div>
-    <div class="ag-feed" id="nc-feed"></div>
-    <div class="nc-ft">
-      <div class="nc-ref" id="nc-ref"><span class="nc-ref-ic">${icon('doc', 16)}</span><span><b id="nc-ref-t"></b><small>Note</small></span><button class="ico-btn xs" aria-label="移除引用" onclick="this.parentElement.hidden=true">${icon('x', 12)}</button></div>
-      <div class="cmp"><div class="cmp-card" id="nc-card"><div class="ghost" id="nc-ghost"><span></span><kbd>Tab</kbd></div>
-        <textarea id="nc-ask" aria-label="问 AI" placeholder="随便问，@ 提及笔记、合集或作品" rows="2" onkeydown="ncKey(event)" oninput="ncSync()"></textarea>
-        <div class="cmp-bar"><button class="ico-btn" aria-label="提及" onclick="ncAsk().value+='@';ncAsk().focus();ncSync()">${icon('at', 16)}</button><button class="ico-btn" aria-label="添加文件" onclick="toast('选择文件或图片')">${icon('plus', 16)}</button><span style="flex:1"></span>
-          <button class="ico-btn" aria-label="语音输入" onclick="toast('按住说话')">${icon('mic', 16)}</button>
-          <button class="cmp-send" id="nc-send" aria-label="发送" hidden onclick="ncSend()">${icon('send', 15)}</button></div></div>
-        <div class="cmp-note">AI 可能会出错。请核对重要信息。</div></div>
-    </div>
-  </aside>`, `
+  ${dockHtml('关于这条笔记')}`, `
   <script>
   const $=id=>document.getElementById(id);
   const NOTES=${JSON.stringify(KB_NOTES)}, COLLS=${JSON.stringify(KB_COLLECTIONS)};
@@ -984,31 +1046,11 @@ const p11 = () => chrome('Ancher Scripter — 知识库', `${rail('知识库')}
   setTimeout(()=>{ const n=NOTES.find(x=>x.id==='n3'); n.processing=false; n.tags=[['逐字稿','b3']]; n.summary='一集约 10 分钟，四场戏；台词口语化、孩子气、短句多。'; n.body='<p>00:00 豆豆：石头……石头说话了？</p><p>00:04 门墩儿：在这儿蹲了一百多年，头一回有人看得见我。</p>'; renderSide(); if(cur==='n3') renderNote(); toast('「参考视频 · 第一集逐字稿」处理好了'); },4000);
   addEventListener('resize',()=>moveInd(false));
 
-  // Docked chat (app.ancher.ai notes view): grounded in the open note, activity row while it reads, markdown reply,
-  // ghost suggestion with Tab, send button only when there is text (as on ancher.ai).
-  const NC={copy:${JSON.stringify(icon('copy', 13))},note:${JSON.stringify(icon('note', 13))},up:${JSON.stringify(icon('up', 13))},down:${JSON.stringify(icon('down', 13))},check:${JSON.stringify(icon('check', 12))},stop:'<svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>',send:${JSON.stringify(icon('send', 15))}};
-  const ncAsk=()=>$('nc-ask'); let ncBusy=false;
-  function ncGhost(t){ const g=$('nc-ghost'); g.querySelector('span').textContent=t||''; g.hidden=!t||!!ncAsk().value; ncAsk().placeholder=g.hidden?'随便问，@ 提及笔记、合集或作品':''; }
-  function ncSync(){ const has=!!ncAsk().value.trim(); $('nc-send').hidden=!has&&!ncBusy; $('nc-ghost').hidden=has||!$('nc-ghost').querySelector('span').textContent; ncAsk().placeholder=$('nc-ghost').hidden?'随便问，@ 提及笔记、合集或作品':''; }
-  function ncKey(e){ if(e.key==='Tab'&&!ncAsk().value&&!$('nc-ghost').hidden){ e.preventDefault(); ncAsk().value=$('nc-ghost').querySelector('span').textContent; ncSync(); return; }
-    if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); ncSend(); } }
-  function ncAdd(html){ const f=$('nc-feed'), d=document.createElement('div'); d.className='enter'; d.innerHTML=html; f.appendChild(d); f.scrollTop=f.scrollHeight; return d; }
-  function ncActs(){ const t=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}); return '<div class="msg-acts"><button class="ico-btn" aria-label="复制">'+NC.copy+'</button><button class="ico-btn" aria-label="存为笔记">'+NC.note+'</button><button class="ico-btn" aria-label="好的回答">'+NC.up+'</button><button class="ico-btn" aria-label="不好的回答">'+NC.down+'</button><span class="msg-time">'+t+'</span></div>'; }
-  async function ncSend(){ const q=ncAsk().value.trim(); if(!q||ncBusy) return; ncAsk().value=''; ncGhost(''); ncBusy=true; $('nc-card').classList.add('busy'); const sb=$('nc-send'); sb.innerHTML=NC.stop; sb.classList.add('stop'); ncSync();
-    const u=ncAdd('<div class="ag-user"><div class="bubble"><div class="bd"></div></div></div>'); u.querySelector('.bd').textContent=q;
-    const n=NOTES.find(x=>x.id===cur);
-    const act=ncAdd('<div class="act"><div class="act-rows"><div class="act-row run"><span class="ai">⠋</span><span class="al"><span>翻阅你的笔记中</span><span class="ao"> · '+esc(n.title)+'</span></span></div></div></div>');
-    let k=0; const dt=setInterval(()=>{ const a=act.querySelector('.ai'); if(a) a.textContent='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'[k++%10]; },90);
-    await new Promise(r=>setTimeout(r,1300)); clearInterval(dt);
-    act.innerHTML='<button class="act-sum" aria-expanded="false">'+${JSON.stringify(icon('chev', 12))}.replace('<svg','<svg style="transform:rotate(-90deg)"')+'<span>完成 1 个步骤 · 翻阅你的笔记</span></button>';
-    const body='<p>这条笔记<b>《'+esc(n.title)+'》</b>里'+(n.summary?'说的是：'+esc(n.summary):'还没有可读的内容。')+'</p><p>结合你的问题，我建议：</p><ul><li>把它打开「写作时参考」，写剧本时 AI 会照着它的结构和语气来。</li><li>需要的话，我可以把它整理成一份分场大纲，直接写进项目的大纲里。</li></ul><p>你要哪种？</p>';
-    ncAdd('<div class="ag-ai"><div>'+body+'</div>'+ncActs()+'</div>');
-    ncBusy=false; $('nc-card').classList.remove('busy'); sb.innerHTML=NC.send; sb.classList.remove('stop'); ncSync(); ncGhost('把它整理成分场大纲，写进项目大纲'); }
-  function ncReset(){ $('nc-feed').innerHTML=''; ncGhost('总结一下这条笔记的要点'); toast('新对话'); }
-  function ncRef(){ const n=NOTES.find(x=>x.id===cur); $('nc-ref-t').textContent=n.title; $('nc-ref').hidden=false; }
-  function toggleChat(){ const c=$('nt-chat'), o=c.hidden; c.hidden=!o; $('chat-toggle').setAttribute('aria-pressed',o); setTimeout(()=>moveInd(false),0); }
-  const _open=openNote; openNote=function(id){ _open(id); ncRef(); };
-  ncRef(); ncGhost('总结一下这条笔记的要点'); ncSync();
+  window.DOCK={ kind:'Note', reading:'翻阅你的笔记中', ghost:['总结一下这条笔记的要点','把它整理成分场大纲，写进项目大纲'],
+    ctx:()=>NOTES.find(x=>x.id===cur),
+    answer:(q,n)=>'<p>这条笔记<b>'+(/^《/.test(n.title)?esc(n.title):'《'+esc(n.title)+'》')+'</b>里'+(n.summary?'说的是：'+esc(n.summary):'还没有可读的内容。')+'</p><p>结合你的问题，我建议：</p><ul><li>把它打开「写作时参考」，写剧本时 AI 会照着它的结构和语气来。</li><li>需要的话，我可以把它整理成一份分场大纲，直接写进项目的大纲里。</li></ul><p>你要哪种？</p>' };
+  const _open=openNote; openNote=function(id){ _open(id); window.ncRefresh&&window.ncRefresh(); };
+${DOCK_JS}
   </script>`);
 
 /* ═════ P12 地点（laper /locations）：地点卡 + 清单，新建地点抽屉 ═════ */
@@ -1019,7 +1061,7 @@ const LOC_DATA = [['胡同口', '外景', ['傍晚', '日'], '青砖灰瓦的老
 const p12 = () => chrome('Ancher Scripter — 地点', `${rail('地点')}
   <section class="center">
     ${pageHd('地点管理', LOC_DATA.length, `<div class="seg" role="tablist" id="lc-tabs"><button class="on" data-v="0">${icon('map', 12)} 地点总览</button><button data-v="1">${icon('panel', 12)} 地点清单</button></div>`,
-      `<button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出勘景本" onclick="toast('已导出勘景本 地点.pdf')">${icon('export', 14)}</button><button class="btn btn-primary" style="height:28px" id="lc-new" onclick="dwOpen('lc-dw')">${icon('plus', 13)} 新建地点</button>`)}
+      `<button class="btn btn-quiet" style="width:28px;padding:0" aria-label="导出勘景本" onclick="toast('已导出勘景本 地点.pdf')">${icon('export', 14)}</button><button class="btn btn-quiet" style="width:28px;padding:0" id="chat-toggle" aria-label="AI 对话" aria-pressed="true" title="AI 对话" onclick="toggleChat()">${icon('chat', 15)}</button><button class="btn btn-primary" style="height:28px" id="lc-new" onclick="dwOpen('lc-dw')">${icon('plus', 13)} 新建地点</button>`)}
     <div class="lc-v" data-v="0" style="flex:1;overflow:auto;padding:20px;background-image:radial-gradient(var(--line-strong) 1px, transparent 1px);background-size:20px 20px"><div class="lc-grid" id="lc-grid"></div></div>
     <div class="lc-v" data-v="1" hidden style="flex:1;overflow:auto;padding:16px 20px"><table class="pr-tb"><thead><tr><th>地点</th><th>内/外景</th><th>时间</th><th>场次</th><th>描述</th><th></th></tr></thead><tbody id="lc-rows"></tbody></table></div>
   </section>
@@ -1028,7 +1070,8 @@ const p12 = () => chrome('Ancher Scripter — 地点', `${rail('地点')}
       <span class="fl" style="margin-top:6px">内景 / 外景</span><div class="seg" id="lie" role="radiogroup">${['内景', '外景'].map((t, i) => `<button type="button" role="radio" aria-checked="${!i}" class="${i ? '' : 'on'}">${t}</button>`).join('')}</div>
       <span class="fl" style="margin-top:6px">时间（可多选）</span><div style="display:flex;gap:6px;flex-wrap:wrap" id="ltm">${['日', '夜', '清晨', '傍晚', '黄昏'].map((t, i) => `<button type="button" class="chip lc-t" aria-pressed="${!i}">${t}</button>`).join('')}</div></div></div>
     <div class="fs"><b>描述</b><div class="in"><textarea class="fi" id="ld" aria-label="描述" placeholder="空间结构 / 陈设 / 氛围 / 在故事里的作用…"></textarea></div></div>
-    <div class="fs"><b>视觉备注<br><span class="muted" style="font-weight:400;font-size:11.5px">AI 生图参考 · 光线 / 色调 / 年代 / 镜头角度</span></b><div class="in"><textarea class="fi" id="lv" aria-label="视觉备注" placeholder="例如：傍晚逆光，暖橙色，九十年代北京"></textarea></div></div>`, '创建')}`, `
+    <div class="fs"><b>视觉备注<br><span class="muted" style="font-weight:400;font-size:11.5px">AI 生图参考 · 光线 / 色调 / 年代 / 镜头角度</span></b><div class="in"><textarea class="fi" id="lv" aria-label="视觉备注" placeholder="例如：傍晚逆光，暖橙色，九十年代北京"></textarea></div></div>`, '创建')}
+  ${dockHtml('关于这些地点')}`, `
   <style>${DRAWER_CSS}
   .lc-v[hidden]{display:none}
   .lc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
@@ -1060,6 +1103,10 @@ const p12 = () => chrome('Ancher Scripter — 地点', `${rail('地点')}
     const tm=[...document.querySelectorAll('.lc-t[aria-pressed=true]')].map(b=>b.textContent);
     locs.push({n:n.value.trim(),ie:document.querySelector('#lie .on').textContent,tm:tm.length?tm:['日'],d:document.getElementById('ld').value.trim(),sc:[],c:PAL[locs.length%4],img:false,fresh:true});
     e.target.reset(); document.querySelectorAll('.lc-t').forEach((b,i)=>b.setAttribute('aria-pressed',i===0)); dwClose('lc-dw'); render(); toast('已创建地点：'+locs.at(-1).n); };
+    window.DOCK={ kind:'地点', reading:'翻阅地点档案中', ghost:['胡同口傍晚这场的光线怎么拍？','按地点合并场次，给我一份勘景顺序'],
+    ctx:()=>({title:'地点清单 · '+locs.length+' 处'}),
+    answer:(q,c)=>'<p>你登记了 <b>'+locs.length+' 个地点</b>：'+locs.map(l=>esc(l.n)+'（'+esc(l.ie)+'）').join('、')+'。</p><p>结合你的问题，我建议：</p><ul><li>同一地点的戏尽量连着拍：<b>'+esc(locs[0].n)+'</b>的日戏和傍晚戏可以排在同一天，抢傍晚 30 分钟的光。</li><li>内景放在雨天或夜里做备选，不占外景的好天气。</li></ul><p>要我按地点生成一份勘景和拍摄顺序吗？</p>' };
+${DOCK_JS}
   </script>`);
 
 /* ═════ P6 制作设置 + 分镜（laper /production） ═════ */

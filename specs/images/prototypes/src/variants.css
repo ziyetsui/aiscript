@@ -115,3 +115,12 @@ body[data-v="e"] .chars-row .card > div:first-child { display: none; }
 body[data-v="e"] .tool:has(.spin)::before { content: "…"; color: var(--ink-3); }
 body[data-v="d"] .center:has(.agent:not(.min)) .scroll, body[data-v="d"] .center:has(.agent:not(.min)) .center-hd { margin-right: 440px; }
 body[data-v="d"] .center:has(.agent:not(.min)) .toolbar { left: calc(50% - 220px); }
+
+/* ═══ A · docked right panel (app.ancher.ai) — same shape as the 知识库 chat; the script makes room instead of being covered ═══ */
+body[data-v="a"] .agent { top: 8px; right: 8px; bottom: 8px; height: auto; width: 400px; border-radius: 22px; background: var(--bg); backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: 0 4px 2px -1px rgb(0 0 0 / .05), 0 0 0 1px var(--line); transform-origin: right center; }
+body[data-v="a"][data-dark] .agent { background: var(--bg); }
+body[data-v="a"] .agent.min { transform: translateX(12px); opacity: 0; }
+body[data-v="a"] .center:has(.agent:not(.min)) .scroll, body[data-v="a"] .center:has(.agent:not(.min)) .center-hd { margin-right: 416px; }
+body[data-v="a"] .center:has(.agent:not(.min)) .toolbar { left: calc(50% - 208px); }
+body[data-v="a"] .center:has(.agent:not(.min)) ~ .info { display: none; }
