@@ -14,10 +14,12 @@ if (createPublicKey(publicKey).asymmetricKeyType !== 'ed25519') throw new Error(
 const patterns = [/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/, /AIza[0-9A-Za-z_-]{35}/, /(?:sk-proj-|sk_live_)[0-9A-Za-z_-]{20,}/];
 let scanned = 0;
 for (const name of asar.listPackage(archive)) {
-  const f = name.replaceAll('\\', '/').replace(/^\//, '');
+  // ASAR 3 traverses directories with path.sep; retain native separators for reads.
+  const f = name.replace(/^[/\\]+/, '');
+  const logical = f.replaceAll('\\', '/');
   const info = asar.statFile(archive, f);
   if (info.files || !/\.(js|cjs|mjs|json|html|css|pem|txt|md)$/i.test(f)) continue;
-  if (/e2e|tools\/license|private\.pem/.test(f)) throw new Error(`不应发布的文件：${f}`);
+  if (/e2e|tools\/license|private\.pem/.test(logical)) throw new Error(`不应发布的文件：${f}`);
   const text = asar.extractFile(archive, f).toString('utf8');
   if (patterns.some((p) => p.test(text))) throw new Error(`安装包含疑似密钥：${f}`);
   scanned++;
