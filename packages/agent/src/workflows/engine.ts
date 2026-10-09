@@ -99,16 +99,19 @@ export function recoverInterrupted(run: RunState): RunState {
   return run;
 }
 
+/** Distinguish syntax/format errors from schema errors and transport failures. */
+export class ResultFormatError extends Error {}
+
 /** Models answer inside <result>…</result>; anything else is narration. Bad JSON fails the step (retryable). */
 export function parseResult<T>(text: string, schema: z.ZodType<T>): T {
   const m = text.match(/<result>([\s\S]*?)<\/result>/);
   const raw = (m?.[1] ?? text.match(/```(?:json)?\s*([\s\S]*?)```/)?.[1] ?? '').trim();
-  if (!raw) throw new Error('AI 没有按约定格式返回结果，请重试');
+  if (!raw) throw new ResultFormatError('AI 没有按约定格式返回结果，请重试');
   let json: unknown;
   try {
     json = JSON.parse(raw);
   } catch {
-    throw new Error('AI 返回的结果不是合法 JSON，请重试');
+    throw new ResultFormatError('AI 返回的结果不是合法 JSON，请重试');
   }
   const r = schema.safeParse(json);
   if (!r.success) throw new Error(`AI 返回的结果缺少字段：${r.error.issues.slice(0, 2).map((i) => i.path.join('.')).join('、')}`);

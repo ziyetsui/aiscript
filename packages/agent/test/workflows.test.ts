@@ -238,6 +238,72 @@ describe('episode pipeline (spec §5.4)', () => {
 
 
 describe('NewsNow topics workflow', () => {
+  it('corrects unescaped dialogue quotes once before saving topics', async () => {
+    const { e, chat } = env([
+      res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }),
+      '<result>{"items":[{"title":"绝活","logline":"画出来的"绝活"失控了","why":"贴近生活"}]}</result>',
+      res({ items: [{ title: '绝活', logline: '画出来的“绝活”失控了', why: '贴近生活' }] }),
+    ]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'quotes'), e, ac().signal, () => {});
+    expect(run.status).toBe('done');
+    expect(run.result).toMatchObject({ items: [{ title: '绝活', logline: '画出来的“绝活”失控了', why: '贴近生活' }] });
+    expect(chat).toHaveBeenCalledTimes(3);
+    expect(e.hotspots).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops after one format correction and keeps invalid topics out of the result', async () => {
+    const bad = '<result>{"items":[{"title":"坏"引号"}]}</result>';
+    const { e, chat } = env([res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }), bad, bad]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'bad-quotes'), e, ac().signal, () => {});
+    expect(run.status).toBe('failed');
+    expect(run.steps[0]?.status).toBe('done');
+    expect(run.result).toBeUndefined();
+    expect(run.ctx.items).toBeUndefined();
+    expect(chat).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not treat missing topic fields as a JSON format error', async () => {
+    const { e, chat } = env([res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }), res({ items: [{ title: '不完整' }] })]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'missing-fields'), e, ac().signal, () => {});
+    expect(run.status).toBe('failed');
+    expect(run.result).toBeUndefined();
+    expect(chat).toHaveBeenCalledTimes(2);
+  });
+
+  it('also corrects malformed brief JSON and retains only grounded citations', async () => {
+    const { e } = env([
+      '<result>{"brief":[{"headline":"修鞋铺","summary":"练习"绝活"","sourceIndexes":[0]}]}</result>',
+      res({ brief: [{ headline: '修鞋铺', summary: '练习“绝活”', sourceIndexes: [0] }] }),
+      res({ items: [] }),
+    ]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'brief-quotes'), e, ac().signal, () => {});
+    expect(run.status).toBe('done');
+    expect(run.result).toMatchObject({ brief: [{ summary: '练习“绝活”', citations: [{ url: 'https://example.com/hot' }] }], items: [] });
+  });
+
+  it('rejects invented source indexes in a syntax-corrected brief', async () => {
+    const { e, chat } = env(['<result>{bad}</result>', res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [99] }] })]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'corrected-source'), e, ac().signal, () => {});
+    expect(run.status).toBe('failed');
+    expect(run.error).toContain('来源索引');
+    expect(run.result).toBeUndefined();
+    expect(chat).toHaveBeenCalledTimes(2);
+    expect(chat.mock.calls[1]?.[0]).toContain('不得虚构热点或链接');
+    expect(chat.mock.calls[1]?.[0]).toContain('北京修鞋铺');
+  });
+
+  it('does not start a correction after cancellation', async () => {
+    const controller = ac();
+    const { e } = env([], { chat: vi.fn(async () => {
+      controller.abort();
+      return { text: '<result>{bad}</result>', citations: [] };
+    }) });
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'cancel-json'), e, controller.signal, () => {});
+    expect(run.status).toBe('cancelled');
+    expect(run.result).toBeUndefined();
+    expect(e.chat).toHaveBeenCalledTimes(1);
+  });
+
   it('grounds brief links in MCP input and uses the existing model without web search', async () => {
     const { e, chat } = env([res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }), res({ items: [{ title: '修鞋铺', logline: '门墩儿修鞋', why: '贴近生活' }] })]);
     const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'news'), e, ac().signal, () => {});
