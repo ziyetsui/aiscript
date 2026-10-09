@@ -63,6 +63,17 @@ try {
   await page.waitForFunction(async (id) => (await window.api.projects.open(id)).nodes[0]?.text === '修改后的对白', project);
   await page.getByRole('button', { name: '撤销', exact: true }).last().click();
   await page.waitForFunction(async (id) => (await window.api.projects.open(id)).nodes[0]?.text === '原来的对白', project);
+  await choose('原型建模', '原型建模');
+  const starter = await page.locator('#agent-in').inputValue();
+  assert.ok(starter.includes('仅分析'), 'modeling defaults to research without document writes');
+  await page.locator('#agent-in').fill('研究逐字稿：00:04 角色说：我想拿到蛋糕。');
+  await page.locator('#agent-in').press('Enter');
+  await page.waitForFunction(() => !document.querySelector('.cmp-card.busy'));
+  const modeling = requests.at(-1)!.content;
+  assert.ok(modeling.includes('\n### prototype-modeling\n'));
+  assert.ok(modeling.includes('# OUTPUT CONTRACT') && modeling.includes('# ULTIMATE GOAL'), 'complete research prompt reaches the SDK request');
+  assert.ok(modeling.includes('00:04 角色说：我想拿到蛋糕。'));
+  assert.equal((await page.evaluate(async (id) => window.api.projects.open(id), project)).nodes[0]!.text, '原来的对白');
   await page.locator('#plus').click(); await page.getByRole('menuitem', { name: '快捷指令', exact: true }).click();
   await page.getByRole('textbox', { name: '搜索编剧技能' }).fill('不存在的技能');
   assert.equal(await page.locator('.pm-sub [role="status"]').innerText(), '没有匹配的技能');

@@ -386,7 +386,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
 
   return (
     <>
-      <ExportDialog open={exportOpen} state={st} onClose={() => setExportOpen(false)} onDone={(path) => toast(`已导出到 ${path}`)} />
+      <ExportDialog open={exportOpen} state={st} content={view === 'outline' || view === 'beats' || view === 'shots' || view === 'scenes' ? view : 'script'} onClose={() => setExportOpen(false)} onDone={(path) => toast(`已导出到 ${path}`)} />
       <Drawer open={!!episodeDialog} title={episodeDialog?.action === 'rename' ? '重命名分集' : '新建一集'} cta="保存" modal onClose={() => setEpisodeDialog(null)} onSubmit={() => episodeDialog ? episode(episodeDialog.action, episodeDialog.id, episodeDialog.title) : undefined}><label>分集名称<input className="input" aria-label="分集名称" value={episodeDialog?.title ?? ''} onChange={(e) => setEpisodeDialog((x) => x ? { ...x, title: e.target.value } : x)} /></label></Drawer>
       <div className="ws" ref={root}>
         <aside className="outline" aria-label="场景">

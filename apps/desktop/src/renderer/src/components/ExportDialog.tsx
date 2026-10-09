@@ -4,10 +4,10 @@ import { Drawer } from './Drawer.tsx';
 import { currentFont } from '../lib/editor-font.ts';
 const CONTENTS = [['script','剧本'],['outline','大纲'],['beats','节拍'],['scenes','场景'],['shots','分镜'],['characters','选角表'],['locations','勘景本'],['props','道具表']] as const;
 const FORMATS = [['pdf','PDF','打印排版，可发给导演'],['fdx','Final Draft（.fdx）','行业标准'],['fountain','Fountain','纯文本剧本标准'],['docx','Word（.docx）','可继续编辑'],['txt','TXT','纯文本']] as const;
-export function ExportDialog({ open, state, onClose, onDone }: { open: boolean; state: ProjectState; onClose(): void; onDone(path: string): void }) {
+export function ExportDialog({ open, state, content = 'script', onClose, onDone }: { open: boolean; state: ProjectState; content?: ExportSelection['content']; onClose(): void; onDone(path: string): void }) {
   const [selection, setSelection] = useState<ExportSelection>({ episodes: [], content: 'script', format: 'pdf', layout: 'hollywood', texture: true, font: currentFont() });
   const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
-  useEffect(() => { if (open) { const preferred = localStorage.getItem('script-default-export'); setSelection({ episodes: state.episodes.map((e) => e.id), content: 'script', format: FORMATS.some(([f]) => f === preferred) ? preferred as ExportSelection['format'] : 'pdf', layout: 'hollywood', texture: true, font: currentFont() }); setError(''); } }, [open]);
+  useEffect(() => { if (open) { const preferred = localStorage.getItem('script-default-export'); setSelection({ episodes: [state.activeEpisodeId], content, format: FORMATS.some(([f]) => f === preferred) && (content === 'script' || !['fdx', 'fountain'].includes(preferred!)) ? preferred as ExportSelection['format'] : 'pdf', layout: 'hollywood', texture: true, font: currentFont() }); setError(''); } }, [open, content, state.activeEpisodeId]);
   const patch = (p: Partial<ExportSelection>) => setSelection((s) => ({ ...s, ...p }));
   if (!open) return null;
   return <Drawer open={open} title="导出" sub={`已选 ${selection.episodes.length} 集 · ${selection.episodes.length === state.episodes.length ? '全部分集' : '部分分集'}`} cta={busy ? '导出中…' : '导出'} busy={busy || !selection.episodes.length} modal onClose={() => { if (!busy) onClose(); }} onSubmit={async () => {

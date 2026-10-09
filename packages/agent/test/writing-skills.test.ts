@@ -2,8 +2,24 @@ import { describe, expect, it } from 'vitest';
 import { buildMessage } from '../src/prompt.ts';
 import { filterWritingActions, inferWritingSkills, WRITING_ACTIONS, writingAction } from '../src/skills/catalog.ts';
 import { skillContext } from '../src/skills/runtime.ts';
+import { writingTargets } from '../src/writing-intent.ts';
 
 describe('writing skill request context', () => {
+  it('routes prototype modeling with the complete research contract and referenced transcript', () => {
+    const action = writingAction('prototype-modeling');
+    expect(filterWritingActions('原型建模')).toContainEqual(action);
+    expect(filterWritingActions('动画逆向工程')).toContainEqual(action);
+    expect(inferWritingSkills('原型建模')[0]).toBe('prototype-modeling');
+    expect(writingTargets(action.prompt)).toEqual([]);
+    const transcript = '00:04 角色说：我想拿到蛋糕。';
+    const message = buildMessage('研究这份逐字稿', '测试剧本', [], undefined, '', transcript, '', false, action.id);
+    expect(message).toContain(transcript);
+    for (const rule of ['# SYSTEM IDENTITY', '# MINIMAL MODEL TEST', '# GENERATION CONSTRAINT', '# OUTPUT CONTRACT', '# ULTIMATE GOAL', 'EXPLANATORY VALIDATION', 'GENERATIVE VALIDATION', '禁止伪造时间码', '跨作品泛化标为待验证', '不修改当前剧本、大纲或笔记']) {
+      expect(message).toContain(rule);
+    }
+    expect(message).not.toContain('以下为按完整段落选取');
+    expect(message).not.toContain('\n### sw-dialogue\n');
+  });
   it('routes exact shortcut titles even without a keyword match', () => {
     for (const title of ['润色格式', '动作与细节润色', '权力关系群像']) {
       const action = WRITING_ACTIONS.find((a) => a.title === title)!;
