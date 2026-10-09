@@ -18,7 +18,7 @@ try {
  await page.locator('.mc .tnum').waitFor();const machine=(await page.locator('.mc .tnum').textContent())!.trim();
  await page.locator('#code').fill(issueOfflineCode(privatePem,{mid:machine,cust:'笔记测试',seat:'1/1',exp:null}));await page.getByRole('button',{name:'激活',exact:true}).click();
  await page.locator('#k-ancher').fill(GOOD_KEY);await page.getByRole('button',{name:'验证并保存'}).click();await page.locator('#ask').waitFor();
- await app.evaluate(({BrowserWindow})=>{for(const window of BrowserWindow.getAllWindows())window.hide();});
+ if(process.platform==='darwin') await app.evaluate(({BrowserWindow})=>{for(const window of BrowserWindow.getAllWindows())window.hide();});
  await page.locator('#ask').fill('笔记引用测试');await page.getByRole('button',{name:'开始',exact:true}).click();await page.getByText('本轮 6 处修改').waitFor();
  await page.getByRole('button',{name:'知识库',exact:true}).click();await page.locator('.note-all [data-note-id="cloud-long"]').waitFor();
  const metrics=await page.locator('.note-all [data-note-id]').evaluateAll(rows=>rows.map(row=>{const slot=row.querySelector('.note-leading')!.getBoundingClientRect();const icon=row.querySelector('.note-leading svg')!.getBoundingClientRect();return{slot:slot.width,icon:icon.width,x:slot.x};}));

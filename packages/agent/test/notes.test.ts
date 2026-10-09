@@ -5,6 +5,15 @@ const note = (id: string, extra = {}) => ({ id, title: `官网笔记 ${id}`, sta
 const sdkFor = (route: (url: URL) => Response) => createAncher('test-key', { baseUrl: 'https://api.example.com', fetch: (async (input) => route(new URL(String(input)))) as typeof fetch });
 
 describe('Ancher account knowledge', () => {
+  it('exposes the original source URL and identifies its transcript independently of file order', async () => {
+    const sdk = sdkFor((url) => {
+      if (url.pathname === '/api/v1/notes/n1') return Response.json(note('n1', { url: 'https://youtu.be/dQw4w9WgXcQ', transcript_file: { id: 'subtitle', filename: 'transcript.srt', mimetype: 'application/x-subrip' } }));
+      if (url.pathname.endsWith('/presigned-urls')) return Response.json({ download_url: 'https://cdn.example.com/text' });
+      return new Response('字幕原文', { headers: { 'content-type': 'text/plain' } });
+    });
+    expect(await readAncherNote(sdk, 'n1')).toMatchObject({ note: { sourceUrl: 'https://youtu.be/dQw4w9WgXcQ' }, transcriptId: 'subtitle' });
+  });
+
   it('preserves readable original text when the generated summary is temporarily unavailable', async () => {
     const sdk = sdkFor((url) => {
       if (url.pathname === '/api/v1/notes/n1') return Response.json(note('n1', { origin_files: [{ id: 'original', mimetype: 'text/plain' }] }));

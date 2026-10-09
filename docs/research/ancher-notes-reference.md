@@ -26,3 +26,11 @@
 摘要中的 streamify-file 图片引用通过 note-scoped filePresignedUrl 解析。原文文本、字幕在主进程限长读取；视频、音频、图片与 PDF 使用临时签名地址预览。账户 API key 仍只在主进程，临时预览 URL 不持久化；保存到项目保留生成内容及原始图片引用。原文与生成摘要独立，fetched 阶段也可查看源文件。
 
 参考组件：apps/web/src/components/product/notes/origin-file-viewer.tsx、packages/product-runtime/src/notes/model.ts、apps/sdk/src/contracts/file-slots.ts。
+
+### 官网 URL 原文布局对齐
+
+对照官方同一提交的 UrlSourceViewer、NoteSourceEmbed、NoteTranscript、NoteOriginalPreviewCard 与 source-embeds/youtube-embed.tsx。URL 笔记采用「原文预览」卡片 + 「转录」卡片的顺序；YouTube 使用 iframe 原生播放器，SRT/VTT 保留原始时间码和文字，转录正文区域最大高度 384px。源音频和其它文件保留在折叠区，非 URL 上传笔记沿用文件选择。备注改为独立背景卡片。
+
+客户端使用现有 React/TypeScript、CSS tokens 与 SDK，适配组件结构，不引入官网的路由、i18n、TanStack Query 或 react-youtube 依赖。YouTube URL 仅允许明确的官方主机名和 11 位视频 ID；本窗口 YouTube embed 子框架使用安装包 bundle ID 作为 Referer，按 Google 的桌面应用嵌入要求识别客户端。其它来源提供打开原文入口。
+
+验证：URL 格式及伪造主机名单测，源 URL / 转录槽映射单测，以及原生 Electron 的同页播放器 + 转录、生成中字幕、上传源文件兼容和两种主题回归。CI 使用受控播放器响应，不将其视为公网 YouTube 播放验证。
