@@ -27,6 +27,21 @@ async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
   app.process().on('exit', (code, signal) => console.log(`Electron exit: code=${code}, signal=${signal}`));
   app.process().stderr?.on('data', (chunk) => { if (/crash|fatal|uncaught|error/i.test(String(chunk))) console.error(String(chunk)); });
   const page = await app.firstWindow();
+  // Prefer a secondary display; on a single-screen Mac, stay below normal windows.
+  const placement = await app.evaluate(({ BrowserWindow, screen }) => {
+    const primary = screen.getPrimaryDisplay();
+    const secondary = screen.getAllDisplays().filter((display) => display.id !== primary.id).sort((a, b) => b.workArea.width - a.workArea.width)[0];
+    for (const window of BrowserWindow.getAllWindows()) {
+      if (secondary) {
+        const { x, y, width, height } = secondary.workArea;
+        const [windowWidth, windowHeight] = window.getSize();
+        window.setPosition(x + Math.max(0, Math.round((width - windowWidth) / 2)), y + Math.max(0, Math.round((height - windowHeight) / 2)));
+      } else if (process.platform === 'darwin') window.setAlwaysOnTop(true, 'normal', -1);
+    }
+    return { target: secondary?.id ?? primary.id, actual: screen.getDisplayMatching(BrowserWindow.getAllWindows()[0]!.getBounds()).id, secondary: !!secondary };
+  });
+  assert.equal(placement.actual, placement.target, 'test window must use the selected display');
+  console.log(`E2E window on ${placement.secondary ? 'secondary' : 'primary'} display ${placement.actual}`);
   page.setDefaultTimeout(20000);
   await page.waitForLoadState('domcontentloaded');
   assert.deepEqual(await page.evaluate(async () => { const latin = await document.fonts.load('14px "Courier Prime"'); const chinese = await document.fonts.load('14px "Zhuque Fangsong"'); await document.fonts.ready; return [latin.length,chinese.length]; }), [1,1]);
@@ -59,6 +74,8 @@ try {
   await shot(page, '01-activate');
   for (const size of [[1360,860],[1440,960]] as const) {
     await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0]!.setContentSize(size[0], size[1]), size);
+    await page.setViewportSize({ width: size[0], height: size[1] });
+    assert.deepEqual(await page.evaluate(() => [innerWidth, innerHeight]), [...size]);
     for (const theme of ['light','dark'] as const) { await page.evaluate(async (t) => window.api.app.setTheme(t), theme); await shot(page, `final-激活-${theme}-${size[0]}x${size[1]}`); }
   }
   await page.evaluate(async () => window.api.app.setTheme('light'));
@@ -681,6 +698,9 @@ try {
 
   for (const size of [[1360,860],[1440,960]] as const) {
   await app.evaluate(({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0]!.setContentSize(size[0], size[1]), size);
+  // Hosted macOS screens clamp native height; use an explicit CSS viewport for visual fixtures.
+  await page.setViewportSize({ width: size[0], height: size[1] });
+  assert.deepEqual(await page.evaluate(() => [innerWidth, innerHeight]), [...size]);
   for (const theme of ['亮色', '暗色']) {
     await page.getByRole('button', { name: '设置', exact: true }).click(); await page.getByRole('radio', { name: theme }).click();
     for (const tab of ['写作', '角色', '地点', '道具', '世界观', '知识库', '制作']) {

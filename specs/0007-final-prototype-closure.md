@@ -54,3 +54,36 @@ Ruling: 分集直接存在同一 Loro 的独立 nodes/outline 容器，保留旧
 最后独立审查（remaining_spec_review）：未发现新的确定阻断问题，确认跨集工作流校验、只读范围导出、CSP/转义/字体等待及双平台CI配置；输入时序回归已增加。知识库dock按原型400px内容+8px边距修正，固定引用按钮恢复蓝色样式；制作设置风格卡年代覆盖色块，保留风格补充为折叠区。
 
 首轮新版CI 37895005295失败：mac runner 1024px屏幕将默认窗口限制到小尺寸，工具栏导出被dock遮挡；已加窄窗口布局，保持导出可点。角色概览改为原型230px横向卡片/150px肖像；弹窗恢复暗色遮罩。Windows 测试假服务的 SSE 清理误绑 request close，改绑 response close，避免请求结束提前取消响应；后续CI验证。几次本机复跑出现Electron退出码0、窗口关闭，未发现崩溃报告，已添加测试进程退出诊断，不将失败记录作通过证据。
+
+20a2b6d 的 CI 37895416845 全部通过（两平台完整E2E）。只修改扫描脚本后的0b6942e复跑，mac笔记撤销后台已恢复，但React表单尚未刷新即断言；测试改为等待明确的数据更新/DOM恢复，不用固定睡眠或强制点击。截图也等待有限页面过渡完成。0b6942e 为新安装包源码，随后测试/文档提交不改变产品文件。
+
+签名说明（用户询问是否必须）：构建测试包不要求分发证书；要按macOS默认Gatekeeper路径正式分发，应完成Developer ID签名和Apple公证。Windows签名建议用于正式分发，但签名不立即保证SmartScreen无警告。参见 [Apple Developer ID](https://developer.apple.com/developer-id/) 与 [Microsoft SmartScreen](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/smartscreen-reputation)。继续生成明确标识的候选包，凭证缺失不伪造签名结果。
+
+最终运行记录：
+
+- 本机 typecheck / 74 单测 / 完整 Electron E2E 通过。测试覆盖实时输入后同一事件循环的分行与导出、跨集归档、中文组合输入、撤销后的真实表单值及PDF内嵌中文字体。
+- [CI 37895790031](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37895790031) 与最后工具栏修复的 [CI 37896279815](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37896279815) 均全部通过：macOS/Windows完整E2E、74单测/typecheck、原型格式、gitleaks。各平台44个最终截图与布局JSON保存在对应Artifacts。
+- 知识库1360×860几何：左栏256px；中间x308/y44/636×808、22px圆角；对话x952/y44/400×808、22px圆角，与原型对应容器匹配。完整原型88状态和客户端44状态已对照，真实数据数量/时间、离线激活与新增能力差异在上表记录；不能据此称所有像素或外部服务均已验收。
+- 3689dfa 的 [Release 37896135920](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37896135920) 双平台成功，原生ASAR扫描、Windows NSIS安装后启动和Mac启动通过。最终工具栏修复 abdf55b 的 Release 37896280762 待完成并汇总产物。
+- 0b6942e的两种Mac dmg只读挂载并扫描240个文本文件、公钥一致；ARM冷启动通过，x64首轮窗口关闭、再次启动通过Rosetta，失败与重试日志均保留。此记录不替代新版或Intel硬件验收。
+- 客户发送材料已保存于 `docs/delivery/客户交付草稿.md`；接收人/渠道/机器码仍未提供，尚未签发客户码或发送。
+
+最后视觉收尾：为共享对话开关预留54px，避免盖住新建按钮；首页输入框对齐原型84px/16px字号/14×16px留白；笔记备注恢复单行高度并允许手动拉伸。a13bab2为最终产品源码，停止上一候选构建后重新运行打包，防止遗漏这些修改。
+
+
+## 2026-10-09 · beta.2 最终交付候选收集
+
+- 最终产品源码 `a13bab25e647be2a4c9f4476f4f4f68d2aba2bf0` 的 [CI 37897105028](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37897105028) 与 [Release 37897109804](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37897109804) 已成功，前一轮 abdf55b Release 已取消。
+- 五个 CI 安装包已收集至 `delivery/Ancher-Scripter-1.0.0-beta.2/`；逐文件 SHA256 与 GitHub 草稿资产 digest 一致。`pnpm deliver delivery/ci-a13bab2/installers` 和标准 `shasum -a 256 -c SHA256SUMS.txt` 全部通过，含安装说明共6项。
+- 更新 `delivery/evidence/verification.json` 为 beta.2 最新源码及运行链接，避免交付 manifest 引用 beta.1 的70单测/旧包证据。包源码与本地未提交测试/规格文件明确分开。
+- 两个最新 dmg 只读挂载，公钥一致、各240文本文件扫描通过；ARM原生与x64 Rosetta均冷启动到激活页且 `packaged=true/version=1.0.0-beta.2`。挂载已卸载。Windows安装启动/240文件扫描证据保存于原生Release日志及截图。
+- 截图尺寸纠正：读取原生CI PNG头发现Mac截图被宿主屏幕限制到674px高度，不能称已获得1360×860/1440×960截图。已有未提交测试补 `setViewportSize` 与尺寸断言，本地完整Electron E2E本轮通过；修正后的远端截图仍待CI。功能CI通过与截图目标尺寸是不同结论。
+- 草稿Release的targetCommitish仍指向早期提交，五个安装包的真实来源以CI run、SHA256与manifest为准；尚未提升为正式Release。
+- 客户交付说明草稿已准备；签名、公证、真实外部服务、Intel硬件、升级/卸载和客户发送仍待对应信息或验证。本记录不关闭这些外部门禁。
+
+
+### 补充收尾
+
+- 客户验收表已加入交付脚本，便携文件名 `ACCEPTANCE.zh-CN.md`；五个包及两份说明共7项通过标准SHA256校验。草稿Release九个交付文件（含manifest和校验清单）均与本地digest一致，保持draft/prerelease；targetCommitish已纠正为a13bab2产品源码。
+- 测试窗口按用户最新要求优先外接副屏，选工作区最宽的非主屏；无副屏时Mac测试窗口退到普通窗口层级以下。本机检测到三屏，完整Electron E2E通过且每次启动确认实际显示器id=5（横屏）；截图对激活页和内容页均显式设置CSS视口并断言尺寸。
+- 上述改动仅涉及测试、交付脚本与文档，产品安装包源码仍为a13bab2，无需因测试变更重打产品包。客户发送/正式分发外部门禁仍保留。

@@ -13,7 +13,8 @@ mkdirSync(target, { recursive: true });
 for (const name of names) copyFileSync(join(release, name), join(target, name));
 // GitHub release assets sanitize non-ASCII filenames; keep the shipped name portable.
 copyFileSync(join(root, 'docs/delivery/安装与激活说明.md'), join(target, 'INSTALLATION.zh-CN.md'));
-const files = [...names, 'INSTALLATION.zh-CN.md'].map((name) => ({ name, bytes: statSync(join(target, name)).size, sha256: createHash('sha256').update(readFileSync(join(target, name))).digest('hex') }));
+copyFileSync(join(root, 'docs/delivery/客户验收记录.md'), join(target, 'ACCEPTANCE.zh-CN.md'));
+const files = [...names, 'INSTALLATION.zh-CN.md', 'ACCEPTANCE.zh-CN.md'].map((name) => ({ name, bytes: statSync(join(target, name)).size, sha256: createHash('sha256').update(readFileSync(join(target, name))).digest('hex') }));
 writeFileSync(join(target, 'SHA256SUMS.txt'), files.map((f) => `${f.sha256}  ${f.name}`).join('\n') + '\n');
 let commit = 'unknown'; let dirty = true; try { commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim(); dirty = !!execFileSync('git', ['status', '--porcelain'], { cwd: root, encoding: 'utf8' }).trim(); } catch {}
 const verificationEvidence = existsSync(join(root, 'delivery/evidence/verification.json')) ? JSON.parse(readFileSync(join(root, 'delivery/evidence/verification.json'), 'utf8')) : null;

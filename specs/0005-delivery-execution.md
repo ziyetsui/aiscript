@@ -62,3 +62,21 @@
 ## 2026-10-09 · 按 0006 继续执行的修订
 
 本轮产品合同与逐页差异以 [0007-final-prototype-closure.md](0007-final-prototype-closure.md) 为续补记录：实现真实多分集、分集独立正文/大纲/节拍/封面、范围与版式导出、内置 Courier Prime / 朱雀仿宋及授权文件、知识库元数据撤销与输入时序修复。旧版测试和 beta.1 安装包只证明旧源码；新候选为 **1.0.0-beta.2**。本机74单测与类型检查通过，双平台原生 CI/新安装包证据待本轮运行记录更新。签名、公证、真实服务及客户验收/发送不因草稿构建成功自动通过。老师原文摘录保持不变。
+
+
+## 2026-10-09 · beta.2 最终交付候选收集
+
+- 最终产品源码 `a13bab25e647be2a4c9f4476f4f4f68d2aba2bf0` 的 [CI 37897105028](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37897105028) 与 [Release 37897109804](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37897109804) 已成功，前一轮 abdf55b Release 已取消。
+- 五个 CI 安装包已收集至 `delivery/Ancher-Scripter-1.0.0-beta.2/`；逐文件 SHA256 与 GitHub 草稿资产 digest 一致。`pnpm deliver delivery/ci-a13bab2/installers` 和标准 `shasum -a 256 -c SHA256SUMS.txt` 全部通过，含安装说明共6项。
+- 更新 `delivery/evidence/verification.json` 为 beta.2 最新源码及运行链接，避免交付 manifest 引用 beta.1 的70单测/旧包证据。包源码与本地未提交测试/规格文件明确分开。
+- 两个最新 dmg 只读挂载，公钥一致、各240文本文件扫描通过；ARM原生与x64 Rosetta均冷启动到激活页且 `packaged=true/version=1.0.0-beta.2`。挂载已卸载。Windows安装启动/240文件扫描证据保存于原生Release日志及截图。
+- 截图尺寸纠正：读取原生CI PNG头发现Mac截图被宿主屏幕限制到674px高度，不能称已获得1360×860/1440×960截图。已有未提交测试补 `setViewportSize` 与尺寸断言，本地完整Electron E2E本轮通过；修正后的远端截图仍待CI。功能CI通过与截图目标尺寸是不同结论。
+- 草稿Release的targetCommitish仍指向早期提交，五个安装包的真实来源以CI run、SHA256与manifest为准；尚未提升为正式Release。
+- 客户交付说明草稿已准备；签名、公证、真实外部服务、Intel硬件、升级/卸载和客户发送仍待对应信息或验证。本记录不关闭这些外部门禁。
+
+
+### 补充收尾
+
+- 客户验收表已加入交付脚本，便携文件名 `ACCEPTANCE.zh-CN.md`；五个包及两份说明共7项通过标准SHA256校验。草稿Release九个交付文件（含manifest和校验清单）均与本地digest一致，保持draft/prerelease；targetCommitish已纠正为a13bab2产品源码。
+- 测试窗口按用户最新要求优先外接副屏，选工作区最宽的非主屏；无副屏时Mac测试窗口退到普通窗口层级以下。本机检测到三屏，完整Electron E2E通过且每次启动确认实际显示器id=5（横屏）；截图对激活页和内容页均显式设置CSS视口并断言尺寸。
+- 上述改动仅涉及测试、交付脚本与文档，产品安装包源码仍为a13bab2，无需因测试变更重打产品包。客户发送/正式分发外部门禁仍保留。
