@@ -28,9 +28,9 @@ export function AncherOriginalViewer({ content, fileId, onSelect, onMediaError }
         : file.mime.startsWith('video/') ? <video aria-label="原文视频" src={file.url} controls preload="metadata" crossOrigin="anonymous" onError={onMediaError} />
         : file.mime.startsWith('audio/') ? <audio aria-label="原文音频" src={file.url} controls preload="metadata" crossOrigin="anonymous" onError={onMediaError} />
         : file.mime.startsWith('image/') ? <img src={file.url} alt={file.name} crossOrigin="anonymous" onError={onMediaError} />
-        : file.mime === 'application/pdf' ? <iframe title="原文 PDF" src={file.url} sandbox="" onError={onMediaError} />
+        : file.mime === 'application/pdf' ? <iframe title="原文 PDF" src={file.url} sandbox="" />
         : <p className="muted">此文件暂不支持内嵌预览，请在 Ancher 官网查看。</p>}
-      <div className="cloud-original-footer">{file.name}</div>
+      <div className="cloud-original-footer"><span>{file.name}</span><button className="btn btn-quiet" onClick={() => onSelect(file.id)}>重新加载原文</button></div>
     </div>
   </>;
 }
