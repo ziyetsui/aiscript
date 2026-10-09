@@ -32,6 +32,11 @@ export function App() {
   const [dockHidden, setDockHidden] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('dock-hidden') || '{}'); } catch { return {}; } });
   const [route, setRoute] = useState<Route>({ name: 'home' });
   useEffect(() => {
+    if (route.name === 'project') {
+      try { localStorage.setItem('last-project', route.id); } catch {}
+    }
+  }, [route]);
+  useEffect(() => {
     const showChat = (event: Event) => {
       if (route.name !== 'project' || (event as CustomEvent).detail?.projectId !== route.id) return;
       setDockHidden((current) => { const next = { ...current, [route.tab]: false }; localStorage.setItem('dock-hidden', JSON.stringify(next)); return next; });
@@ -64,6 +69,7 @@ export function App() {
       <div className="grow" />
       <button className="no-drag" title="设置" aria-label="设置" aria-current={route.name === 'settings' ? 'page' : undefined} onClick={() => setRoute({ name: 'settings', back: route.name === 'settings' ? route.back : route })}><Icon name="gear" size={17} /></button>
       <ThemeToggle />
+      {project && <button className="no-drag" title="切换项目" aria-label="最近项目" onClick={() => setRoute({ name: 'recents' })}><Icon name="book" size={17} /></button>}
       <button className="no-drag" title="返回首页" aria-label="返回首页" aria-current={route.name === 'home' ? 'page' : undefined} onClick={() => setRoute({ name: 'home' })}><Icon name="home" size={17} /></button>
     </nav>
   );
