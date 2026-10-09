@@ -149,7 +149,7 @@ function registerIpc(): void {
     return r.canceled ? null : r.filePaths[0] ?? null;
   });
 
-  const KINDS = new Set<BibleKind>(['characters', 'relations', 'locations', 'props', 'world', 'files', 'shots']);
+  const KINDS = new Set<BibleKind>(['characters', 'relations', 'locations', 'props', 'world', 'files', 'shots', 'topics']);
   const kind = (k: string): BibleKind => { if (!KINDS.has(k as BibleKind)) throw new Error('bad kind'); return k as BibleKind; };
   ipcMain.handle('bible:add', gated((id: string, k: string, data: object) => projects.bibleAdd(id, kind(k), data)));
   ipcMain.handle('bible:update', gated((id: string, k: string, itemId: string, patch: object) => projects.bibleUpdate(id, kind(k), itemId, patch)));

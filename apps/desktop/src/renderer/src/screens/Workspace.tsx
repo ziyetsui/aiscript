@@ -321,7 +321,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
 
   const chatPanel = (
 <section className="agent" aria-label="AI 编剧">
-          <ChatHeader title={pageContext?.page && pageContext.page !== 'write' ? ({ characters: '关于这些角色', locations: '关于这些地点', props: '关于这些道具', world: '关于这个世界观', knowledge: '关于这条笔记', production: '关于这场制作' } as Record<string, string>)[pageContext.page]! : chatTitle(st.chat)} conversations={st.conversations} disabled={!!running || externalBusy}
+          <ChatHeader title={pageContext?.page && pageContext.page !== 'write' ? ({ characters: '关于这些角色', locations: '关于这些地点', props: '关于这些道具', world: '关于这个世界观', topics: '关于这些选题', knowledge: '关于这条笔记', production: '关于这场制作' } as Record<string, string>)[pageContext.page]! : chatTitle(st.chat)} conversations={st.conversations} disabled={!!running || externalBusy}
             onNew={async () => { apply(await window.api.chat.newConversation(id)); setQueue([]); toast('已开始新对话'); }}
             onOpen={async (cid) => { apply(await window.api.chat.openConversation(id, cid)); stick.current = true; }}
             onSave={async () => { try { const r = await window.api.chat.saveAsNote(id, null); setSt(r.state); toast(`已存进知识库：${r.name}`); } catch (e) { toast(cleanErr(e)); } }} />
@@ -356,7 +356,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
             <JumpPill show={awayFromBottom || unread > 0} unread={unread} onClick={toLatest} />
           </div>
           {launcher && <div className="launcher-wrap"><WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} /></div>}
-          {pageContext && pageContext.page !== 'write' && <div className="dock-context"><Icon name="doc" size={14} /><span>{pageContext.fileId ? (st.bible.files.find((f) => f.id === pageContext.fileId)?.title || st.bible.files.find((f) => f.id === pageContext.fileId)?.name || '当前笔记') : ({ characters: '角色表', locations: '地点表', props: '道具表', world: '世界观', production: '制作' } as Record<string, string>)[pageContext.page]}<small>当前页面参考</small></span></div>}
+          {pageContext && pageContext.page !== 'write' && <div className="dock-context"><Icon name="doc" size={14} /><span>{pageContext.fileId ? (st.bible.files.find((f) => f.id === pageContext.fileId)?.title || st.bible.files.find((f) => f.id === pageContext.fileId)?.name || '当前笔记') : ({ characters: '角色表', locations: '地点表', props: '道具表', world: '世界观', topics: '选题池', production: '制作' } as Record<string, string>)[pageContext.page]}<small>当前页面参考</small></span></div>}
           {skillActionId && <button type="button" className="chip" aria-label="取消技能选择" onClick={() => setSkillActionId(undefined)}>{writingAction(skillActionId).title} ×</button>}
           <Composer notes={notes} onNotesChange={setNotes} onMentionOpen={() => { void window.api.ancherNotes.list().then((library) => setCloudNotes(library.notes)).catch((e) => toast(String(e))); }} images={images} onImagesChange={setImages} value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input, images, undefined, notes, skillActionId)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
             running={!!running || externalBusy} queue={queue.map((q) => q.text)} onDequeue={(i) => setQueue((q) => q.filter((_, k) => k !== i))} ghost={ghost}
