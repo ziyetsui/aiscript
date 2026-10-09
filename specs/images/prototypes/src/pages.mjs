@@ -629,9 +629,9 @@ renderModelMenu();
 // when the turn ends. After a turn, a ghost suggestion sits in the empty box — Tab takes it.
 const queue=[];
 const SUGG=['写第二场：豆豆第一次求门墩儿帮忙','把第一场的对白改得更像孩子说话','给第一集加一个意料之外的结尾'];
-function ghost(t){ const g=$('ghost'); g.querySelector('span').textContent=t||''; const sync=()=>{ g.hidden=!g.querySelector('span').textContent||!!$('ask').value; }; sync(); setTimeout(sync,0); }
+function ghost(t){ const g=$('ghost'); g.querySelector('span').textContent=t||''; const sync=()=>{ g.hidden=!g.querySelector('span').textContent||!!$('ask').value; $('ask').placeholder=g.hidden?'随便问，@ 提及角色、地点或设定':''; }; sync(); setTimeout(sync,0); }
 // Text can land in the box without an input event (prefill, demo); never let the hint sit under real text.
-setInterval(()=>{ const a=$('ask'), g=$('ghost'); if(a&&g&&!g.hidden&&a.value) g.hidden=true; },250);
+setInterval(()=>{ const a=$('ask'), g=$('ghost'); if(a&&g&&!g.hidden&&a.value){ g.hidden=true; a.placeholder='随便问，@ 提及角色、地点或设定'; } },250);
 function composerInput(){ const has=!!$('ask').value.trim(); $('qpill').hidden=!(busy&&has); $('send').hidden=busy&&has; ghost(has?'':$('ghost').querySelector('span').textContent); }
 function composerKey(e){
   if(e.key==='Tab'&&!$('ask').value&&!$('ghost').hidden){ e.preventDefault(); $('ask').value=$('ghost').querySelector('span').textContent; ghost(''); composerInput(); return; }
@@ -929,11 +929,26 @@ const p11 = () => chrome('Ancher Scripter — 知识库', `${rail('知识库')}
         <span style="flex:1"></span>
         <button class="nt-out" id="ref-btn" aria-pressed="false" onclick="toggleRef()">${icon('spark', 14)}<span>写作时参考</span></button>
         <button class="nt-out" id="edit-btn" onclick="toggleEdit()">${icon('pen', 14)}<span>编辑</span></button>
+        <button class="ico-btn" id="chat-toggle" aria-label="AI 对话" aria-pressed="true" onclick="toggleChat()" title="AI 对话">${icon('chat', 16)}</button>
         <button class="ico-btn" aria-label="更多" onclick="toast('固定 · 移到合集 · 导出 · 删除')">⋯</button>
       </div>
       <div class="nt-scrollarea"><article class="nt-article" id="article"></article></div>
     </div>
-  </section>`, `
+  </section>
+  <aside class="nt-chat" id="nt-chat" aria-label="AI 对话">
+    <div class="ag-hd"><button class="ag-title" aria-label="对话列表"><span id="nc-title">关于这条笔记</span>${icon('chev', 13)}</button><span style="flex:1"></span>
+      <button class="ag-save" onclick="toast('已把这段对话存为笔记')">${icon('note', 15)}保存</button><button class="ico-btn" aria-label="新对话" onclick="ncReset()">${icon('newchat', 16)}</button></div>
+    <div class="ag-feed" id="nc-feed"></div>
+    <div class="nc-ft">
+      <div class="nc-ref" id="nc-ref"><span class="nc-ref-ic">${icon('doc', 16)}</span><span><b id="nc-ref-t"></b><small>Note</small></span><button class="ico-btn xs" aria-label="移除引用" onclick="this.parentElement.hidden=true">${icon('x', 12)}</button></div>
+      <div class="cmp"><div class="cmp-card" id="nc-card"><div class="ghost" id="nc-ghost"><span></span><kbd>Tab</kbd></div>
+        <textarea id="nc-ask" aria-label="问 AI" placeholder="随便问，@ 提及笔记、合集或作品" rows="2" onkeydown="ncKey(event)" oninput="ncSync()"></textarea>
+        <div class="cmp-bar"><button class="ico-btn" aria-label="提及" onclick="ncAsk().value+='@';ncAsk().focus();ncSync()">${icon('at', 16)}</button><button class="ico-btn" aria-label="添加文件" onclick="toast('选择文件或图片')">${icon('plus', 16)}</button><span style="flex:1"></span>
+          <button class="ico-btn" aria-label="语音输入" onclick="toast('按住说话')">${icon('mic', 16)}</button>
+          <button class="cmp-send" id="nc-send" aria-label="发送" hidden onclick="ncSend()">${icon('send', 15)}</button></div></div>
+        <div class="cmp-note">AI 可能会出错。请核对重要信息。</div></div>
+    </div>
+  </aside>`, `
   <script>
   const $=id=>document.getElementById(id);
   const NOTES=${JSON.stringify(KB_NOTES)}, COLLS=${JSON.stringify(KB_COLLECTIONS)};
@@ -968,6 +983,32 @@ const p11 = () => chrome('Ancher Scripter — 知识库', `${rail('知识库')}
   // The video transcript finishes processing a few seconds in, like Ancher's note pipeline.
   setTimeout(()=>{ const n=NOTES.find(x=>x.id==='n3'); n.processing=false; n.tags=[['逐字稿','b3']]; n.summary='一集约 10 分钟，四场戏；台词口语化、孩子气、短句多。'; n.body='<p>00:00 豆豆：石头……石头说话了？</p><p>00:04 门墩儿：在这儿蹲了一百多年，头一回有人看得见我。</p>'; renderSide(); if(cur==='n3') renderNote(); toast('「参考视频 · 第一集逐字稿」处理好了'); },4000);
   addEventListener('resize',()=>moveInd(false));
+
+  // Docked chat (app.ancher.ai notes view): grounded in the open note, activity row while it reads, markdown reply,
+  // ghost suggestion with Tab, send button only when there is text (as on ancher.ai).
+  const NC={copy:${JSON.stringify(icon('copy', 13))},note:${JSON.stringify(icon('note', 13))},up:${JSON.stringify(icon('up', 13))},down:${JSON.stringify(icon('down', 13))},check:${JSON.stringify(icon('check', 12))},stop:'<svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/></svg>',send:${JSON.stringify(icon('send', 15))}};
+  const ncAsk=()=>$('nc-ask'); let ncBusy=false;
+  function ncGhost(t){ const g=$('nc-ghost'); g.querySelector('span').textContent=t||''; g.hidden=!t||!!ncAsk().value; ncAsk().placeholder=g.hidden?'随便问，@ 提及笔记、合集或作品':''; }
+  function ncSync(){ const has=!!ncAsk().value.trim(); $('nc-send').hidden=!has&&!ncBusy; $('nc-ghost').hidden=has||!$('nc-ghost').querySelector('span').textContent; ncAsk().placeholder=$('nc-ghost').hidden?'随便问，@ 提及笔记、合集或作品':''; }
+  function ncKey(e){ if(e.key==='Tab'&&!ncAsk().value&&!$('nc-ghost').hidden){ e.preventDefault(); ncAsk().value=$('nc-ghost').querySelector('span').textContent; ncSync(); return; }
+    if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){ e.preventDefault(); ncSend(); } }
+  function ncAdd(html){ const f=$('nc-feed'), d=document.createElement('div'); d.className='enter'; d.innerHTML=html; f.appendChild(d); f.scrollTop=f.scrollHeight; return d; }
+  function ncActs(){ const t=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'}); return '<div class="msg-acts"><button class="ico-btn" aria-label="复制">'+NC.copy+'</button><button class="ico-btn" aria-label="存为笔记">'+NC.note+'</button><button class="ico-btn" aria-label="好的回答">'+NC.up+'</button><button class="ico-btn" aria-label="不好的回答">'+NC.down+'</button><span class="msg-time">'+t+'</span></div>'; }
+  async function ncSend(){ const q=ncAsk().value.trim(); if(!q||ncBusy) return; ncAsk().value=''; ncGhost(''); ncBusy=true; $('nc-card').classList.add('busy'); const sb=$('nc-send'); sb.innerHTML=NC.stop; sb.classList.add('stop'); ncSync();
+    const u=ncAdd('<div class="ag-user"><div class="bubble"><div class="bd"></div></div></div>'); u.querySelector('.bd').textContent=q;
+    const n=NOTES.find(x=>x.id===cur);
+    const act=ncAdd('<div class="act"><div class="act-rows"><div class="act-row run"><span class="ai">⠋</span><span class="al"><span>翻阅你的笔记中</span><span class="ao"> · '+esc(n.title)+'</span></span></div></div></div>');
+    let k=0; const dt=setInterval(()=>{ const a=act.querySelector('.ai'); if(a) a.textContent='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'[k++%10]; },90);
+    await new Promise(r=>setTimeout(r,1300)); clearInterval(dt);
+    act.innerHTML='<button class="act-sum" aria-expanded="false">'+${JSON.stringify(icon('chev', 12))}.replace('<svg','<svg style="transform:rotate(-90deg)"')+'<span>完成 1 个步骤 · 翻阅你的笔记</span></button>';
+    const body='<p>这条笔记<b>《'+esc(n.title)+'》</b>里'+(n.summary?'说的是：'+esc(n.summary):'还没有可读的内容。')+'</p><p>结合你的问题，我建议：</p><ul><li>把它打开「写作时参考」，写剧本时 AI 会照着它的结构和语气来。</li><li>需要的话，我可以把它整理成一份分场大纲，直接写进项目的大纲里。</li></ul><p>你要哪种？</p>';
+    ncAdd('<div class="ag-ai"><div>'+body+'</div>'+ncActs()+'</div>');
+    ncBusy=false; $('nc-card').classList.remove('busy'); sb.innerHTML=NC.send; sb.classList.remove('stop'); ncSync(); ncGhost('把它整理成分场大纲，写进项目大纲'); }
+  function ncReset(){ $('nc-feed').innerHTML=''; ncGhost('总结一下这条笔记的要点'); toast('新对话'); }
+  function ncRef(){ const n=NOTES.find(x=>x.id===cur); $('nc-ref-t').textContent=n.title; $('nc-ref').hidden=false; }
+  function toggleChat(){ const c=$('nt-chat'), o=c.hidden; c.hidden=!o; $('chat-toggle').setAttribute('aria-pressed',o); setTimeout(()=>moveInd(false),0); }
+  const _open=openNote; openNote=function(id){ _open(id); ncRef(); };
+  ncRef(); ncGhost('总结一下这条笔记的要点'); ncSync();
   </script>`);
 
 /* ═════ P12 地点（laper /locations）：地点卡 + 清单，新建地点抽屉 ═════ */
