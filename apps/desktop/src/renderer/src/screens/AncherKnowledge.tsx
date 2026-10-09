@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AncherLibrary, AncherNoteContent } from '@scripter/agent';
 import { NewAncherNote } from './NewAncherNote.tsx';
 import { AncherMarkdown, AncherOriginalViewer } from './AncherNoteContent.tsx';
-import { NoteLeadingIcon } from '../components/NoteLeadingIcon.tsx';
+import { CloudNoteSidebar } from '../components/CloudNoteSidebar.tsx';
 import { addNoteToChat } from '../lib/note-chat.ts';
 import { useNoteShortcuts } from '../lib/note-shortcuts.ts';
 import { Icon, isMac, useToast } from '../lib/ui.tsx';
@@ -25,7 +25,7 @@ export function AncherKnowledge({ id, onSelect, toggleDock, dockOpen, switcher, 
   const [query, setQuery] = useState('');
   const [collection, setCollection] = useState('');
   const [selected, setSelected] = useState('');
-  const [reverse, setReverse] = useState(false);
+  const [orderedIds, setOrderedIds] = useState<string[]>([]);
   const [content, setContent] = useState<AncherNoteContent | null>(null);
   const [bodyError, setBodyError] = useState('');
   const [mode, setMode] = useState<'summary' | 'original'>('summary');
@@ -34,18 +34,22 @@ export function AncherKnowledge({ id, onSelect, toggleDock, dockOpen, switcher, 
   const [mediaRetry, setMediaRetry] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const alive = useRef(false);
-  const inFlight = useRef(false);
+  const inFlight = useRef<Promise<void> | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
   const toast = useToast();
-  const refresh = useCallback(async () => {
-    if (inFlight.current) return;
-    inFlight.current = true; setLoading(true);
-    try {
-      const result = await window.api.ancherNotes.list();
-      if (alive.current) { setLibrary(result); setError(''); }
-    } catch (e) { if (alive.current) { setError(String(e)); setLibrary(null); } }
-    finally { inFlight.current = false; if (alive.current) setLoading(false); }
+  const refresh = useCallback(async (force = false) => {
+    if (inFlight.current) { await inFlight.current; if (!force) return; }
+    const work = (async () => {
+      setLoading(true);
+      try {
+        const result = await window.api.ancherNotes.list();
+        if (alive.current) { setLibrary(result); setError(''); }
+      } catch (e) { if (alive.current) setError(String(e)); }
+      finally { inFlight.current = null; if (alive.current) setLoading(false); }
+    })();
+    inFlight.current = work;
+    await work;
   }, []);
   useEffect(() => {
     alive.current = true; void refresh();
@@ -63,7 +67,6 @@ export function AncherKnowledge({ id, onSelect, toggleDock, dockOpen, switcher, 
   useEffect(() => { onSelect?.(undefined); }, [onSelect]);
   const notes = library?.notes ?? [];
   const list = notes.filter((n) => !collection || n.collectionIds.includes(collection)).filter((n) => `${n.title} ${n.memo} ${n.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase()));
-  if (reverse) list.reverse();
   const note = list.find((n) => n.id === selected) ?? list[0];
   const noteId = note?.id;
   useEffect(() => {
@@ -91,9 +94,7 @@ export function AncherKnowledge({ id, onSelect, toggleDock, dockOpen, switcher, 
     if (!current || current.id !== noteId || current.status !== 'ready') return;
     addNoteToChat(id, { source:'ancher', id:current.id, title:current.title });
   };
-  useNoteShortcuts(root, search, noteId, list.map((n) => n.id), pick, attach, current?.id === noteId && current?.status === 'ready');
-  const byId = new Map(notes.map((n) => [n.id, n]));
-  const pinned = (library?.pinnedNoteIds ?? []).flatMap((id) => byId.has(id) ? [byId.get(id)!] : []);
+  useNoteShortcuts(root, search, noteId, orderedIds, pick, attach, current?.id === noteId && current?.status === 'ready');
   async function importNote() {
     if (!noteId) return;
     setImporting(true);
@@ -111,9 +112,7 @@ export function AncherKnowledge({ id, onSelect, toggleDock, dockOpen, switcher, 
       <button className="btn btn-ghost" onClick={() => setCreating(true)}><Icon name="plus" size={16} />新建笔记<kbd>{isMac ? '⇧⌘O' : 'Ctrl+Shift+O'}</kbd></button>
       <button className="btn btn-ghost" disabled={loading} onClick={() => { void refresh(); setRefreshKey((x) => x + 1); }}><Icon name="undo" size={14} />{loading ? '刷新中…' : '刷新 Ancher 笔记'}</button>
       <input ref={search} className="input" aria-label="搜索 Ancher 笔记" placeholder={isMac ? '搜索笔记  ⌘K' : '搜索笔记  Ctrl+K'} value={query} onChange={(e) => setQuery(e.target.value)} />
-      <details open className="note-group"><summary>已固定 <span>{pinned.length}</span></summary><div className="note-items">{pinned.map((n) => <button data-note-id={n.id} key={n.id} onClick={() => { setCollection(''); setQuery(''); pick(n.id); }} aria-current={n.id === noteId ? 'page' : undefined}><NoteLeadingIcon kind={n.kind} status={n.status} thumbnail={n.thumbnail} /><span title={n.title}>{n.title}</span></button>)}</div></details>
-      <details open className="note-group"><summary>合集 <span>{library?.collections.length ?? 0}</span></summary><div className="note-items">{library?.collections.map((c) => <button key={c.id} aria-current={collection === c.id ? 'page' : undefined} onClick={() => { setCollection(c.id); setSelected(''); setQuery(''); }}><span className="cloud-collection-icon" style={{ color: `var(--color-${c.color}-500, var(--primary))` }}><Icon name="box" size={16} /></span><span>{c.name}</span></button>)}</div></details>
-      <details open className="note-group note-all"><summary>笔记 <span>{list.length}</span><span className="grow" /><button aria-label="排序 Ancher 笔记" onClick={(e) => { e.preventDefault(); setReverse((x) => !x); }}>↕</button></summary><div className="note-items">{list.map((n) => <button data-note-id={n.id} key={n.id} aria-current={n.id === noteId ? 'page' : undefined} onClick={() => pick(n.id)}><NoteLeadingIcon kind={n.kind} status={n.status} thumbnail={n.thumbnail} /><span title={n.title}>{n.title}</span>{n.status !== 'ready' && <small>{statusLabel[n.status]}</small>}</button>)}</div></details>
+      <CloudNoteSidebar library={library} list={list} projectId={id} noteId={noteId} collection={collection} onCollection={(value) => { setCollection(value); setSelected(''); setQuery(''); }} onPick={pick} onOrder={setOrderedIds} refresh={() => refresh(true)} />
       <button className="btn btn-ghost" onClick={() => { setCollection(''); setQuery(''); }}>全部 Ancher 笔记</button>
       <p className="muted cloud-hint">与官网同一账号 · 自动刷新</p>
     </aside>

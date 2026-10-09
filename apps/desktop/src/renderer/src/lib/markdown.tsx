@@ -1,7 +1,7 @@
 // Assistant replies are Markdown (Ancher renders them with react-markdown + GFM). This covers what replies
 // actually use — headings, paragraphs, lists, quotes, rules, code, simple tables, bold / italic / code / links —
 // and builds React elements only, so model output can never inject HTML.
-import { Fragment, type ReactNode } from 'react';
+import { Fragment, memo, type ReactNode } from 'react';
 
 function inline(text: string, key = 'i'): ReactNode[] {
   const out: ReactNode[] = [];
@@ -26,7 +26,7 @@ function inline(text: string, key = 'i'): ReactNode[] {
 const isTableRow = (l: string) => /^\s*\|.*\|\s*$/.test(l);
 const cells = (l: string) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
 
-export function Markdown({ text }: { text: string }) {
+export const Markdown = memo(function Markdown({ text }: { text: string }) {
   const lines = text.replace(/\r\n/g, '\n').split('\n');
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -94,4 +94,4 @@ export function Markdown({ text }: { text: string }) {
     blocks.push(<p key={key()}>{para.map((l, k) => <Fragment key={k}>{k > 0 && <br />}{inline(l)}</Fragment>)}</p>);
   }
   return <div className="chat-md">{blocks}</div>;
-}
+});

@@ -1,14 +1,15 @@
 import { writingAction } from '@scripter/agent/skills';
 import { createPortal } from 'react-dom';
 // Workspace (prototype P4): scenes outline · script page · AI panel. AI edits arrive as one undoable turn
-// and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
-import { useCallback, useEffect, useRef, useState } from 'react';
+// and become immediately editable on the page; typewriter sounds are for manual input only.
+import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import type { ScriptNode } from '@scripter/core/script';
 import type { ChatNoteAttachment, ClipboardImage, ActivityRow, AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, ScriptRevision, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
 import { RevisionPopover } from '../components/RevisionPopover.tsx';
 import { RunCard, WF_MENU, WorkflowLauncher } from '../components/Workflows.tsx';
 import { Activity } from '../components/Activity.tsx';
-import { ChatImages, AssistantMessage, ChatHeader, Composer, EmptyChat, JumpPill, Thinking, UserBubble } from '../components/Chat.tsx';
+import { ChatImages, AssistantMessage, ChatHeader, EmptyChat, JumpPill, UserBubble } from '../components/Chat.tsx';
+import { StreamingThinking, WorkspaceComposer, type ComposerDraft, type StreamDraft } from '../components/WorkspaceChat.tsx';
 import { SelectionBar } from '../components/SelectionBar.tsx';
 import { ShotsView, shotInstruction } from '../components/Shots.tsx';
 import type { Route } from '../App.tsx';
@@ -19,13 +20,18 @@ import { NoteLeadingIcon } from '../components/NoteLeadingIcon.tsx';
 import { Editor, placeCaret } from './Editor.tsx';
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
-const visibleReply = (t: string) => t.split('<ops>')[0]!.trim();
 
 export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkillActionId, pendingEpisode, keys, go, dockHost, pageContext }: { id: string; pending?: string; pendingImages?: ClipboardImage[]; pendingWeb?: boolean; pendingSkillActionId?: string; pendingEpisode?: string; keys: KeyStatus; go: (r: Route) => void; dockHost?: HTMLDivElement | null; pageContext?: { page: string; fileId?: string } }) {
   const [st, setSt] = useState<ProjectState | null>(null);
   const [nodes, setNodes] = useState<ScriptNode[]>([]);
   const [asking, setAsking] = useState<string | null>(null); // the user's message while its reply is in flight
-  const [input, setInput] = useState('');
+  const draft = useRef<ComposerDraft>(null);
+  const savedDraft = useRef('');
+  const savedStream = useRef<StreamDraft | null>(null);
+  const setInput = (value: SetStateAction<string>) => {
+    if (draft.current) draft.current.set(value);
+    else savedDraft.current = typeof value === 'function' ? value(savedDraft.current) : value;
+  };
   const [skillActionId, setSkillActionId] = useState<string | undefined>(pendingSkillActionId);
   const [images, setImages] = useState<ClipboardImage[]>(pendingImages ?? []);
   const [askingImages, setAskingImages] = useState<ClipboardImage[]>([]);
@@ -38,9 +44,6 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
   const [web, setWeb] = useState(pendingWeb ?? false);
   const [externalBusy, setExternalBusy] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
-  const [stream, setStream] = useState('');
-  const [hidden, setHidden] = useState<Set<string>>(new Set());
-  const [typing, setTyping] = useState<{ id: string; shown: number } | null>(null);
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [exportOpen, setExportOpen] = useState(false);
   const [episodeDialog, setEpisodeDialog] = useState<{ action: 'create' | 'rename'; id?: string; title: string } | null>(null);
@@ -100,21 +103,26 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
 
   const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); window.dispatchEvent(new CustomEvent('scripter:project', { detail: id })); }, [id]);
   useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, apply]);
-  useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, pageContext?.page, pageContext?.fileId]);
+  const context = `${id}:${pageContext?.page ?? ''}:${pageContext?.fileId ?? ''}`;
+  const previousContext = useRef(context);
+  useEffect(() => {
+    if (previousContext.current === context) return;
+    previousContext.current = context;
+    void window.api.projects.open(id).then(apply);
+  }, [context, id, apply]);
   useEffect(() => window.api.files.onProjectChanged((e) => { if (e.projectId === id) void window.api.projects.open(id).then(apply); }), [id, apply]);
   useEffect(() => {
-    let live = true; let timer: ReturnType<typeof setTimeout>;
+    let live = true; let timer: ReturnType<typeof setTimeout>; let wasBusy = false;
     const check = async () => {
       const status = await window.api.ai.status(id);
       if (!live) return;
       setExternalBusy(status.busy);
-      if (status.busy) timer = setTimeout(() => void check(), 700);
-      else void window.api.projects.open(id).then(apply);
+      if (status.busy) { wasBusy = true; timer = setTimeout(() => void check(), 700); }
+      else if (wasBusy) void window.api.projects.open(id).then(apply);
     };
     void check(); return () => { live = false; clearTimeout(timer); };
   }, [id, pageContext?.page, apply]);
   useEffect(() => { const h = (e: Event) => { if ((e as CustomEvent<string>).detail === id) void window.api.projects.open(id).then(apply); }; window.addEventListener('scripter:note', h); return () => window.removeEventListener('scripter:note', h); }, [id, apply]);
-  useEffect(() => window.api.ai.onDelta((d) => { if (d.reqId === running) setStream((s) => s + d.text); }), [running]);
   const [acts, setActs] = useState<ActivityRow[]>([]); // live agent activity for the running request
   useEffect(() => window.api.ai.onActivity((d) => { if (d.reqId === running) setActs(d.rows); }), [running]);
   const chatLen = st?.chat.length ?? 0;
@@ -125,7 +133,11 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     if (stick.current) el.scrollTop = el.scrollHeight;
     else if (chatLen > prevLen.current) setUnread((u) => u + (chatLen - prevLen.current));
     prevLen.current = chatLen;
-  }, [chatLen, stream, asking, running, st?.runs, acts]);
+  }, [chatLen, asking, running, st?.runs, acts]);
+  const followStream = useCallback(() => {
+    const el = feed.current;
+    if (el && stick.current) el.scrollTop = el.scrollHeight;
+  }, []);
   function onFeedScroll() {
     const el = feed.current!;
     const near = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
@@ -175,24 +187,6 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     setNodes((live) => s.nodes.map((n) => ({ ...n, text: live.find((x) => x.id === n.id)?.text ?? n.text })));
   }, [id]);
 
-  /** Reveal newly inserted nodes one by one, character by character. */
-  async function typeOut(newIds: string[], all: ScriptNode[]) {
-    if (reduced() || localStorage.getItem('script-typing') === 'false' || !newIds.length) { setFresh(new Set(newIds)); return; }
-    setHidden(new Set(newIds));
-    for (const nid of newIds) {
-      const n = all.find((x) => x.id === nid);
-      setHidden((h) => { const c = new Set(h); c.delete(nid); return c; });
-      if (!n) continue;
-      const step = Math.max(1, Math.ceil(n.text.length / 60)); // long paragraphs speed up so a turn never drags
-      for (let i = 0; i <= n.text.length; i += step) {
-        setTyping({ id: nid, shown: i });
-        await new Promise((r) => setTimeout(r, 16));
-      }
-      setTyping(null);
-      await new Promise((r) => setTimeout(r, 60));
-    }
-  }
-
   async function send(text: string, attached: ClipboardImage[] = [], target?: 'outline', attachedNotes: ChatNoteAttachment[] = [], selectedSkill?: string) {
     const t = text.trim() || (attached.length ? '请描述这些图片。' : attachedNotes.length ? '请总结这些笔记。' : '');
     if (!t) return;
@@ -202,6 +196,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     stick.current = true;
     setGhost('');
     const reqId = crypto.randomUUID();
+    savedStream.current = { reqId, text: '', inOps: false };
     setAsking(t);
     setSkillActionId(undefined);
     setAskingImages(attached);
@@ -209,7 +204,6 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     setNotes([]);
     setImages([]);
     setInput('');
-    setStream('');
     setActs([]);
     setRunning(reqId);
     const focusId = lastFocus.current ?? (document.activeElement as HTMLElement | null)?.dataset?.id;
@@ -222,7 +216,6 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     }
     const s = await window.api.projects.open(id);
     setRunning(null);
-    setStream('');
     setActs([]);
     setAsking(null);
     setAskingImages([]);
@@ -231,7 +224,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     if (!r.ok && !r.cancelled && attached.length) { setImages((current) => current.length ? current : attached); setInput((current) => current || text); }
     const newIds = s.nodes.filter((n) => !before.has(n.id)).map((n) => n.id);
     apply(s);
-    if (r.ok && r.turn) { revealChanges(st, s); void typeOut(newIds, s.nodes); }
+    if (r.ok && r.turn) { revealChanges(st, s); setFresh(new Set(newIds)); }
     if (r.ok && r.turn && s.outline !== st?.outline) toast('已写进大纲，点左侧「大纲」查看');
     if (!r.ok && !r.cancelled && r.message && !s.chat.length) toast(r.message);
     setGhost(suggestNext([...s.chat].reverse().find((m) => m.role === 'ai')?.text ?? '', s.chat.length));
@@ -288,8 +281,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     if (!accept) { toast('已拒绝，剧本没有改动'); return; }
     revealChanges(st, r.state);
     const changed = (m.preview?.items ?? []).flatMap((it) => ('id' in it ? [it.id] : []));
-    setFresh(new Set(changed));
-    void typeOut(r.state.nodes.filter((n) => !before.has(n.id)).map((n) => n.id), r.state.nodes);
+    setFresh(new Set([...changed, ...r.state.nodes.filter((n) => !before.has(n.id)).map((n) => n.id)]));
   }
 
   function openWorkflow(wf: WorkflowId) {
@@ -332,7 +324,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
     if (action !== 'select' && title === undefined) { setEpisodeDialog({ action, id: episodeId, title: action === 'create' ? `第 ${(st?.episodes.length ?? 0) + 1} 集` : st?.episodes.find((e) => e.id === episodeId)?.title ?? '' }); return; }
     try {
       const next = await window.api.projects.episode(id, action, episodeId, title);
-      apply(next); setHidden(new Set()); setTyping(null); setFresh(new Set()); setOutlineKey((k) => k + 1); outlineSent.current = null; lastFocus.current = null; setEpisodeDialog(null);
+      apply(next); setFresh(new Set()); setOutlineKey((k) => k + 1); outlineSent.current = null; lastFocus.current = null; setEpisodeDialog(null);
       if (action !== 'rename') setView('script');
     } catch (e) { toast(String(e)); }
   }
@@ -342,10 +334,15 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
   }
 
 
+  const mentions = useMemo(() => st ? [
+    ...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })),
+    ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })),
+    ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })),
+    ...st.bible.topics.map((t) => ({ label: t.title, kind: '选题', note: { source: 'topic' as const, id: t.id, title: t.title } })),
+    ...st.bible.files.map((f) => ({ label: f.title || f.name, kind: '项目笔记', note: { source: 'project' as const, id: f.id, title: f.title || f.name } })),
+    ...cloudNotes.filter((n) => n.status === 'ready').map((n) => ({ label: n.title, kind: 'Ancher 笔记', note: { source: 'ancher' as const, id: n.id, title: n.title } })),
+  ] : [], [st?.bible, cloudNotes]);
   if (!st) return null;
-  const shown = nodes
-    .filter((n) => !hidden.has(n.id))
-    .map((n) => (typing && n.id === typing.id ? { ...n, text: n.text.slice(0, typing.shown) } : n));
 
   const chatPanel = (
 <section className="agent" aria-label="AI 编剧">
@@ -380,17 +377,17 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
               })}
               {asking && <UserBubble text={asking}>{askingNotes.map((note) => <span className="chat-note-chip" key={`${note.source}:${note.id}`}><NoteLeadingIcon />{note.title}</span>)}{askingImages.map((image, i) => <img key={i} src={image.dataUrl} alt={image.name} style={{ width: 72, height: 72, objectFit: 'contain' }} />)}</UserBubble>}
               {running && acts.length > 0 && <Activity folded={false} items={acts.map((r) => ({ ...r, state: r.running ? 'running' : 'done' }))} />}
-              {running && <Thinking partial={visibleReply(stream)} />}
+              {running && <StreamingThinking key={running} reqId={running} savedStream={savedStream} onContentChange={followStream} />}
             </div>
             <JumpPill show={awayFromBottom || unread > 0} unread={unread} onClick={toLatest} />
           </div>
           {launcher && <div className="launcher-wrap"><WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} /></div>}
           {pageContext && pageContext.page !== 'write' && <div className="dock-context"><Icon name="doc" size={14} /><span>{pageContext.fileId ? (st.bible.files.find((f) => f.id === pageContext.fileId)?.title || st.bible.files.find((f) => f.id === pageContext.fileId)?.name || '当前笔记') : ({ characters: '角色表', locations: '地点表', props: '道具表', world: '世界观', topics: '选题池', production: '制作' } as Record<string, string>)[pageContext.page]}<small>当前页面参考</small></span></div>}
           {skillActionId && <button type="button" className="chip" aria-label="取消技能选择" onClick={() => setSkillActionId(undefined)}>{writingAction(skillActionId).title} ×</button>}
-          <Composer notes={notes} onNotesChange={setNotes} onMentionOpen={() => { void window.api.ancherNotes.list().then((library) => setCloudNotes(library.notes)).catch((e) => toast(String(e))); }} images={images} onImagesChange={setImages} value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input, images, undefined, notes, skillActionId)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
+          <WorkspaceComposer draftRef={draft} savedDraft={savedDraft} notes={notes} onNotesChange={setNotes} onMentionOpen={() => { void window.api.ancherNotes.list().then((library) => setCloudNotes(library.notes)).catch((e) => toast(String(e))); }} images={images} onImagesChange={setImages} onSend={(text) => void send(text, images, undefined, notes, skillActionId)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
             running={!!running || externalBusy} queue={queue.map((q) => q.text)} onDequeue={(i) => setQueue((q) => q.filter((_, k) => k !== i))} ghost={ghost}
             web={web} onWeb={setWeb} onAction={onAction}
-            mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })), ...st.bible.topics.map((t) => ({ label: t.title, kind: '选题', note: { source: 'topic' as const, id: t.id, title: t.title } })), ...st.bible.files.map((f) => ({ label: f.title || f.name, kind: '项目笔记', note: { source: 'project' as const, id: f.id, title: f.title || f.name } })), ...cloudNotes.filter((n) => n.status === 'ready').map((n) => ({ label: n.title, kind: 'Ancher 笔记', note: { source: 'ancher' as const, id: n.id, title: n.title } }))]} />
+            mentions={mentions} />
         </section>
   );
 
@@ -447,7 +444,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingSkill
             if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); }
             if (e.key === 'Escape') { e.preventDefault(); e.currentTarget.textContent = st.meta.title; e.currentTarget.blur(); }
           }}>{st.meta.title}</h1><h2>{st.episodes.find((e) => e.id === st.activeEpisodeId)?.title}</h2>{([['author','作者'],['draft','稿次'],['date','日期']] as const).map(([field,label]) => <label key={field}>{label}<input className="input" aria-label={`封面${label}`} defaultValue={st.cover[field]} key={`${st.activeEpisodeId}:${field}`} onBlur={async (e) => setSt(await window.api.projects.setCover(id, { [field]: e.target.value }))} /></label>)}</article> : view === 'scenes' ? <div className="scene-board">{st.scenes.length ? st.scenes.map((s) => <button className="card" key={s.nodeId} onClick={() => jumpTo(s.nodeId)}><h3>{s.index}. {s.heading}</h3><p>{s.characters.join('、') || '暂无角色'} · {s.dialogueCount} 段对白</p></button>) : <div className="empty-state">写下场景标题后会出现在这里</div>}</div> : view === 'episodes' ? <div className="episode-board">{st.episodes.map((e, i) => <button className="card" key={e.id} onClick={() => void episode('select', e.id)}><small>第 {i + 1} 集</small><h2>{e.title}</h2><p>{e.scenes} 场 · {e.words} 字</p></button>)}<button className="card" onClick={() => void episode('create')}>＋ 新建一集</button></div> : view === 'script'
-            ? revisionPreview ? <article className="paper revision-paper" aria-label={`剧本 v${revisionPreview.revision} 只读预览`}>{revisionPreview.nodes.length ? revisionPreview.nodes.map(n => <div className="node" data-type={n.type} key={n.id}>{n.text || '\u00a0'}</div>) : <p className="muted">这个版本还没有正文</p>}</article> : <Editor key={st.activeEpisodeId} nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
+            ? revisionPreview ? <article className="paper revision-paper" aria-label={`剧本 v${revisionPreview.revision} 只读预览`}>{revisionPreview.nodes.length ? revisionPreview.nodes.map(n => <div className="node" data-type={n.type} key={n.id}>{n.text || '\u00a0'}</div>) : <p className="muted">这个版本还没有正文</p>}</article> : <Editor key={st.activeEpisodeId} nodes={nodes} typingId={null} freshIds={fresh} edit={edit} setLocal={setNodes} />
             : view === 'shots'
               ? <ShotsView st={st} projectId={id} setSt={apply} busy={!!running} onAI={(sc) => void send(shotInstruction(sc))}
                   onAll={() => void send(`给全部 ${st.scenes.length} 场拆分镜：每场一个 setShots（sceneId 用场景标题的节点 id），景别有变化，一句话写清画面和动作。只写分镜，不要改剧本。`)}

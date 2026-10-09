@@ -21,7 +21,7 @@ try {
  if(process.platform==='darwin') await app.evaluate(({BrowserWindow})=>{for(const window of BrowserWindow.getAllWindows())window.hide();});
  await page.locator('#ask').fill('笔记引用测试');await page.getByRole('button',{name:'开始',exact:true}).click();await page.getByText('本轮 6 处修改').waitFor();
  await page.getByRole('button',{name:'知识库',exact:true}).click();await page.locator('.note-all [data-note-id="cloud-long"]').waitFor();
- const metrics=await page.locator('.note-all [data-note-id]').evaluateAll(rows=>rows.map(row=>{const slot=row.querySelector('.note-leading')!.getBoundingClientRect();const icon=row.querySelector('.note-leading svg')!.getBoundingClientRect();return{slot:slot.width,icon:icon.width,x:slot.x};}));
+ const metrics=await page.locator('.note-all [data-note-id]').evaluateAll(rows=>rows.map(row=>{const slot=row.closest('.cloud-note-row')!.querySelector('.note-leading')!.getBoundingClientRect();const icon=row.closest('.cloud-note-row')!.querySelector('.note-leading svg')!.getBoundingClientRect();return{slot:slot.width,icon:icon.width,x:slot.x};}));
  assert.equal(metrics.length,2);for(const m of metrics){assert.equal(m.slot,20);assert.equal(m.icon,16);assert.equal(m.x,metrics[0]!.x);}
  await page.keyboard.press(`${modifier}+k`);assert.equal(await page.getByLabel('搜索 Ancher 笔记',{exact:true}).evaluate(el=>el===document.activeElement),true);
  await page.keyboard.press('ArrowDown');await page.waitForFunction(()=>document.activeElement?.getAttribute('data-note-id')==='cloud-long');

@@ -3,7 +3,7 @@ import { getNoteSourceUrl, getNoteSource, getNoteThumbnailFile, getFileUrl, type
 
 /** Account metadata and thumbnail URLs sent to the renderer; API keys stay in main. */
 export interface AncherNote {
-  kind?: 'note' | 'file' | 'link'; thumbnail?: string; sourceUrl?: string;
+  kind?: 'note' | 'file' | 'link'; thumbnail?: string; sourceUrl?: string; isPublic?: boolean;
   id: string; title: string; description: string; memo: string;
   status: 'queued' | 'processing' | 'fetched' | 'ready' | 'error'; error: string;
   addedAt: number; updatedAt: number; starred: boolean;
@@ -35,7 +35,7 @@ function publicNote(note: Note, starred = false): AncherNote {
   const kind = getNoteSourceUrl(note) ? 'link' : ['file','document','pdf'].includes(getNoteSource(note) ?? '') ? 'file' : 'note';
   const thumbnail = getFileUrl(getNoteThumbnailFile(note));
   return {
-    kind, ...(getNoteSourceUrl(note)?.startsWith('https://') ? { sourceUrl: getNoteSourceUrl(note)! } : {}), ...(thumbnail && /^https:\/\//.test(thumbnail) ? { thumbnail } : {}),
+    kind, isPublic: note.is_public === true, ...(getNoteSourceUrl(note)?.startsWith('https://') ? { sourceUrl: getNoteSourceUrl(note)! } : {}), ...(thumbnail && /^https:\/\//.test(thumbnail) ? { thumbnail } : {}),
     id: note.id, title: note.title || note.article?.title || '未命名笔记',
     description: note.description || note.article?.description || '', memo: note.comment || '',
     status, error: note.error_message || '', addedAt: note.created_at * 1000, updatedAt: note.updated_at * 1000,

@@ -3,7 +3,7 @@ export type { ClipboardImage, ChatNoteAttachment, GeminiService };
 export interface StoredChatImage { name: string; file: string }
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
 import type { ExportSelection, PreviewItem } from '@scripter/core';
-import type { CreateAncherNoteInput, ActivityRow, AncherLibrary, AncherNoteContent, RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
+import type { AncherNoteMutation, AncherMutationResult, CreateAncherNoteInput, ActivityRow, AncherLibrary, AncherNoteContent, RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
 export type { ActivityRow };
 import type { Bible, KnowledgeFile, BibleItem, BibleKind, ElementType, Production, ScriptNode, SceneSummary } from '@scripter/core/script';
 
@@ -150,6 +150,8 @@ export interface Api {
     move(id: string, kind: BibleKind, itemId: string, to: number): Promise<ProjectState>;
   };
   ancherNotes: {
+    mutate(input: AncherNoteMutation): Promise<AncherMutationResult>;
+    createCollection(name: string): Promise<AncherLibrary['collections'][number]>;
     create(input: CreateAncherNoteInput): Promise<{ noteId: string; warning?: string }>;
     list(): Promise<AncherLibrary>;
     read(noteId: string): Promise<AncherNoteContent>;

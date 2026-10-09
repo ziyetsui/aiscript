@@ -58,6 +58,8 @@ jobs:
       - run: pnpm --filter @scripter/desktop exec node e2e/writing-skills.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/export.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/clarification.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/performance.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/note-selection.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/gemini.e2e.ts
       - run: pnpm --filter @scripter/desktop exec node e2e/youtube.e2e.ts
       - uses: actions/upload-artifact@v4

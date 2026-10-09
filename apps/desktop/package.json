@@ -12,6 +12,7 @@
     "dist:mac": "electron-vite build && electron-builder --mac --publish never",
     "dist:win": "electron-vite build && electron-builder --win --publish never",
     "e2e": "electron-vite build && node e2e/app.e2e.ts",
+    "e2e:performance": "electron-vite build && node e2e/performance.e2e.ts",
     "icon": "electron scripts/make-icon.cjs",
     "package:dir": "electron-vite build && electron-builder --dir"
   },

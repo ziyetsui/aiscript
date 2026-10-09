@@ -81,6 +81,8 @@ const api: Api = {
     move: call('bible:move') as Api['bible']['move'],
   },
   ancherNotes: {
+    mutate: call('ancherNotes:mutate') as Api['ancherNotes']['mutate'],
+    createCollection: call('ancherNotes:createCollection') as Api['ancherNotes']['createCollection'],
     create: call('ancherNotes:create') as Api['ancherNotes']['create'],
     list: call('ancherNotes:list') as Api['ancherNotes']['list'],
     read: call('ancherNotes:read') as Api['ancherNotes']['read'],

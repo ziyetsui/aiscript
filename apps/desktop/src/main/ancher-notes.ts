@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
-import { createAncherNote, type CreateAncherNoteInput, describeError, loadAncherLibrary, readAncherNote } from '@scripter/agent';
+import { mutateAncherNotes, type AncherNoteMutation, createAncherNote, type CreateAncherNoteInput, describeError, loadAncherLibrary, readAncherNote } from '@scripter/agent';
 import { ancher } from './ai.ts';
 import { getSecret } from './secrets.ts';
 import { filePath, filesDir, get, saveNow, state } from './projects.ts';
@@ -43,4 +43,18 @@ export async function importNote(projectId: string, noteId: string) {
 export async function create(input: CreateAncherNoteInput) {
   try { return await createAncherNote(account(), input); }
   catch (e) { throw new Error(describeError(e)); }
+}
+
+export async function mutate(input: AncherNoteMutation) {
+  return mutateAncherNotes(account(), input);
+}
+export async function createCollection(name: string) {
+  const title = name.trim();
+  if (!title || title.length > 255) throw new Error('合集名称须为 1–255 个字符');
+  const sdk = account();
+  for await (const c of sdk.Collection.iterate({ limit: 100, where: { status: 'active' } })) {
+    if (c.name.toLowerCase() === title.toLowerCase()) throw new Error('已有同名合集');
+  }
+  const c = await sdk.Collection.create({ name: title, color: 'blue' });
+  return { id: c.id, name: c.name, color: c.color };
 }

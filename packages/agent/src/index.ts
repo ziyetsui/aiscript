@@ -16,3 +16,5 @@ export * from './youtube.ts';
 export * from './create-note.ts';
 
 export * from './writing-intent.ts';
+
+export * from './note-actions.ts';

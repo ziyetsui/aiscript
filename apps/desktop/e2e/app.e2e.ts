@@ -372,7 +372,7 @@ try {
   assert.equal(await page.locator('.note-group').first().getByRole('button', { name: '官网保存的视频笔记', exact: true }).count(), 1);
   fake.cloudNotes.push({ ...cloudNote('cloud-n2'), title: '官网刚保存的转写', status: 'processing' });
   await page.getByRole('button', { name: '刷新 Ancher 笔记', exact: true }).click();
-  await page.locator('.note-all').getByRole('button', { name: /官网刚保存的转写/ }).click();
+  await page.locator('.note-all .cloud-note-open').filter({ hasText: '官网刚保存的转写' }).click();
   await page.getByText('转写完成后这里会自动显示正文。', { exact: true }).waitFor();
   assert.equal(await page.getByRole('button', { name: '保存到项目', exact: true }).isDisabled(), true);
   fake.cloudNotes[1]!.status = 'ready';
@@ -388,7 +388,7 @@ try {
   assert.equal(await page.evaluate(async (id) => window.api.files.readBody(id, 'ancher-cloud-n2'), cloudPid), '本地编辑内容');
   await page.getByRole('tab', { name: 'Ancher 笔记', exact: true }).click();
   await page.getByRole('button', { name: '官网参考资料', exact: true }).click();
-  await page.locator('.note-all').getByRole('button', { name: /官网刚保存的转写/ }).waitFor();
+  await page.locator('.note-all .cloud-note-open').filter({ hasText: '官网刚保存的转写' }).waitFor();
   await shot(page, '09a-ancher-knowledge');
   await page.evaluate(async () => window.api.app.setTheme('dark'));
   await page.waitForFunction(() => matchMedia('(prefers-color-scheme: dark)').matches);

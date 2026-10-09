@@ -860,3 +860,43 @@ textarea.input { height: auto; padding: 10px 12px; resize: vertical; min-height:
 .new-note-files { padding:0; margin:0 0 8px; list-style:none; }
 .new-note-files li { display:flex; align-items:center; gap:8px; }
 .new-note-files span { flex:1; overflow:hidden; text-overflow:ellipsis; }
+
+/* Ancher note selection: sidebar checkboxes and the shared site's floating toolbar. */
+.cloud-note-row { display:flex; align-items:center; min-height:32px; border-radius:8px; padding:0 8px; gap:8px; position:relative; }
+.cloud-note-row.current { background:var(--hover); font-weight:500; }
+.cloud-note-row.selected { background:color-mix(in srgb,var(--primary) 12%,var(--surface)); }
+.cloud-note-row:hover { background:var(--hover); }
+.cloud-note-check { flex:none; width:20px; height:24px; display:grid; place-items:center; cursor:pointer; position:relative; }
+.cloud-note-check input { width:16px; height:16px; margin:0; accent-color:var(--primary); opacity:0; position:absolute; cursor:pointer; }
+.cloud-check-icon { display:flex; align-items:center; pointer-events:none; }
+.cloud-note-row:hover .cloud-note-check input,.cloud-note-check.showing input,.cloud-note-check:focus-within input { opacity:1; }
+.cloud-note-row:hover .cloud-check-icon,.cloud-note-check.showing .cloud-check-icon,.cloud-note-check:focus-within .cloud-check-icon { visibility:hidden; }
+.cloud-note-open { display:flex; align-items:center; gap:8px; flex:1; min-width:0; text-align:left; min-height:32px; font-size:14px; padding:0; }
+.cloud-note-open > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; }
+.cloud-note-more { flex:none; width:24px; height:24px; border-radius:5px; opacity:0; }
+.cloud-note-row:hover .cloud-note-more,.cloud-note-row:focus-within .cloud-note-more { opacity:1; }
+.cloud-note-more:hover { background:var(--surface); }
+.cloud-note-open:focus-visible,.cloud-note-more:focus-visible { outline:2px solid var(--primary); }
+.cloud-note-menu { width:230px; }
+.cloud-note-menu button { display:block; padding:7px 10px; width:100%; text-align:left; border-radius:7px; font-size:13px; }
+.cloud-note-menu button:hover,.cloud-note-menu button:focus-visible { background:var(--hover); }
+.cloud-note-menu hr { border:0; border-top:1px solid var(--line); margin:4px; }
+.cloud-selection-bar { position:fixed; bottom:32px; left:50%; transform:translateX(-50%); height:52px; padding:0 8px; display:flex; align-items:center; gap:4px; border-radius:999px; background:var(--ink); color:var(--surface); box-shadow:var(--shadow-pop); z-index:var(--z-pop); }
+.cloud-selection-bar strong { padding:0 12px; white-space:nowrap; font-size:16px; font-variant-numeric:tabular-nums; }
+.cloud-selection-bar button { display:grid; place-items:center; width:40px; height:40px; border-radius:50%; color:inherit; font-size:24px; }
+.cloud-selection-bar button:hover { background:color-mix(in srgb,currentColor 15%,transparent); }
+.cloud-selection-divider { width:1px; height:24px; margin:0 4px; background:color-mix(in srgb,currentColor 25%,transparent); }
+.cloud-action-dialog { width:min(480px,calc(100vw - 32px)); }
+.cloud-action-dialog header { display:flex; align-items:center; justify-content:space-between; }
+.cloud-action-dialog footer { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+.cloud-action-dialog p { margin:12px 0; }
+.cloud-action-dialog .input { width:100%; margin:8px 0; }
+.cloud-collection-options { display:flex; flex-direction:column; max-height:260px; overflow:auto; margin:12px 0; }
+.cloud-collection-options label { display:flex; align-items:center; gap:10px; padding:8px; border-radius:8px; }
+.cloud-collection-options label:hover { background:var(--hover); }
+.cloud-collection-options input { accent-color:var(--primary); }
+.cloud-action-dialog dd { margin:0 0 12px; overflow-wrap:anywhere; }
+.cloud-action-dialog dt { font-size:12px; color:var(--ink-3); }
+.cloud-note-rename { display:flex; align-items:center; gap:4px; flex:1; min-width:0; }
+.cloud-note-rename .input { flex:1; width:0; min-width:0; height:26px; padding:2px 5px; font-size:14px; }
+.cloud-note-rename button { flex:none; width:24px; height:24px; display:grid; place-items:center; }

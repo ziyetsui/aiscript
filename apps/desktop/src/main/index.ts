@@ -166,6 +166,8 @@ function registerIpc(): void {
 
   const winOf = (e: Electron.IpcMainInvokeEvent) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) throw new Error('no window'); return w; };
   ipcMain.handle('files:pick', (e, id: string) => { if (licenseStatus().state !== 'active') throw new Error('未激活'); return files.pickFiles(winOf(e), id); });
+  ipcMain.handle('ancherNotes:mutate', gated(ancherNotes.mutate));
+  ipcMain.handle('ancherNotes:createCollection', gated(ancherNotes.createCollection));
   ipcMain.handle('ancherNotes:create', gated(ancherNotes.create));
   ipcMain.handle('ancherNotes:list', gated(ancherNotes.list));
   ipcMain.handle('ancherNotes:read', gated(ancherNotes.read));
