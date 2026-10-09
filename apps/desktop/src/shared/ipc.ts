@@ -1,3 +1,6 @@
+import type { ClipboardImage } from '@scripter/agent';
+export type { ClipboardImage };
+export interface StoredChatImage { name: string; file: string }
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
 import type { ExportSelection, PreviewItem } from '@scripter/core';
 import type { ActivityRow, AncherLibrary, AncherNoteContent, RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
@@ -16,6 +19,7 @@ export interface ProjectMeta { id: string; title: string; kind: 'script' | 'vide
 export interface TurnInfo { id: string; label: string; undone: boolean }
 /** One entry in the project's AI conversation, persisted with the project. */
 export interface ChatMsg {
+  images?: StoredChatImage[];
   id: string;
   role: 'user' | 'ai';
   text: string;
@@ -53,6 +57,8 @@ export type Edit =
   | { op: 'remove'; id: string };
 
 export interface AiWriteRequest {
+  target?: 'outline';
+  images?: ClipboardImage[];
   pageContext?: { page: string; fileId?: string }; reqId: string; projectId: string; instruction: string; webSearch: boolean; focusId?: string }
 export interface AiWriteResult {
   ok: boolean;

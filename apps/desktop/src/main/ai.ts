@@ -4,10 +4,11 @@
 import { app, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { applyOps, bibleBrief, needsReview, parseReply, previewOps, referenceBrief, type Op } from '@scripter/core';
-import { addCall, buildMessage, checkAncherKey, endCall, toolLabel, type ActivityRow, createAncher, describeError, parseScenePrompt, reversePrompt, runChat, scenePromptMessage, selectionAction } from '@scripter/agent';
+import { outlineSummaryReply, decodeChatImages, uploadChatImages, addCall, buildMessage, checkAncherKey, endCall, toolLabel, type ActivityRow, createAncher, describeError, parseScenePrompt, reversePrompt, runChat, scenePromptMessage, selectionAction } from '@scripter/agent';
 import type { AiWriteRequest, AiWriteResult, ChatMsg, TurnInfo } from '../shared/ipc.ts';
 import { filePath, get, pushChat, saveNow, state } from './projects.ts';
-import { openAsBlob } from 'node:fs';
+import { openAsBlob, mkdirSync, writeFileSync } from 'node:fs';
+import { filesDir } from './projects.ts';
 import { getSecret } from './secrets.ts';
 import { log } from './archive.ts';
 
@@ -25,7 +26,14 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   const p = get(req.projectId);
   const key = getSecret('ancher');
   if (!key) return { ok: false, narration: '', applied: 0, errors: [], citations: [], message: '还没有填写 Ancher API key，请到设置里填写' };
-  pushChat(p, msg({ role: 'user', text: req.instruction }));
+  const images = decodeChatImages(req.images ?? []);
+  const storedImages = images.map((image) => {
+    const file = `${randomUUID().replaceAll('-', '')}.${image.mime.split('/')[1] === 'jpeg' ? 'jpg' : image.mime.split('/')[1]}`;
+    mkdirSync(filesDir(req.projectId), { recursive: true });
+    writeFileSync(filePath(req.projectId, file), image.bytes);
+    return { name: image.name, file };
+  });
+  pushChat(p, msg({ role: 'user', text: req.instruction, ...(storedImages.length ? { images: storedImages } : {}) }));
   // Agent activity: rows stream to the renderer live and are kept on the reply, finished (a cancelled call stays as a row).
   let rows: ActivityRow[] = [];
   const labels = new Map<string, string>();
@@ -36,13 +44,14 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   busyProjects.add(req.projectId);
   try {
     const sdk = ancher(key);
+    const attachments = await uploadChatImages(sdk, images, ac.signal);
     const bible = p.doc.readBible();
     // Full rules only when this starts a new Ancher conversation; later turns carry a one-line reminder.
-    const content = buildMessage(req.instruction, `${p.meta.title} · ${p.doc.episodes().find((e) => e.id === p.doc.activeEpisodeId)?.title}`,  p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible) + (req.pageContext ? `\n当前页面：${req.pageContext.page.slice(0, 80)}\n` + (() => {
+    const content = buildMessage(req.target === 'outline' ? '根据当前剧本和已有大纲，总结这一集的完整大纲，包含故事起因、主要情节和结尾。直接输出完整大纲正文，使用 Markdown 标题和列表，不要输出说明、剧本节点或其他修改。' : req.instruction, `${p.meta.title} · ${p.doc.episodes().find((e) => e.id === p.doc.activeEpisodeId)?.title}`,  p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible) + (req.pageContext ? `\n当前页面：${req.pageContext.page.slice(0, 80)}\n` + (() => {
       const f = bible.files.find((x) => x.id === req.pageContext?.fileId);
       return f ? `当前笔记（素材）：${f.title || f.name}\n${f.summary}\n${f.excerpt.slice(0, 8000)}` : '';
     })() : ''), p.doc.outline, !p.meta.conversationId);
-    const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, webSearch: req.webSearch, signal: ac.signal }, {
+    const r = await runChat(sdk, { conversationId: p.meta.conversationId, content, attachments, webSearch: req.webSearch, signal: ac.signal }, {
       onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
       onTool: (e) => {
         if (e.phase === 'call') { const t = toolLabel(e.name, e.args); labels.set(e.id, t.label); rows = addCall(rows, t.label, t.obj); }
@@ -56,13 +65,13 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
       reply({ text: '', error: '已取消，剧本没有改动' });
       return { ok: false, cancelled: true, narration: '', applied: 0, errors: [], citations, message: '已取消，剧本没有改动' };
     }
-    const parsed = parseReply(r.text);
+    const parsed = req.target === 'outline' ? outlineSummaryReply(r.text) : parseReply(r.text);
     const skipped = parsed.errors.length ? `有 ${parsed.errors.length} 处修改格式不对，已跳过` : undefined;
     if (!parsed.ops.length) {
       reply({ text: parsed.narration || '好的。', citations, error: skipped });
       return { ok: true, narration: parsed.narration, applied: 0, errors: parsed.errors, citations };
     }
-    if (needsReview(parsed.ops, p.doc.outline, p.doc.readBible().shots)) {
+    if (req.target !== 'outline' && needsReview(parsed.ops, p.doc.outline, p.doc.readBible().shots)) {
       const pv = previewOps(p.doc, parsed.ops);
       if (pv.missing.length) {
         reply({ text: parsed.narration, citations, error: 'AI 要改的段落找不到了，剧本没有改动。请再说一次' });

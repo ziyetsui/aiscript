@@ -38,6 +38,7 @@ async function launch(): Promise<{ app: ElectronApplication; page: Page }> {
         window.setPosition(x + Math.max(0, Math.round((width - windowWidth) / 2)), y + Math.max(0, Math.round((height - windowHeight) / 2)));
       } else if (process.platform === 'darwin') window.setAlwaysOnTop(true, 'normal', -1);
     }
+    if (process.env.SCRIPTER_E2E_HIDDEN === '1') for (const window of BrowserWindow.getAllWindows()) window.hide();
     return { target: secondary?.id ?? primary.id, actual: screen.getDisplayMatching(BrowserWindow.getAllWindows()[0]!.getBounds()).id, secondary: !!secondary };
   });
   assert.equal(placement.actual, placement.target, 'test window must use the selected display');

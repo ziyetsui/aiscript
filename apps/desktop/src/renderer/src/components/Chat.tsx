@@ -1,12 +1,12 @@
 // AI panel pieces, rebuilt after app.ancher.ai's agent UI (streamify-one-design-system ·
 // packages/domain-ui/agent-ui and apps/web/src/components/product/agent), same as prototype PR #26.
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
-import type { ChatMsg, ConversationInfo, WorkflowId } from '../../../shared/ipc.ts';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type ClipboardEvent, type Dispatch, type SetStateAction } from 'react';
+import type { ChatMsg, ConversationInfo, WorkflowId, ClipboardImage, StoredChatImage } from '../../../shared/ipc.ts';
 import type { IconName } from '../lib/icon-paths.ts';
 import { WF_MENU } from './Workflows.tsx';
 import { Markdown } from '../lib/markdown.tsx';
 import { Activity } from './Activity.tsx';
-import { Icon, isMac } from '../lib/ui.tsx';
+import { Icon, isMac, useToast } from '../lib/ui.tsx';
 
 const time = (at: number) => new Date(at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 
@@ -53,7 +53,7 @@ export function ChatHeader({ title, conversations, onOpen, onNew, onSave, disabl
 }
 
 /** Right-aligned muted bubble; clamps past 164px with a fade and 展开更多 / 收起; copy on hover (user-message-bubble). */
-export function UserBubble({ text }: { text: string }) {
+export function UserBubble({ text, children }: { text: string; children?: ReactNode }) {
   const body = useRef<HTMLDivElement>(null);
   const [over, setOver] = useState(false);
   const [open, setOpen] = useState(false);
@@ -68,7 +68,7 @@ export function UserBubble({ text }: { text: string }) {
   return (
     <div className="ag-user">
       <div className={`bubble${open ? ' open' : ''}`}>
-        <div className="bd" ref={body}>{text}</div>
+        {children}<div className="bd" ref={body}>{text}</div>
         {over && (
           <button className="more" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
             <span>{open ? '收起' : '展开更多'}</span><Icon name="chev" size={12} />
@@ -158,17 +158,17 @@ export function JumpPill({ show, unread, onClick }: { show: boolean; unread: num
 export interface Mentionable { label: string; kind: string }
 
 /** "+" menu groups (Codex-style, prototype PR #28): 添加 · 快捷指令 · 工作流. */
-export type PlusAction = { kind: 'attach' } | { kind: 'video' } | { kind: 'blank' } | { kind: 'mention' } | { kind: 'prefill'; text: string } | { kind: 'workflow'; id: WorkflowId };
+export type PlusAction = { kind: 'attach' } | { kind: 'video' } | { kind: 'blank' } | { kind: 'mention' } | { kind: 'prefill'; text: string } | { kind: 'outline'; text: string } | { kind: 'workflow'; id: WorkflowId };
 const QUICK: [IconName, string, string, string][] = [
   ['spark', '润色格式', '整理成标准剧本格式', '把这一场润色成标准格式。'],
-  ['book', '总结大纲', '写进大纲', '总结一下现在的大纲。'],
+  ['book', '总结大纲', '自动写入大纲', '总结一下现在的大纲。'],
   ['chat', '润色对白', '更口语、更像孩子说话', '润色对白：'],
   ['pen', '续写场景', '接着往下写一场', '续写场景：'],
   ['users', '检查人物一致性', '名字、性格、口头禅', '检查人物一致性：'],
 ];
 const PLUS: [string, [IconName, string, string, PlusAction, string?][]][] = [
   ['添加', [['clip', '文件和图片', '剧本、PDF、Word、截图', { kind: 'attach' }], ['video', '本地视频', '转成逐字稿，存进知识库', { kind: 'video' }], ['book', '知识库笔记', '作为这次对话的参考', { kind: 'mention' }]]],
-  ['快捷指令', QUICK.map(([ic, t, d, text]) => [ic, t, d, { kind: 'prefill', text }] as [IconName, string, string, PlusAction])],
+  ['快捷指令', QUICK.map(([ic, t, d, text]) => [ic, t, d, { kind: t === '总结大纲' ? 'outline' : 'prefill', text }] as [IconName, string, string, PlusAction])],
   ['工作流', WF_MENU.map((w) => ['bolt', w.title, w.desc, { kind: 'workflow', id: w.id }, `${isMac ? '⌥' : 'Alt+'}${w.key}`] as [IconName, string, string, PlusAction, string])],
 ];
 
@@ -194,13 +194,36 @@ export function EmptyChat({ onAction }: { onAction: (a: PlusAction | { kind: 'we
  * While a reply runs, typing turns send into 「加入队列 ↵」 and queued messages show above the box. After a turn,
  * a ghost suggestion sits in the empty box — Tab takes it.
  */
-export function Composer({ value, onChange, onSend, onStop, running, queue, onDequeue, ghost, web, onWeb, mentions, onAction, home = false, inputId = 'agent-in', inputLabel = '给 AI 的指令', model }: {
+export function Composer({ value, onChange, onSend, onStop, running, queue, onDequeue, ghost, web, onWeb, mentions, onAction, home = false, inputId = 'agent-in', inputLabel = '给 AI 的指令', model, images = [], onImagesChange }: {
   value: string; onChange: (v: string) => void; onSend: () => void; onStop: () => void;
   running: boolean; queue: string[]; onDequeue: (i: number) => void; ghost: string;
   web: boolean; onWeb: (v: boolean) => void; mentions: Mentionable[];
   onAction: (a: PlusAction | { kind: 'web'; text: string }) => void;
   home?: boolean; inputId?: string; inputLabel?: string; model?: ReactNode;
+  images?: ClipboardImage[]; onImagesChange?: Dispatch<SetStateAction<ClipboardImage[]>>;
 }) {
+  const toast = useToast();
+  const [reading, setReading] = useState(false);
+  const readingRef = useRef(false);
+  async function paste(e: ClipboardEvent<HTMLTextAreaElement>) {
+    const files = [...e.clipboardData.items].filter((item) => item.kind === 'file' && item.type.startsWith('image/')).map((item) => item.getAsFile()).filter((f): f is File => !!f);
+    if (!files.length || !onImagesChange) return;
+    e.preventDefault();
+    if (readingRef.current) return;
+    if (images.length + files.length > 5) { toast('每条消息最多添加 5 张图片'); return; }
+    if (files.some((f) => !['image/png','image/jpeg','image/webp','image/gif'].includes(f.type) || f.size > 20 * 1024 * 1024)) { toast('支持 PNG、JPEG、WebP、GIF，每张不超过 20 MB'); return; }
+    readingRef.current = true; setReading(true);
+    try {
+      const added = await Promise.all(files.map((file) => new Promise<ClipboardImage>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name || '粘贴图片.png', dataUrl: String(reader.result) });
+        reader.onerror = () => reject(new Error('图片读取失败，请重试'));
+        reader.readAsDataURL(file);
+      })));
+      onImagesChange((current) => [...current, ...added].slice(0, 5));
+    } catch (err) { toast(String(err)); }
+    finally { readingRef.current = false; setReading(false); }
+  }
   const ta = useRef<HTMLTextAreaElement>(null);
   const plusRef = useRef<HTMLDivElement>(null);
   const [mention, setMention] = useState<{ q: string; sel: number } | null>(null);
@@ -266,10 +289,10 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
       if (e.key === 'Escape') { setMention(null); e.preventDefault(); return; }
     }
     if (e.key === 'Tab' && !value && ghost) { e.preventDefault(); onChange(ghost); return; }
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); onSend(); }
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!readingRef.current && (value.trim() || images.length)) onSend(); }
   }
 
-  const has = !!value.trim();
+  const has = !reading && (!!value.trim() || images.length > 0);
   return (
     <div className="cmp-wrap">
       {queue.length > 0 && (
@@ -291,10 +314,11 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
 
           </div>
         )}
-        <form className={`cmp-card${running ? ' busy' : ''}`} onSubmit={(e) => { e.preventDefault(); onSend(); }}>
+        <form className={`cmp-card${running ? ' busy' : ''}`} onSubmit={(e) => { e.preventDefault(); if (!readingRef.current && (value.trim() || images.length)) onSend(); }}>
+          {images.length > 0 && <div aria-label="待发送图片" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '12px 12px 0' }}>{images.map((image, i) => <div key={`${i}-${image.name}`} style={{ position: 'relative' }}><img src={image.dataUrl} alt={image.name} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8 }} /><button type="button" className="ico-btn xs" aria-label={`移除图片 ${i + 1}`} style={{ position: 'absolute', right: 0, top: 0, background: 'var(--paper)' }} onClick={() => onImagesChange?.((current) => current.filter((_, n) => n !== i))}><Icon name="x" size={12} /></button></div>)}</div>}
           <label htmlFor={inputId} className="sr-only">{inputLabel}</label>
-          {!value && ghost && !running && <div className="ghost" aria-hidden="true"><span>{ghost}</span><kbd>Tab</kbd></div>}
-          <textarea id={inputId} ref={ta} value={value} rows={2} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey}
+          {!value && !images.length && ghost && !running && <div className="ghost" aria-hidden="true"><span>{ghost}</span><kbd>Tab</kbd></div>}
+          <textarea id={inputId} ref={ta} value={value} rows={2} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey} onPaste={(e) => void paste(e)}
             placeholder={ghost && !running ? '' : '随便问，@ 提及角色、地点或设定'} aria-description={ghost && !value ? `按 Tab 采纳建议：${ghost}` : undefined} />
           {mention && list.length > 0 && (
             <div className="card menu cmp-mention" role="listbox" aria-label="提及">
@@ -323,4 +347,11 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
       </div>
     </div>
   );
+}
+
+/** Original images are kept with the project, including archived conversations. */
+export function ChatImages({ projectId, images }: { projectId: string; images: StoredChatImage[] }) {
+  const [sources, setSources] = useState<string[]>([]);
+  useEffect(() => { let live = true; void Promise.all(images.map((image) => window.api.files.readImage(projectId, image.file).catch(() => null))).then((data) => { if (live) setSources(data.map((src) => src ?? '')); }); return () => { live = false; }; }, [projectId, images]);
+  return <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{images.map((image, i) => sources[i] ? <a href={sources[i]} key={image.file} download={image.name} title="保存原图"><img src={sources[i]} alt={image.name} style={{ width: 96, height: 96, objectFit: 'contain', borderRadius: 8 }} /></a> : <span key={image.file}>{image.name}</span>)}</div>;
 }

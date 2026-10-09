@@ -10,7 +10,7 @@ export const REPLY = '好的，先写开场。<ops>[{"op":"insertNode","type":"h
 function replyFor(prompt: string): string {
   if (prompt.includes('你是笔记摘要助手')) return '笔记包含客户参考资料和导演意见。';
   if (prompt.includes('用户：补充人物弧光')) return '补充了人物弧光。<ops>[{"op":"upsertCharacter","name":"弧光测试角色","desc":"从害怕变化到勇敢迈出一步"}]</ops>';
-  if (prompt.includes('用户：总结大纲') || prompt.includes('用户：总结一下现在的大纲')) return '把大纲整理好了。<ops>[{"op":"appendOutline","text":"一、豆豆发现门墩儿会说话\\n二、两人约定保守秘密"}]</ops>';
+  if (prompt.includes('用户：根据当前剧本和已有大纲') || prompt.includes('用户：总结大纲') || prompt.includes('用户：总结一下现在的大纲')) return '把大纲整理好了。<ops>[{"op":"appendOutline","text":"一、豆豆发现门墩儿会说话\\n二、两人约定保守秘密"}]</ops>';
   if (prompt.includes('用户：润色对白')) {
     const m = prompt.match(/\[([a-z0-9]+)\] dialogue: (.*)/);
     if (m) return `把这句改得更像孩子说话。<ops>[{"op":"updateNode","id":"${m[1]}","text":"石头……石头它会说话？！"}]</ops>`;

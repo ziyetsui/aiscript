@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { RunState, WorkflowAction, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
 import { Icon, isMac, useToast } from '../lib/ui.tsx';
 import { Activity } from './Activity.tsx';
+import { Markdown } from '../lib/markdown.tsx';
 
 /** Mirror of the workflow table (titles/keys/input kinds) so the menu renders without IPC. Kept in sync by the E2E. */
 export const WF_MENU: { id: WorkflowId; key: number; title: string; desc: string; input: 'none' | 'text' | 'url-or-text' | 'file' | 'focus' | 'target'; hint?: string }[] = [
@@ -125,11 +126,11 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
         <div className="res">
           {r.items.map((d, i) => (
             <div key={i} className="res-card">
-              <b>{d.title}</b>
-              <span><span className="muted">冲突</span> {d.conflict}</span>
-              <span><span className="muted">解决</span> {d.resolution}</span>
+              <Markdown text={`**${d.title}**`} />
+              <Markdown text={`**冲突** ${d.conflict}`} />
+              <Markdown text={`**解决** ${d.resolution}`} />
               <span className="muted" style={{ fontSize: 12 }}>{d.beats.join(' → ')}</span>
-              {d.joke && <span><span className="muted">主笑点</span> {d.joke}</span>}
+              {d.joke && <Markdown text={`**主笑点** ${d.joke}`} />}
               <button className="btn btn-ghost" style={{ height: 28, alignSelf: 'flex-start' }} onClick={() => void apply({ type: 'direction', index: i })}>写进大纲</button>
             </div>
           ))}
@@ -138,7 +139,7 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
       )}
       {r?.kind === 'ops' && (
         <div className="res">
-          {r.narration && <span>{r.narration}</span>}
+          {r.narration && <Markdown text={r.narration} />}
           <span className="muted" style={{ fontSize: 12 }}>{r.ops.length} 处修改</span>
           {!run.applied && <button className="btn btn-primary" style={{ height: 28, alignSelf: 'flex-start' }} onClick={() => void apply({ type: 'preview' })}><Icon name="eye" size={13} />查看修改预览</button>}
         </div>
@@ -148,9 +149,9 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
           {r.target && <div className="quote">原句：{r.target.text}</div>}
           {r.items.map((j, i) => (
             <div key={i} className="res-card">
-              <span>{j.text}</span>
-              <span className="muted" style={{ fontSize: 12 }}>{j.mechanism}</span>
-              {j.conflict && <span className="err">{j.conflict}</span>}
+              <Markdown text={j.text} />
+              <div className="muted" style={{ fontSize: 12 }}><Markdown text={j.mechanism} /></div>
+              {j.conflict && <div className="err"><Markdown text={j.conflict} /></div>}
               <div style={{ display: 'flex', gap: 6 }}>
                 <button className="btn btn-ghost" style={{ height: 26 }} onClick={() => void apply({ type: 'joke', index: i })}>用这个</button>
                 <button className="btn btn-quiet" style={{ height: 26 }} onClick={() => void apply({ type: 'joke', index: i, verdict: 'good' })}>好笑</button>
@@ -162,12 +163,12 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
       )}
       {r?.kind === 'issues' && (
         <div className="res">
-          <span>{r.summary}</span>
+          <Markdown text={r.summary} />
           {r.items.length === 0 ? <span className="ok">没有发现跑偏</span> : r.items.map((x, i) => (
             <button key={i} className="res-card issue" disabled={!x.nodeId} onClick={() => x.nodeId && onJump(x.nodeId)}>
               {x.quote && <span className="quote">「{x.quote}」</span>}
-              <span>{x.problem}</span>
-              <span className="muted" style={{ fontSize: 12 }}>建议：{x.suggestion}</span>
+              <Markdown text={x.problem} />
+              <div className="muted" style={{ fontSize: 12 }}><Markdown text={`建议：${x.suggestion}`} /></div>
             </button>
           ))}
         </div>
@@ -177,10 +178,10 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
           {r.items.map((x, i) => (
             <label key={i} className="res-card pick">
               <input type="checkbox" checked={all(r.items.length).includes(i)} onChange={() => toggle(r.items.length, i)} disabled={!!run.applied} />
-              <span>
-                {'text' in x ? <><b>{x.text}</b><span className="muted" style={{ fontSize: 12, display: 'block' }}>{x.level === 'hard' ? '硬规则' : '偏好'} · {x.scope}</span>{x.conflict && <span className="err">{x.conflict}</span>}</>
-                  : <><b>{x.title}</b><span style={{ display: 'block' }}>{x.logline}</span><span className="muted" style={{ fontSize: 12 }}>{x.why}</span></>}
-              </span>
+              <div>
+                {'text' in x ? <><Markdown text={x.text} /><span className="muted" style={{ fontSize: 12, display: 'block' }}>{x.level === 'hard' ? '硬规则' : '偏好'} · {x.scope}</span>{x.conflict && <span className="err">{x.conflict}</span>}</>
+                  : <><Markdown text={`**${x.title}**`} /><Markdown text={x.logline} /><div className="muted" style={{ fontSize: 12 }}><Markdown text={x.why} /></div></>}
+              </div>
             </label>
           ))}
           {!run.applied && (

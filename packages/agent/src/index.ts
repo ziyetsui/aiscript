@@ -5,3 +5,5 @@ export * from './workflows/engine.ts';
 export * from './workflows/defs.ts';
 export * from './activity.ts';
 export * from './notes.ts';
+export * from './chat-images.ts';
+export * from './outline-summary.ts';

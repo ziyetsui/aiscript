@@ -1,6 +1,6 @@
 // Ancher access from the Electron main process only; the key comes from the OS keychain (spec 0002 §4.1, §5.5).
 import type { ToolEvent } from './activity.ts';
-import { createAncherSdk, isAncherApiError, isActivationRequiredError, isInsufficientCreditsError, type AncherSdk, type ChatCitation, type ChatEvent } from '@ancher-ai/sdk';
+import { createAncherSdk, isAncherApiError, isActivationRequiredError, isInsufficientCreditsError, type AncherSdk, type ChatCitation, type ChatEvent, type Schemas } from '@ancher-ai/sdk';
 
 export type KeyCheck = { ok: true; name: string; email: string } | { ok: false; reason: 'invalid' | 'activation' | 'network'; message: string };
 
@@ -30,10 +30,11 @@ export interface RunResult { conversationId: string; text: string; citations: Ch
 /** One agent run. Starts a conversation or continues one; streams main-agent text; cancellable with `signal`. */
 export async function runChat(
   sdk: Pick<AncherSdk, 'Conversation'>,
-  opts: { conversationId?: string | null; content: string; webSearch?: boolean; signal?: AbortSignal },
+  opts: { conversationId?: string | null; content: string; attachments?: Schemas.ResourceAttachment[]; webSearch?: boolean; signal?: AbortSignal },
   h: RunHandlers = {},
 ): Promise<RunResult> {
-  const body = { content: opts.content, enable_web_search: !!opts.webSearch, enable_kb_search: false };
+  const body = { content: opts.content, enable_web_search: !!opts.webSearch, enable_kb_search: false, ...(opts.attachments?.length ? { attachments: opts.attachments } : {}) };
+  opts.signal?.throwIfAborted();
   const receipt = opts.conversationId ? await sdk.Conversation.send(opts.conversationId, body) : await sdk.Conversation.start(body);
   const id = receipt.conversation_id;
   const onAbort = () => { void sdk.Conversation.interrupt(id).catch(() => {}); };
