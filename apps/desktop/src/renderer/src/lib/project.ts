@@ -8,6 +8,7 @@ export function useProject(id: string) {
   useEffect(() => { void window.api.projects.open(id).then(setSt); }, [id]);
   // Background work in main (e.g. extracting a pinned knowledge file) → reload.
   useEffect(() => window.api.files.onProjectChanged((e) => { if (e.projectId === id) void window.api.projects.open(id).then(setSt); }), [id]);
+  useEffect(() => { const h = (e: Event) => { if ((e as CustomEvent<string>).detail === id) void window.api.projects.open(id).then(setSt); }; window.addEventListener('scripter:project', h); return () => window.removeEventListener('scripter:project', h); }, [id]);
   const run = useCallback(async (p: Promise<ProjectState>) => { const s = await p; setSt(s); return s; }, []);
   const api = {
     add: <K extends BibleKind>(kind: K, data: Partial<BibleItem<K>>) => run(window.api.bible.add(id, kind, data)),

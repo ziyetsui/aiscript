@@ -2,7 +2,7 @@
 import type { PreviewItem } from '@scripter/core';
 import type { ActivityRow, RunState, WorkflowId, WorkflowInput } from '@scripter/agent';
 export type { ActivityRow };
-import type { Bible, BibleItem, BibleKind, ElementType, ScriptNode, SceneSummary } from '@scripter/core/script';
+import type { Bible, KnowledgeFile, BibleItem, BibleKind, ElementType, Production, ScriptNode, SceneSummary } from '@scripter/core/script';
 
 export type LicenseStatus =
   | { state: 'active'; via: 'keygen' | 'offline'; customer?: string; seat?: string; expiresAt?: string | null; machineCode: string }
@@ -12,7 +12,7 @@ export type ActivateResult = { ok: true } | { ok: false; message: string };
 export interface KeyStatus { ancher: boolean; gemini: boolean; ancherAccount?: string; encryption: boolean }
 export type KeyResult = { ok: true; account?: string } | { ok: false; message: string };
 
-export interface ProjectMeta { id: string; title: string; kind: 'script' | 'video'; createdAt: number; updatedAt: number; words: number }
+export interface ProjectMeta { id: string; title: string; kind: 'script' | 'video'; createdAt: number; updatedAt: number; words: number; noteGroups?: string[] }
 export interface TurnInfo { id: string; label: string; undone: boolean }
 /** One entry in the project's AI conversation, persisted with the project. */
 export interface ChatMsg {
@@ -35,7 +35,7 @@ export interface ChatMsg {
 }
 /** An earlier conversation of this project (Ancher-style history under the title ⌄). */
 export interface ConversationInfo { id: string; title: string; at: number; messages: number }
-export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string; conversations: ConversationInfo[] }
+export interface ProjectState { meta: ProjectMeta; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string; conversations: ConversationInfo[]; production: Production }
 export type WorkflowAction =
   | { type: 'direction'; index: number }
   | { type: 'preview' }
@@ -51,7 +51,8 @@ export type Edit =
   | { op: 'type'; id: string; type: ElementType }
   | { op: 'remove'; id: string };
 
-export interface AiWriteRequest { reqId: string; projectId: string; instruction: string; webSearch: boolean; focusId?: string }
+export interface AiWriteRequest {
+  pageContext?: { page: string; fileId?: string }; reqId: string; projectId: string; instruction: string; webSearch: boolean; focusId?: string }
 export interface AiWriteResult {
   ok: boolean;
   narration: string;
@@ -65,7 +66,7 @@ export interface AiWriteResult {
   previewId?: string;
 }
 export type UpdateStatus = { state: 'idle' | 'checking' | 'none' | 'downloading' | 'ready' | 'error'; version?: string; percent?: number; message?: string };
-export type ExportFormat = 'pdf' | 'docx' | 'fdx' | 'fountain' | 'txt';
+export type ExportFormat = 'pdf' | 'docx' | 'fdx' | 'fountain' | 'txt' | 'shots' | 'characters' | 'locations' | 'props';
 
 export interface Api {
   app: {
@@ -98,9 +99,13 @@ export interface Api {
     open(id: string): Promise<ProjectState>;
     rename(id: string, title: string): Promise<ProjectState>;
     remove(id: string): Promise<void>;
+    trashList(): Promise<ProjectMeta[]>;
+    restore(id: string): Promise<void>;
+    purge(id: string): Promise<void>;
     edit(id: string, edits: Edit[]): Promise<ProjectState>;
     undoTurn(id: string, turnId: string): Promise<ProjectState>;
     setOutline(id: string, text: string): Promise<ProjectState>;
+    setProduction(id: string, patch: Partial<Production>): Promise<ProjectState>;
     exportArchive(id: string): Promise<{ ok: boolean; path?: string }>;
     importArchive(): Promise<ProjectMeta | null>;
   };
@@ -120,6 +125,12 @@ export interface Api {
     move(id: string, kind: BibleKind, itemId: string, to: number): Promise<ProjectState>;
   };
   files: {
+    update(id: string, fileId: string, patch: Partial<Pick<KnowledgeFile, 'title' | 'tags' | 'memo' | 'group' | 'starred'>>): Promise<ProjectState>;
+    collection(id: string, action: 'create' | 'rename' | 'delete', name: string, next?: string): Promise<ProjectState>;
+    exportNote(id: string, fileId: string): Promise<boolean>;
+    createNote(id: string, title: string, body: string): Promise<ProjectState>;
+    readBody(id: string, fileId: string): Promise<string>;
+    saveBody(id: string, fileId: string, body: string): Promise<ProjectState>;
     pick(id: string): Promise<AddFilesResult | null>;
     addPaths(id: string, paths: string[]): Promise<AddFilesResult>;
     open(id: string, fileId: string): Promise<string>;
@@ -132,10 +143,14 @@ export interface Api {
     pathFor(file: File): string;
   };
   ai: {
+    status(projectId: string): Promise<{ busy: boolean }>;
     write(req: AiWriteRequest): Promise<AiWriteResult>;
     cancel(reqId: string): Promise<void>;
     reverse(projectId: string, kind: 'characters' | 'locations', itemId: string): Promise<{ prompt: string; state: ProjectState }>;
     selection(kind: 'explain' | 'summarize' | 'translate', text: string): Promise<string>;
+    /** 制作页: a still-image prompt for one scene (Ancher writes the prompt; no image is generated). */
+    summarizeNote(projectId: string, fileId: string): Promise<ProjectState>;
+    scenePrompt(projectId: string, sceneId: string): Promise<{ local: string; en: string }>;
     /** Accept or reject a pending modification preview. */
     resolve(projectId: string, msgId: string, accept: boolean): Promise<{ ok: boolean; message?: string; turn?: TurnInfo; state: ProjectState }>;
     onDelta(cb: (e: { reqId: string; text: string }) => void): () => void;

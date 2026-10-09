@@ -1,4 +1,4 @@
-## constitutions  
+## constitutions
 
 
 
@@ -44,7 +44,7 @@ aicv沉淀的提示词：aicv/aicv-prompts-2026-09-29-to-2026-10-08.md
 
 创建pr， 分支 ， 并合并部署。
 
-/Users/ziye/Developer/aiscript/vendors/llm-space ， 这是一个桌面客户端的 repo ， 查看一下 这个客户端 用到的技术 ，包括登录等等， 更新到 spec。 
+/Users/ziye/Developer/aiscript/vendors/llm-space ， 这是一个桌面客户端的 repo ， 查看一下 这个客户端 用到的技术 ，包括登录等等， 更新到 spec。
 
 
 这个剧本产品的封装主要是为了调用这个 vita 的sdk ，https://www.npmjs.com/package/@ancher-ai/sdk ，客户买了ancher.ai 的api，用于剧本生成，原型复刻等等，我想百分之百还原 ancher.ai 上的一切 agent能力，  尤其是联网搜索、解析、 逆向提示词等等。  你看看接入这三种的区别是什么， 如果 1:1 还原 在ancher.ai 上的能力，接入哪种最好？
@@ -61,7 +61,7 @@ https://www.npmjs.com/package/@ancher-ai/cli
 
 寻找产品走查相关的 Skill：
 
-你先帮我去 GitHub 仓库上检查一下，有没有高 Star 的产品走查相关的 Skill。我希望能找到这样的 Skill 帮我整体走查一遍。  
+你先帮我去 GitHub 仓库上检查一下，有没有高 Star 的产品走查相关的 Skill。我希望能找到这样的 Skill 帮我整体走查一遍。
 
 去看一下陈天老师的 SDD 开发文档
 
@@ -71,16 +71,16 @@ https://www.npmjs.com/package/@ancher-ai/cli
 
 
 
-先输出 spec， 然后按照 spec 彻底执行 。 
+先输出 spec， 然后按照 spec 彻底执行 。
 
 
 
-补充： 我先不要服务器， 先要本地， /Users/ziye/Developer/aiscript/docs/chat-exports ， /Users/ziye/Developer/aiscript/docs/chat-exports/桌面应用与-Ancher-SDK-讨论记录-2026-10-08.md  
+补充： 我先不要服务器， 先要本地， /Users/ziye/Developer/aiscript/docs/chat-exports ， /Users/ziye/Developer/aiscript/docs/chat-exports/桌面应用与-Ancher-SDK-讨论记录-2026-10-08.md
 
 这是我和大模型讨论的方案， 仔细阅读， 你可以基于这个， 更新spec ， 以及原型 ， 还有一点快捷指令， 针对用户痛点的工作流可以加上
-以及不要账号登录了， 给api （ 我在ancher.ai  上生成的）， 以及三个激活码， 用户安装完 填写激活码 ， 需要想个办法 （因为我不想要 服务器， 只在本地），需要想个办法， 这个激活码用过一次 就不能用了 ，类似 invitation code ，是否可实现 
+以及不要账号登录了， 给api （ 我在ancher.ai  上生成的）， 以及三个激活码， 用户安装完 填写激活码 ， 需要想个办法 （因为我不想要 服务器， 只在本地），需要想个办法， 这个激活码用过一次 就不能用了 ，类似 invitation code ，是否可实现
 
-这是原型 ：prototypes/dist/index.html 
+这是原型 ：prototypes/dist/index.html
 
 
 
@@ -231,5 +231,20 @@ https://www.npmjs.com/package/@ancher-ai/cli
   ]
 }
 
+
+
+##  fix
+
+http://localhost:4173/Ancher-Scripter-Prototype.html#p11-d2-mac-k2-a
+这是我的final原型页面
+
+
+
+这是sdd：
+/Users/ziye/Developer/.crates/sdd-sop/saas-0-to-1-prompts.md
+
+需要你根据我目前的开发进展， 到最终原型呈现的的桌面客户端 （windows + mac ） ，输出一份 spec 文档：对照陈天老师的原提示词，梳理出接下来继续往下推进还需要做些什么。直到成功打包，发给客户。
+
+先输出 spec， 然后按照 spec 彻底执行 。
 
 

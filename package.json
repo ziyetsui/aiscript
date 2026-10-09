@@ -12,7 +12,9 @@
     "typecheck": "pnpm -r typecheck",
     "test": "vitest run",
     "prototype": "node specs/images/prototypes/build.mjs && node specs/images/prototypes/check.mjs",
-    "license": "node tools/license/cli.ts"
+    "license": "node tools/license/cli.ts",
+    "deliver": "node scripts/deliver.mjs",
+    "scan:package": "node scripts/scan-package.mjs"
   },
   "devDependencies": {
     "@types/node": "24.19.1",

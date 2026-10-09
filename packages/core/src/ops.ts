@@ -2,7 +2,7 @@
 // The model wraps edits in <ops>[ … ]</ops>; we validate every op before touching the document.
 import { z } from 'zod';
 import { ELEMENT_TYPES } from './script.ts';
-import { findByName } from './bible-model.ts';
+import { findByName, SHOT_SIZES, type Shot, type ShotSize } from './bible-model.ts';
 import type { ScriptDoc } from './doc.ts';
 
 const Type = z.enum(ELEMENT_TYPES);
@@ -19,6 +19,8 @@ export const Op = z.discriminatedUnion('op', [
   // The outline (大纲) is its own document, not notes inside the script.
   z.object({ op: z.literal('appendOutline'), text: z.string().min(1).max(20000) }),
   z.object({ op: z.literal('setOutline'), text: z.string().max(20000) }),
+  // Storyboard (分镜): replaces one scene's shot list; sceneId is the scene heading's node id.
+  z.object({ op: z.literal('setShots'), sceneId: z.string(), shots: z.array(z.object({ size: z.enum(SHOT_SIZES as [ShotSize, ...ShotSize[]]).default('中景'), desc: z.string().min(1).max(400), dur: z.number().min(1).max(60).default(3) })).max(40) }),
 ]);
 export type Op = z.infer<typeof Op>;
 
@@ -117,6 +119,14 @@ export function applyOps(doc: ScriptDoc, ops: readonly Op[], label: string) {
           break;
         }
         case 'setOutline': d.setOutline(op.text); break;
+        case 'setShots': {
+          const sceneId = refs.resolve(op.sceneId);
+          if (!sceneId) break;
+          const col = d.bible('shots');
+          for (const s of col.all().filter((x) => x.sceneId === sceneId)) col.remove(s.id);
+          for (const s of op.shots) col.add({ sceneId, size: s.size, desc: s.desc, dur: s.dur });
+          break;
+        }
       }
     });
   });
@@ -129,12 +139,12 @@ export type PreviewItem =
   | { kind: 'update'; id: string; type: string; before: string; after: string }
   | { kind: 'retype'; id: string; text: string; from: string; to: string }
   | { kind: 'delete'; id: string; type: string; before: string }
-  | { kind: 'bible'; text: string }
+  | { kind: 'bible'; text: string; before?: string; after?: string }
   | { kind: 'outline'; mode: 'append' | 'replace'; before: string; after: string };
 
 /** Rewrites of existing text need review; so does replacing an outline that already has content. */
-export function needsReview(ops: readonly Op[], currentOutline = ''): boolean {
-  return ops.some((o) => o.op === 'updateNode' || o.op === 'deleteNode' || o.op === 'setType' || (o.op === 'setOutline' && currentOutline.trim() !== '' && o.text.trim() !== currentOutline.trim()));
+export function needsReview(ops: readonly Op[], currentOutline = '', currentShots: readonly Shot[] = []): boolean {
+  return ops.some((o) => o.op === 'updateNode' || o.op === 'deleteNode' || o.op === 'setType' || (o.op === 'setShots' && currentShots.some((s) => s.sceneId === o.sceneId)) || (o.op === 'setOutline' && currentOutline.trim() !== '' && o.text.trim() !== currentOutline.trim()));
 }
 
 /** Describe what the ops would change, against the current document. Missing targets are reported, not guessed. */
@@ -150,6 +160,10 @@ export function previewOps(doc: ScriptDoc, ops: readonly Op[]): { items: Preview
     else if (o.op === 'setWorld') items.push({ kind: 'bible', text: `世界观「${o.title}」` });
     else if (o.op === 'appendOutline') items.push({ kind: 'outline', mode: 'append', before: '', after: o.text });
     else if (o.op === 'setOutline') items.push({ kind: 'outline', mode: 'replace', before: doc.outline, after: o.text });
+    else if (o.op === 'setShots') {
+      if (byId.get(o.sceneId)?.type !== 'heading') missing.push(o.sceneId);
+      items.push({ kind: 'bible', text: `分镜：${byId.get(o.sceneId)?.text ?? '一场'} · ${o.shots.length} 个镜头`, before: JSON.stringify(doc.readBible().shots.filter((s) => s.sceneId === o.sceneId)), after: o.shots.map((s, i) => `${i + 1}. ${s.size} · ${s.dur}秒 · ${s.desc}`).join('\n') });
+    }
     else {
       const n = byId.get(o.id);
       if (!n) { if (!/^\$\d+$/.test(o.id) && !own.has(o.id)) missing.push(o.id); continue; }

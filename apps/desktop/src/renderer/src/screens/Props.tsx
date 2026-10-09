@@ -71,7 +71,7 @@ export function Props({ id }: { id: string }) {
     <>
       <PageHead title="道具管理" count={props.length}
         mid={<Tabs label="道具视图" value={view} onChange={setView} options={[['board', '道具总览'], ['list', '道具清单']]} />}
-        right={<button className="btn btn-primary" style={{ height: 30 }} onClick={() => { setError(''); setEditing({ id: null, draft: { ...EMPTY, color: PALETTE[props.length % PALETTE.length]![1] } }); }}><Icon name="plus" size={13} />新建道具</button>} />
+        right={<><button className="btn btn-ghost" aria-label="导出道具" onClick={async () => { try { const r = await window.api.exporter.save(id, 'props'); if (r.ok) toast(`已导出到 ${r.path}`); } catch (e) { toast(String(e)); } }}><Icon name="export" size={14} /></button><button className="btn btn-primary" style={{ height: 30 }} onClick={() => { setError(''); setEditing({ id: null, draft: { ...EMPTY, color: PALETTE[props.length % PALETTE.length]![1] } }); }}><Icon name="plus" size={13} />新建道具</button></>} />
       {view === 'board' ? (
         <div ref={board} className="page dots" style={{ position: 'relative', touchAction: 'none' }}>
           {props.length === 0 && <div className="empty-state"><Icon name="box" size={34} /><div>还没有道具</div><button className="btn btn-ghost" onClick={() => { setError(''); setEditing({ id: null, draft: EMPTY }); }}>新建第一件道具</button></div>}

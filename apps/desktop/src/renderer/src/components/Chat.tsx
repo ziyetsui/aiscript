@@ -158,7 +158,7 @@ export function JumpPill({ show, unread, onClick }: { show: boolean; unread: num
 export interface Mentionable { label: string; kind: string }
 
 /** "+" menu groups (Codex-style, prototype PR #28): 添加 · 快捷指令 · 工作流. */
-type PlusAction = { kind: 'attach' } | { kind: 'video' } | { kind: 'mention' } | { kind: 'prefill'; text: string } | { kind: 'workflow'; id: WorkflowId };
+export type PlusAction = { kind: 'attach' } | { kind: 'video' } | { kind: 'blank' } | { kind: 'mention' } | { kind: 'prefill'; text: string } | { kind: 'workflow'; id: WorkflowId };
 const QUICK: [IconName, string, string, string][] = [
   ['spark', '润色格式', '整理成标准剧本格式', '把这一场润色成标准格式。'],
   ['book', '总结大纲', '写进大纲', '总结一下现在的大纲。'],
@@ -194,16 +194,19 @@ export function EmptyChat({ onAction }: { onAction: (a: PlusAction | { kind: 'we
  * While a reply runs, typing turns send into 「加入队列 ↵」 and queued messages show above the box. After a turn,
  * a ghost suggestion sits in the empty box — Tab takes it.
  */
-export function Composer({ value, onChange, onSend, onStop, running, queue, onDequeue, ghost, web, onWeb, mentions, onAction }: {
+export function Composer({ value, onChange, onSend, onStop, running, queue, onDequeue, ghost, web, onWeb, mentions, onAction, home = false, inputId = 'agent-in', inputLabel = '给 AI 的指令', model }: {
   value: string; onChange: (v: string) => void; onSend: () => void; onStop: () => void;
   running: boolean; queue: string[]; onDequeue: (i: number) => void; ghost: string;
   web: boolean; onWeb: (v: boolean) => void; mentions: Mentionable[];
   onAction: (a: PlusAction | { kind: 'web'; text: string }) => void;
+  home?: boolean; inputId?: string; inputLabel?: string; model?: ReactNode;
 }) {
   const ta = useRef<HTMLTextAreaElement>(null);
   const plusRef = useRef<HTMLDivElement>(null);
   const [mention, setMention] = useState<{ q: string; sel: number } | null>(null);
   const [plus, setPlus] = useState(false);
+  const focusSub = useRef(false);
+  const [submenu, setSubmenu] = useState<string | null>(null);
   const list = mention ? mentions.filter((m) => m.label.includes(mention.q)).slice(0, 8) : [];
 
   useEffect(() => {
@@ -215,20 +218,27 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
   }, [plus]);
 
   function pick(a: PlusAction) {
-    setPlus(false);
+    setPlus(false); setSubmenu(null);
     if (a.kind === 'mention') { onInput(`${value}@`); ta.current?.focus(); return; }
     if (a.kind === 'prefill') { onChange(a.text); requestAnimationFrame(() => { const el = ta.current!; el.focus(); el.setSelectionRange(a.text.length, a.text.length); }); return; }
     onAction(a);
   }
 
-  // ↑↓ move between rows (no animation on keyboard moves), Enter picks, Esc closes back to the box.
   function onMenuKey(e: KeyboardEvent<HTMLDivElement>) {
-    const items = [...(plusRef.current?.querySelectorAll<HTMLElement>('.pm-item') ?? [])];
+    const current = (document.activeElement as HTMLElement)?.closest('[role="menu"]');
+    const items = [...(current?.querySelectorAll<HTMLElement>(':scope > .pm-item') ?? [])];
     const i = items.indexOf(document.activeElement as HTMLElement);
     if (e.key === 'ArrowDown') { items[(i + 1) % items.length]?.focus(); e.preventDefault(); }
     else if (e.key === 'ArrowUp') { items[(i - 1 + items.length) % items.length]?.focus(); e.preventDefault(); }
-    else if (e.key === 'Escape') { setPlus(false); ta.current?.focus(); e.preventDefault(); }
+    else if (e.key === 'ArrowRight') { (document.activeElement as HTMLElement)?.click(); e.preventDefault(); }
+    else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
+      if (submenu) { const group = submenu; setSubmenu(null); requestAnimationFrame(() => plusRef.current?.querySelector<HTMLElement>(`[data-group="${group}"]`)?.focus()); }
+      else { setPlus(false); document.getElementById('plus')?.focus(); }
+      e.preventDefault();
+    }
   }
+  useLayoutEffect(() => { if (submenu && focusSub.current) { plusRef.current?.querySelector<HTMLElement>('.pm-sub .pm-item')?.focus(); focusSub.current = false; } }, [submenu]);
+  function openSub(group: string, focus: boolean) { focusSub.current = focus; setSubmenu(group); if (focus && submenu === group) plusRef.current?.querySelector<HTMLElement>('.pm-sub .pm-item')?.focus(); }
 
   function insertMention(label: string) {
     const el = ta.current!;
@@ -272,22 +282,18 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
       <div className="cmp">
         {plus && (
           <div className="plus-menu" ref={plusRef} role="menu" aria-label="添加与快捷指令" onKeyDown={onMenuKey}>
-            {PLUS.map(([h, items]) => (
-              <div key={h} role="group" aria-label={h}>
-                <div className="pm-h">{h}</div>
-                {items.map(([ic, t, d, a, k]) => (
-                  <button key={t} className="pm-item" role="menuitem" onClick={() => pick(a)}>
-                    <Icon name={ic} size={15} /><b>{t}</b><span>{d}</span>{k && <kbd>{k}</kbd>}
-                  </button>
-                ))}
-              </div>
-            ))}
+            {PLUS[0]![1].map(([ic, t, d, action]) => <button type="button" key={t} className="pm-item" role="menuitem" onPointerEnter={() => setSubmenu(null)} onClick={() => pick(action)}><Icon name={ic} size={15} /><b>{t}</b><span>{d}</span></button>)}
+            <div className="pm-divider" />
+            {PLUS.slice(1).filter(([g]) => !home || g !== '工作流').map(([g]) => <button type="button" key={g} className="pm-item" role="menuitem" data-group={g} aria-haspopup="menu" aria-expanded={submenu === g} onPointerEnter={() => openSub(g, false)} onClick={() => openSub(g, true)}><Icon name={g === '工作流' ? 'bolt' : 'spark'} size={15} /><b>{g}</b><span /><Icon name="chev" size={12} /></button>)}
+            {home && <button type="button" className="pm-item" role="menuitem" onClick={() => pick({ kind: 'blank' })}><Icon name="doc" size={15} /><b>空白剧本</b></button>}
+            {submenu && <div className="pm-sub" role="menu" aria-label={submenu}>{PLUS.find(([g]) => g === submenu)![1].map(([ic, t, d, action, key]) => <button type="button" key={t} className="pm-item" role="menuitem" onClick={() => pick(action)}><Icon name={ic} size={15} /><div><b>{t}</b><small>{d}</small></div>{key && <kbd>{key}</kbd>}</button>)}</div>}
+
           </div>
         )}
         <form className={`cmp-card${running ? ' busy' : ''}`} onSubmit={(e) => { e.preventDefault(); onSend(); }}>
-          <label htmlFor="agent-in" className="sr-only">给 AI 的指令</label>
+          <label htmlFor={inputId} className="sr-only">{inputLabel}</label>
           {!value && ghost && !running && <div className="ghost" aria-hidden="true"><span>{ghost}</span><kbd>Tab</kbd></div>}
-          <textarea id="agent-in" ref={ta} value={value} rows={2} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey}
+          <textarea id={inputId} ref={ta} value={value} rows={2} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey}
             placeholder={ghost && !running ? '' : '随便问，@ 提及角色、地点或设定'} aria-description={ghost && !value ? `按 Tab 采纳建议：${ghost}` : undefined} />
           {mention && list.length > 0 && (
             <div className="card menu cmp-mention" role="listbox" aria-label="提及">
@@ -303,13 +309,13 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
             <button type="button" id="plus" className="ico-btn" aria-label="添加与快捷指令" title="文件、快捷指令和工作流" aria-haspopup="menu" aria-expanded={plus} onClick={() => setPlus((o) => !o)}><Icon name="plus" size={16} /></button>
             <button type="button" className="ico-btn" aria-label="联网搜索" title="联网搜索" aria-pressed={web} onClick={() => onWeb(!web)}><Icon name="globe" size={15} /></button>
             <span style={{ flex: 1 }} />
-            <span className="cmp-model"><span className="ag-dot" />Ancher</span>
+            <span className="cmp-model">{model ?? <><span className="ag-dot" />Ancher</>}</span>
             <button type="button" className="ico-btn" aria-label="语音输入" title="语音输入（即将支持）" disabled><Icon name="mic" size={16} /></button>
             {running && has
               ? <button type="submit" className="q-pill" title="当前回复结束后自动发送">加入队列<kbd>↵</kbd></button>
               : running
                 ? <button type="button" className="cmp-send stop" aria-label="停止" onClick={onStop}><span className="sq" /></button>
-                : <button type="submit" className="cmp-send" aria-label="发送" disabled={!has}><Icon name="send" size={15} /></button>}
+                : <button type="submit" className="cmp-send" aria-label={home ? "开始" : "发送"} disabled={!has}><Icon name="send" size={15} /></button>}
           </div>
         </form>
         <div className="cmp-note">AI 可能会出错。请核对重要信息。</div>

@@ -2,8 +2,8 @@
 import { useEffect, useRef, type FormEvent, type ReactNode } from 'react';
 import { Icon } from '../lib/ui.tsx';
 
-export function Drawer({ open, title, sub, cta, onClose, onSubmit, children, busy }: {
-  open: boolean; title: string; sub?: string; cta: string; busy?: boolean;
+export function Drawer({ open, title, sub, cta, onClose, onSubmit, children, busy, modal }: {
+  modal?: boolean; open: boolean; title: string; sub?: string; cta: string; busy?: boolean;
   onClose: () => void; onSubmit: () => void | Promise<void>; children: ReactNode;
 }) {
   const ref = useRef<HTMLFormElement>(null);
@@ -26,7 +26,7 @@ export function Drawer({ open, title, sub, cta, onClose, onSubmit, children, bus
   return (
     <>
       <div className={`dw-scrim${open ? ' open' : ''}`} onClick={onClose} aria-hidden="true" />
-      <form ref={ref} className={`dw${open ? ' open' : ''}`} role="dialog" aria-modal="true" aria-label={title} onSubmit={submit} inert={!open}>
+      <form ref={ref} className={`dw${modal ? ' centered-modal' : ''}${open ? ' open' : ''}`} role="dialog" aria-modal="true" aria-label={title} onSubmit={submit} inert={!open}>
         <div className="dw-hd">
           <div><h2>{title}</h2>{sub && <div className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>{sub}</div>}</div>
           <button type="button" className="round-x" onClick={onClose} aria-label="关闭"><Icon name="x" size={16} /></button>

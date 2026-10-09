@@ -1,7 +1,7 @@
 // Export (spec 0002 §9.4): FDX / Fountain / TXT as real files; PDF via printToPDF with the typewriter stack.
 import { BrowserWindow, dialog } from 'electron';
 import { writeFileSync } from 'node:fs';
-import { toDocx, toFdx, toFountain, toTxt, type ScriptNode } from '@scripter/core';
+import { shotsCsv, toDocx, toFdx, toFountain, toTxt, type ScriptNode } from '@scripter/core';
 import type { ExportFormat } from '../shared/ipc.ts';
 import { get } from './projects.ts';
 
@@ -23,17 +23,26 @@ export async function save(win: BrowserWindow, id: string, format: ExportFormat)
   const p = get(id);
   const nodes = p.doc.nodes();
   const title = p.meta.title;
-  const ext = { pdf: 'pdf', docx: 'docx', fdx: 'fdx', fountain: 'fountain', txt: 'txt' }[format];
-  const r = await dialog.showSaveDialog(win, { defaultPath: `${title}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
+  const ext = { pdf: 'pdf', docx: 'docx', fdx: 'fdx', fountain: 'fountain', txt: 'txt', shots: 'csv', characters: 'json', locations: 'pdf', props: 'csv' }[format];
+  const r = await dialog.showSaveDialog(win, { defaultPath: `${title}${format === 'shots' ? ' 分镜表' : ''}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
   if (r.canceled || !r.filePath) return { ok: false };
-  if (format === 'pdf') {
+  if (format === 'characters') {
+    writeFileSync(r.filePath, JSON.stringify(p.doc.readBible()[format], null, 2), 'utf8');
+  } else if (format === 'props') {
+    const q = (v: string) => '"' + v.replace(/"/g, '""') + '"';
+    const rows = [['道具', '分类', '描述', '视觉提示词'], ...p.doc.readBible().props.map((x) => [x.name, x.category, x.desc, x.visual])];
+    writeFileSync(r.filePath, '\uFEFF' + rows.map((row) => row.map(q).join(',')).join('\r\n'), 'utf8');
+  } else if (format === 'pdf' || format === 'locations') {
     const w = new BrowserWindow({ show: false, webPreferences: { javascript: false, sandbox: true } });
     try {
-      await w.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(scriptHtml(title, nodes))}`);
+      const html = format === 'locations' ? `<!doctype html><meta charset="utf-8"><style>body{font-family:system-ui;font-size:12pt}section{break-inside:avoid;margin-bottom:24px}p{white-space:pre-wrap}</style><h1>${esc(title)} · 勘景本</h1>${p.doc.readBible().locations.map((l) => `<section><h2>${esc(l.name)} · ${esc(l.ie)}</h2><p>${esc(l.times.join(' / '))}</p><p>${esc(l.desc)}</p><p>${esc(l.visual)}</p></section>`).join('')}` : scriptHtml(title, nodes);
+      await w.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
       writeFileSync(r.filePath, await w.webContents.printToPDF({ pageSize: 'A4', printBackground: false, preferCSSPageSize: true }));
     } finally {
       w.destroy();
     }
+  } else if (format === 'shots') {
+    writeFileSync(r.filePath, shotsCsv(nodes, p.doc.readBible().shots), 'utf8');
   } else if (format === 'docx') {
     writeFileSync(r.filePath, await toDocx(title, nodes));
   } else {

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import type { KeyStatus, ProjectMeta } from '../../../shared/ipc.ts';
 import type { Route } from '../App.tsx';
+import { Composer, type PlusAction } from '../components/Chat.tsx';
 import { INTENTS } from '../lib/intents.ts';
 import { Icon, Logo, useToast } from '../lib/ui.tsx';
 
@@ -21,13 +22,14 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
   const [kindOpen, setKindOpen] = useState(false);
   const [intent, setIntent] = useState<number | null>(null);
   const [sel, setSel] = useState(-1);
-  const [recents, setRecents] = useState<ProjectMeta[] | null>(null);
+
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [web, setWeb] = useState(false);
   const [busy, setBusy] = useState(false);
-  const ask = useRef<HTMLTextAreaElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const toast = useToast();
 
-  useEffect(() => { void window.api.projects.list().then(setRecents); }, []);
+
   useEffect(() => {
     if (!kindOpen) return;
     const close = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest('.kind-wrap')) setKindOpen(false); };
@@ -38,16 +40,20 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
   async function start(e?: FormEvent) {
     e?.preventDefault();
     const t = text.trim();
-    if (!t) { ask.current?.focus(); return; }
+    if (!t) { document.querySelector<HTMLTextAreaElement>('#ask')?.focus(); return; }
     setBusy(true);
+    try {
     const title = t.replace(/\s+/g, ' ').slice(0, 18) + (t.length > 18 ? '…' : '');
-    const p = await window.api.projects.create(title, kind);
-    go({ name: 'project', id: p.id, tab: 'write', pending: keys.ancher ? t : undefined });
+    if (kind === 'video') toast('快速视频流程即将推出，本次创建剧本项目');
+    const p = await window.api.projects.create(title, 'script');
+    if (attachments.length) { const r = await window.api.files.addPaths(p.id, attachments); for (const f of r.state.bible.files) await window.api.files.pin(p.id, f.id, true); }
+    go({ name: 'project', id: p.id, tab: 'write', pendingWeb: web, pending: keys.ancher ? t : undefined });
     if (!keys.ancher) toast('还没填写 Ancher key，AI 暂时不能写。可以先手动写，或到设置里填写');
+    } catch (e) { toast(String(e)); } finally { setBusy(false); }
   }
 
   async function blank() {
-    const p = await window.api.projects.create('未命名剧本', kind);
+    const p = await window.api.projects.create('未命名剧本', 'script');
     go({ name: 'project', id: p.id, tab: 'write' });
   }
 
@@ -56,7 +62,7 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
     if (!item) return;
     setText(item);
     setIntent(null);
-    requestAnimationFrame(() => { ask.current?.focus(); ask.current?.setSelectionRange(item.length, item.length); });
+    requestAnimationFrame(() => { document.querySelector<HTMLTextAreaElement>('#ask')?.focus(); document.querySelector<HTMLTextAreaElement>('#ask')?.setSelectionRange(item.length, item.length); });
   }
 
   function onListKey(e: KeyboardEvent) {
@@ -78,13 +84,8 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
       <div className="home">
         <div className="home-in">
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}><Logo size={34} /><h1 className="display" style={{ fontSize: 28 }}>{greeting()}</h1></div>
-          <form className="card ask" onSubmit={start}>
-            <label htmlFor="ask" className="sr-only">想写什么</label>
-            <textarea id="ask" ref={ask} value={text} onChange={(e) => setText(e.target.value)} placeholder="帮您处理剧本格式或从新点子开始？"
-              onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) void start(); }} />
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <button type="button" className="btn btn-ghost" onClick={blank}><Icon name="plus" size={14} />空白剧本</button>
-              <span className="kind-wrap" style={{ position: 'relative' }}>
+          <div className="home-composer">
+            <Composer inputId="ask" inputLabel="想写什么" home value={text} onChange={setText} onSend={() => void start()} onStop={() => {}} running={busy} queue={[]} onDequeue={() => {}} ghost="" web={web} onWeb={setWeb} mentions={[]} model={              <span className="kind-wrap" style={{ position: 'relative' }}>
                 <button type="button" className="btn btn-ghost" aria-haspopup="listbox" aria-expanded={kindOpen} onClick={() => setKindOpen((o) => !o)}><Icon name={k.icon} size={14} />{k.title}<Icon name="chev" size={12} /></button>
                 {kindOpen && (
                   <div className="card menu" role="listbox" aria-label="项目类型" style={{ top: 'calc(100% + 6px)', left: 0, width: 250 }}>
@@ -95,21 +96,20 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
                     ))}
                   </div>
                 )}
-              </span>
-              <span style={{ flex: 1 }} />
-              <button type="button" className="btn btn-ghost" title="故事和分场先给你确认，再逐场写完一整集" disabled={busy}
-                onClick={async () => {
-                  const t = text.trim();
-                  if (!t) { ask.current?.focus(); return; }
-                  if (!keys.ancher) { toast('写一整集需要 Ancher key，请到设置里填写'); return; }
-                  setBusy(true);
-                  const p = await window.api.projects.create(t.replace(/\s+/g, ' ').slice(0, 18) + (t.length > 18 ? '…' : ''), kind);
-                  go({ name: 'project', id: p.id, tab: 'write', pendingEpisode: t });
-                }}>⚡ 写一整集</button>
-              <span className="muted" style={{ fontSize: 12 }}>⌘/Ctrl + Enter</span>
-              <button className="btn btn-primary btn-icon" style={{ width: 38, height: 38, borderRadius: '50%' }} aria-label="开始" disabled={busy}><Icon name="send" size={16} /></button>
-            </div>
-          </form>
+              </span>} onAction={(a: PlusAction | { kind: 'web'; text: string }) => {
+              if (a.kind === 'blank') void blank();
+              else if (a.kind === 'attach' || a.kind === 'video') void window.api.workflows.pickFile(a.kind === 'video' ? 'media' : 'any').then((path) => { if (path) setAttachments((x) => [...x, path]); });
+              else if (a.kind === 'mention') toast('先创建项目，即可添加知识库笔记');
+              else if (a.kind === 'prefill') setText(a.text);
+            }} />
+            {attachments.map((path, i) => <button className="chip" key={`${i}-${path}`} onClick={() => setAttachments((x) => x.filter((_, n) => n !== i))}>{path.split(/[\\/]/).at(-1)} ×</button>)}
+          </div>
+          <button className="btn btn-quiet episode-home" disabled={busy} onClick={async () => {
+            const t = text.trim(); if (!t) { document.getElementById('ask')?.focus(); return; }
+            if (!keys.ancher) { toast('写一整集需要 Ancher key，请到设置里填写'); return; }
+            setBusy(true); const p = await window.api.projects.create(t.slice(0, 18), 'script'); go({ name: 'project', id: p.id, tab: 'write', pendingEpisode: t });
+          }}>⚡ 写一整集</button>
+
           {intent === null ? (
             <div className="intents">
               {INTENTS.map((x, i) => (
@@ -129,25 +129,7 @@ export function Home({ keys, go }: { keys: KeyStatus; go: (r: Route) => void }) 
               </div>
             </section>
           )}
-          <div style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center' }}><span className="muted" style={{ fontSize: 12.5, flex: 1 }}>最近</span>
-              <button className="btn btn-quiet" style={{ height: 28 }} onClick={async () => {
-                try { const m = await window.api.projects.importArchive(); if (m) { toast(`已导入：${m.title}`); setRecents(await window.api.projects.list()); } }
-                catch (e) { toast(String((e as Error).message).replace(/^Error invoking remote method '[^']+': Error: /, '')); }
-              }}><Icon name="upload" size={13} />导入项目</button></div>
-            {recents === null ? null : recents.length === 0 ? (
-              <div className="card empty">还没有项目。在上面写一句想法，或者新建一个空白剧本。</div>
-            ) : (
-              <div className="recents">
-                {recents.map((p) => (
-                  <button key={p.id} className="card recent" onClick={() => go({ name: 'project', id: p.id, tab: 'write' })}>
-                    <b style={{ fontSize: 14 }}>{p.title}</b>
-                    <span className="muted tnum" style={{ fontSize: 12 }}>{p.kind === 'video' ? '快速视频' : '剧本'} · {p.words} 字 · {new Date(p.updatedAt).toLocaleDateString('zh-CN')}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div className="home-links"><button className="btn btn-quiet" onClick={() => go({ name: 'recents' })}>最近项目</button><button className="btn btn-quiet" onClick={async () => { try { const p = await window.api.projects.importArchive(); if (p) go({ name: 'project', id: p.id, tab: 'write' }); } catch (e) { toast(String(e)); } }}>导入项目</button></div>
         </div>
       </div>
     </>

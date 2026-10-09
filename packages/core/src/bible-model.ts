@@ -13,24 +13,38 @@ export interface WorldSetting { id: string; title: string; value: string }
 export interface KnowledgeFile {
   id: string; name: string; size: number; src: 'upload' | 'chat'; file: string; addedAt: number;
   /** "写作时参考": the extracted text is sent with writing requests as reference material. */
-  pinned: boolean; excerpt: string; extract: 'none' | 'working' | 'ready' | 'failed';
+  title: string; tags: { label: string; color: string }[]; memo: string; group: string; summary: string;
+  starred: boolean; revision: number; pinned: boolean; excerpt: string; extract: 'none' | 'working' | 'ready' | 'failed';
 }
 /** Director-review rules (spec 0002 §1.1 "审稿与规则库"): pending until a human confirms; hard rules vs preferences. */
 export interface Rule { id: string; text: string; scope: string; source: string; level: 'hard' | 'pref'; status: 'pending' | 'active'; addedAt: number }
 /** Humor examples marked funny / not funny (正反例库). */
 export interface Joke { id: string; text: string; mechanism: string; verdict: 'good' | 'bad'; context: string; addedAt: number }
+/** Storyboard shot (分镜), attached to a scene by its heading node id; order is list order. */
+export type ShotSize = '远景' | '全景' | '中景' | '近景' | '特写';
+export const SHOT_SIZES: readonly ShotSize[] = ['远景', '全景', '中景', '近景', '特写'];
+export interface Shot { id: string; sceneId: string; size: ShotSize; desc: string; dur: number }
+/** Production settings (制作设置, prototype P6): used when writing image prompts. */
+export interface Production { aspect: '16:9' | '9:16'; kind: '叙事' | '商业'; style: string; styleNote: string }
+export const PRODUCTION_DEFAULTS: Production = { aspect: '16:9', kind: '叙事', style: '二维手绘 · 温暖', styleNote: '' };
+export const ART_STYLES = [
+  { name: '二维手绘 · 温暖', era: '2000s–2010s' },
+  { name: '胡同水彩', era: '1990s–2000s' },
+  { name: '定格黏土', era: '2010s–2020s' },
+  { name: '剪纸皮影', era: '现代' },
+] as const;
 /** Topic pool (选题池). */
 export interface Topic { id: string; title: string; logline: string; why: string; source: string; status: 'idea' | 'picked' | 'dropped'; reason: string; addedAt: number }
 
 export interface Bible {
   characters: Character[]; relations: Relation[]; locations: Location[];
   props: Prop[]; world: WorldSetting[]; files: KnowledgeFile[];
-  rules: Rule[]; jokes: Joke[]; topics: Topic[];
+  rules: Rule[]; jokes: Joke[]; topics: Topic[]; shots: Shot[];
 }
 export type BibleKind = keyof Bible;
 export type BibleItem<K extends BibleKind> = Bible[K][number];
 
-export const BIBLE_KINDS: BibleKind[] = ['characters', 'relations', 'locations', 'props', 'world', 'files', 'rules', 'jokes', 'topics'];
+export const BIBLE_KINDS: BibleKind[] = ['characters', 'relations', 'locations', 'props', 'world', 'files', 'rules', 'jokes', 'topics', 'shots'];
 
 export const BIBLE_DEFAULTS: { [K in BibleKind]: Omit<BibleItem<K>, 'id'> } = {
   characters: { name: '', role: '', desc: '', color: 'oklch(0.58 0.14 45)', look: '', catchphrase: '', want: '', fear: '', voice: '', portrait: '', castLocked: false, x: 0, y: 0 },
@@ -38,10 +52,11 @@ export const BIBLE_DEFAULTS: { [K in BibleKind]: Omit<BibleItem<K>, 'id'> } = {
   locations: { name: '', ie: '外景', times: ['日'], desc: '', visual: '', color: 'oklch(0.55 0.06 150)', image: '' },
   props: { name: '', category: '', color: 'oklch(0.36 0.07 160)', desc: '', visual: '', x: 40, y: 40 },
   world: { title: '', value: '' },
-  files: { name: '', size: 0, src: 'upload', file: '', addedAt: 0, pinned: false, excerpt: '', extract: 'none' },
+  files: { title: '', tags: [], memo: '', group: '全部笔记', summary: '', name: '', size: 0, src: 'upload', file: '', addedAt: 0, starred: false, revision: 1, pinned: false, excerpt: '', extract: 'none' },
   rules: { text: '', scope: '全剧', source: '', level: 'hard', status: 'pending', addedAt: 0 },
   jokes: { text: '', mechanism: '', verdict: 'good', context: '', addedAt: 0 },
   topics: { title: '', logline: '', why: '', source: '', status: 'idea', reason: '', addedAt: 0 },
+  shots: { sceneId: '', size: '中景', desc: '', dur: 3 },
 };
 
 /** Find a character by name (the script stores names, not ids). */
@@ -113,4 +128,17 @@ export function referenceBrief(b: Bible, maxChars = 5000): string {
   if (!pinned.length) return '';
   const each = Math.floor(maxChars / pinned.length);
   return pinned.map((f) => `《${f.name}》\n${f.excerpt.slice(0, each)}${f.excerpt.length > each ? '…' : ''}`).join('\n\n');
+}
+
+/** Shots grouped per scene, in script order. Shots whose scene heading is gone are dropped. */
+export function shotsByScene(nodes: readonly ScriptNode[], shots: readonly Shot[]): { sceneId: string; heading: string; n: number; shots: Shot[] }[] {
+  return nodes.filter((x) => x.type === 'heading').map((h, i) => ({ sceneId: h.id, heading: h.text, n: i + 1, shots: shots.filter((s) => s.sceneId === h.id) }));
+}
+
+/** Shot list as CSV (场次, 镜号, 景别, 描述, 时长). */
+export function shotsCsv(nodes: readonly ScriptNode[], shots: readonly Shot[]): string {
+  const q = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+  const rows = [['场次', '场景', '镜号', '景别', '描述', '时长（秒）'].map(q).join(',')];
+  for (const sc of shotsByScene(nodes, shots)) sc.shots.forEach((s, k) => rows.push([sc.n, sc.heading, k + 1, s.size, s.desc, s.dur].map(q).join(',')));
+  return `\uFEFF${rows.join('\r\n')}\r\n`;
 }

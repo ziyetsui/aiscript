@@ -1,93 +1,99 @@
-// Knowledge base (prototype P11 / laper /knowledge): local reference files, kept inside the project folder.
-import { useState, type DragEvent } from 'react';
-import type { KnowledgeFile } from '@scripter/core/script';
-import { PageHead } from '../components/Drawer.tsx';
+import { useEffect, useState, type DragEvent } from 'react';
 import { useProject } from '../lib/project.ts';
+import { Markdown } from '../lib/markdown.tsx';
 import { Icon, useToast } from '../lib/ui.tsx';
 
-type Tab = 'all' | 'chat' | 'upload';
-const kb = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
-
-export function Knowledge({ id }: { id: string }) {
+type Group = 'all' | 'pinned' | 'chat' | 'upload';
+export function Knowledge({ id, onSelect, toggleDock, dockOpen }: { id: string; toggleDock?: () => void; dockOpen?: boolean; onSelect?: (fileId?: string) => void }) {
   const p = useProject(id);
-  const [tab, setTab] = useState<Tab>('all');
-  const [over, setOver] = useState(0);
+  const [group, setGroup] = useState<Group>('all');
+  const [selected, setSelected] = useState<string | undefined>(() => sessionStorage.getItem(`scripter-note-${id}`) || undefined);
+  const [query, setQuery] = useState('');
+  const [mode, setMode] = useState<'summary' | 'original'>('summary');
+  const [collection, setCollection] = useState('');
+  const [newCollection, setNewCollection] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string>();
+  const [more, setMore] = useState(false);
+  const [addingTag, setAddingTag] = useState(false);
+  const [reverseSort, setReverseSort] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
+  const [over, setOver] = useState(false);
   const toast = useToast();
-  const st = p.st;
-  if (!st) return null;
-  const files = st.bible.files;
-  const list = files.filter((f) => tab === 'all' || f.src === tab);
-  const count = (t: Tab) => files.filter((f) => t === 'all' || f.src === t).length;
-
-  function report(r: { added: number; skipped: string[] } | null) {
-    if (!r) return;
-    if (r.added) toast(`已添加 ${r.added} 个文件，只保存在这台电脑上`);
-    if (r.skipped.length) toast(`没有添加：${r.skipped.join('、')}`);
-  }
-
+  const isWindows = /Windows/.test(navigator.userAgent);
+  const files = p.st?.bible.files ?? [];
+  const matches = (f: typeof files[number]) => group === 'all' || (group === 'pinned' ? f.pinned : f.src === group);
+  const collections = [...new Set([...(p.st?.meta.noteGroups ?? []), ...files.map((f) => f.group).filter((g) => g && g !== '全部笔记')])];
+  const list = [...files].sort((a, b) => reverseSort ? b.addedAt - a.addedAt : a.addedAt - b.addedAt).filter(matches).filter((f) => !collection || f.group === collection).filter((f) => `${f.title || f.name} ${f.memo} ${f.tags.map((t) => t.label).join(' ')}`.includes(query));
+  const note = list.find((f) => f.id === selected) ?? list[0];
+  useEffect(() => { if (note) sessionStorage.setItem(`scripter-note-${id}`, note.id); onSelect?.(note?.id); }, [note?.id, onSelect]);
+  const create = async () => {
+    try { const s = await window.api.files.createNote(id, '未命名笔记', ''); p.setSt(s); setGroup('all'); setCollection(''); setQuery(''); setSelected(s.bible.files.at(-1)?.id); setMode('original'); setEditing(true); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('[aria-label="笔记标题"]')?.select()); } catch (e) { toast(String(e)); }
+  };
+  useEffect(() => { const h = (e: KeyboardEvent) => { if (!(e.metaKey || e.ctrlKey)) return; if (e.key.toLowerCase() === 'k') { e.preventDefault(); document.querySelector<HTMLInputElement>('[aria-label="搜索笔记"]')?.focus(); } if (e.shiftKey && e.key.toLowerCase() === 'o') { e.preventDefault(); void create(); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [id]);
+  useEffect(() => { setMore(false); setAddingTag(false); }, [note?.id]);
+  useEffect(() => { if (!more && !addingTag) return; const click = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest('.note-more-wrap')) setMore(false); }; const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMore(false); setAddingTag(false); } }; window.addEventListener('pointerdown', click); window.addEventListener('keydown', key); return () => { window.removeEventListener('pointerdown', click); window.removeEventListener('keydown', key); }; }, [more, addingTag]);
+  if (!p.st) return null;
+  const update = async (patch: Parameters<typeof window.api.files.update>[2]) => {
+    if (!note) return;
+    try { p.setSt(await window.api.files.update(id, note.id, patch)); window.dispatchEvent(new CustomEvent('scripter:note', { detail: id })); } catch (e) { toast(String(e)); }
+  };
   async function pick() {
     const r = await window.api.files.pick(id);
-    if (r) { p.setSt(r.state); report(r); if (tab === 'chat') setTab('upload'); }
+    if (r) { p.setSt(r.state); setGroup('all'); if (r.skipped.length) toast(`没有添加：${r.skipped.join('、')}`); }
   }
-
   async function drop(e: DragEvent) {
-    e.preventDefault();
-    setOver(0);
-    const paths = [...e.dataTransfer.files].map((f) => window.api.files.pathFor(f)).filter(Boolean);
-    if (!paths.length) return;
-    const r = await window.api.files.addPaths(id, paths);
-    p.setSt(r.state);
-    report(r);
+    e.preventDefault(); setOver(false);
+    try { const r = await window.api.files.addPaths(id, [...e.dataTransfer.files].map((f) => window.api.files.pathFor(f)).filter(Boolean)); p.setSt(r.state); setGroup('all'); }
+    catch (e) { toast(String(e)); }
   }
+  const editable = !!note && /\.(md|txt|fountain|srt)$/i.test(note.file);
+  return <div className="knowledge-layout" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={(e) => void drop(e)}>
+    <aside className="side-list note-list">
+      <button className="btn btn-ghost" onClick={() => void create()}><Icon name="plus" size={14} />新建笔记<kbd>{isWindows ? 'Ctrl+Shift+O' : '⇧⌘O'}</kbd></button>
+      <input className="input" aria-label="搜索笔记" placeholder={isWindows ? '搜索笔记  Ctrl+K' : '搜索笔记  ⌘K'} value={query} onChange={(e) => setQuery(e.target.value)} />
+      <details open className="note-group"><summary>已固定 <span className="muted">{files.filter((f) => f.starred).length}</span></summary><div className="note-items">{files.filter((f) => f.starred).map((f) => <button key={f.id} onClick={() => { setGroup('all'); setCollection(''); setSelected(f.id); }} aria-current={f.id === note?.id ? 'page' : undefined}><Icon name="doc" size={14} /><span>{f.title || f.name}</span></button>)}</div></details>
+      <details open className="note-group"><summary>合集 <span className="muted">{collections.length}</span><span className="grow" /><button aria-label="排序合集" onClick={(e) => { e.preventDefault(); setReverseSort((x) => !x); }}>↕</button><button aria-label="新建合集" onClick={(e) => { e.preventDefault(); setRenaming(undefined); setRenaming(undefined); setNewCollection(''); }}>+</button></summary><div className="note-items">{(reverseSort ? [...collections].reverse() : collections).map((g) => <button key={g} onClick={() => { setCollection(g); setGroup('all'); }}><Icon name="box" size={14} /><span>{g}</span></button>)}</div>{collection && <div className="collection-controls"><button aria-label="重命名合集" onClick={() => { setRenaming(collection); setNewCollection(collection); }}>重命名</button><button aria-label="删除合集" onClick={async () => { if (confirm('删除合集？笔记会回到全部笔记。')) { p.setSt(await window.api.files.collection(id, 'delete', collection)); setCollection(''); } }}>删除</button></div>}<button className="btn btn-quiet" onClick={() => { setRenaming(undefined); setNewCollection(''); }}>+ 新建合集</button>{newCollection !== null && <input autoFocus className="input" aria-label="新合集名称" placeholder="名称 · 回车保存" value={newCollection} onChange={(e) => setNewCollection(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && newCollection.trim()) { void window.api.files.collection(id, renaming ? 'rename' : 'create', renaming || newCollection.trim(), renaming ? newCollection.trim() : undefined).then(p.setSt).catch((e) => toast(String(e))); setCollection(''); setNewCollection(null); } if (e.key === 'Escape') setNewCollection(null); }} />}</details>
+      <details open className="note-group note-all"><summary>笔记 <span className="muted">{list.length}</span><span className="grow" /><button aria-label="排序笔记" onClick={(e) => { e.preventDefault(); setReverseSort((x) => !x); }}>↕</button><button aria-label="新建笔记" onClick={(e) => { e.preventDefault(); void create(); }}>+</button></summary><div className="note-items">{list.map((f) => <button key={f.id} aria-current={f.id === note?.id ? 'page' : undefined} onClick={() => { setSelected(f.id); setEditing(false); }}><Icon name="doc" size={14} /><span>{f.title || f.name}</span></button>)}</div></details>
+      <select className="note-filter" aria-label="文件来源" value={group} onChange={(e) => { setGroup(e.target.value as Group); setCollection(''); }}><option value="all">全部笔记</option><option value="pinned">写作时参考</option><option value="chat">聊天附件</option><option value="upload">直接上传</option></select>
+      <button className="btn btn-ghost" onClick={() => void pick()}><Icon name="upload" size={14} />添加文件</button>
+    </aside>
+    <section className="note-page">
 
-  async function remove(f: KnowledgeFile) {
-    if (!confirm(`从知识库移除「${f.name}」？项目里保存的副本会一起删除，你电脑上的原文件不受影响。`)) return;
-    await p.remove('files', f.id);
-    toast(`已移除 ${f.name}`);
-  }
+      {!note ? <div className="empty-state">新建笔记，或把参考资料拖进来</div> : <div className="note-frame" key={note.id}>
+        <div className="note-tools"><button className="note-version muted" onClick={() => toast(`版本：v${note.revision || 1}（当前）`)}><Icon name="undo" size={14} />v{note.revision || 1}⌄</button><span className="grow" />
+          <button className="chip" aria-pressed={note.pinned} disabled={note.extract === 'working'} onClick={async () => p.setSt(await window.api.files.pin(id, note.id, !note.pinned))}>{note.extract === 'working' ? '读取中' : note.extract === 'failed' ? '读取失败，重试' : note.pinned ? '写作时参考 ✓' : '写作时参考'}</button>
+          <button className="btn btn-ghost" aria-pressed={editing} onClick={() => { setEditing((x) => !x); setMode('original'); }}><Icon name="pen" size={14} />{editing ? '完成' : '编辑'}</button>
+          <button className="btn btn-quiet" aria-label="切换 AI 对话" aria-pressed={dockOpen} onClick={toggleDock}><Icon name="chat" size={14} /></button><div className="note-more-wrap"><button className="btn btn-quiet" aria-label="更多笔记操作" aria-expanded={more} onClick={() => setMore((x) => !x)}>⋯</button>{more && <div className="note-more" role="menu">
+          <button role="menuitem" onClick={() => { void update({ starred: !note.starred }); setMore(false); }}>{note.starred ? '取消固定' : '固定笔记'}</button>
+          <label>移动到合集<select aria-label="移动到合集" value={note.group} onChange={(e) => { void update({ group: e.target.value }); setMore(false); }}><option>全部笔记</option>{collections.map((g) => <option key={g}>{g}</option>)}</select></label>
+          <button role="menuitem" onClick={async () => { try { if (await window.api.files.exportNote(id, note.id)) toast('笔记已导出'); } catch (e) { toast(String(e)); } setMore(false); }}>导出笔记</button>
+          <button role="menuitem" onClick={async () => { const e = await window.api.files.open(id, note.id); if (e) toast(e); setMore(false); }}>打开原文件</button>
+          <button role="menuitem" onClick={async () => { if (confirm(`移除「${note.title || note.name}」？请先保存需要的内容。`)) await p.remove('files', note.id); setMore(false); }}>删除笔记</button>
+          </div>}</div>
+        </div>
+<div className="page note-content"><div className="note-kicker muted"><Icon name="doc" size={14} />笔记 · {new Date(note.addedAt).toLocaleDateString('zh-CN')}</div>
+        <input className="note-title" aria-label="笔记标题" defaultValue={note.title || note.name} onBlur={(e) => void update({ title: e.target.value })} />
+        <div className="chipset">{note.tags.map((t) => <button className="chip" style={{ color: t.color, background: `color-mix(in srgb, ${t.color} 10%, transparent)` }} key={t.label} aria-label={`删除标签 ${t.label}`} onClick={() => void update({ tags: note.tags.filter((x) => x.label !== t.label) })}>{t.label} ×</button>)}
+          {!addingTag ? <button className="chip" onClick={() => setAddingTag(true)}>◇ 添加标签</button> : <input autoFocus onBlur={() => setAddingTag(false)} className="input" aria-label="添加标签" placeholder="添加标签，回车保存" onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.currentTarget.value.trim()) { void update({ tags: [...note.tags.filter((t) => t.label !== e.currentTarget.value.trim()), { label: e.currentTarget.value.trim(), color: ['#ad7438', '#777777', '#608e53', '#496cc2'][note.tags.length % 4]! }] }); e.currentTarget.value = ''; setAddingTag(false); } }} />}
+        </div>
+        <label className="note-memo"><span className="muted">备注</span><textarea className="input" aria-label="笔记备注" placeholder="为这份资料加一点备注" defaultValue={note.memo} onBlur={(e) => void update({ memo: e.target.value })} /></label>
+        <div className="seg" role="tablist" aria-label="笔记内容"><button role="tab" aria-selected={mode === 'summary'} onClick={() => setMode('summary')}>摘要</button><button role="tab" aria-selected={mode === 'original'} onClick={() => setMode('original')}>原文</button></div>
+        {mode === 'summary' ? <div className="note-body">{note.summary ? <Markdown text={note.summary} /> : note.extract === 'working' ? <div className="note-processing">正在读取资料…<p>完成后可生成摘要，切换页面不会中断读取。</p><div className="skeleton" /></div> : '暂无 AI 摘要。'}<div><button className="btn btn-quiet" disabled={summarizing || !note.excerpt.trim()} onClick={async () => { setSummarizing(true); try { p.setSt(await window.api.ai.summarizeNote(id, note.id)); } catch (e) { toast(String(e)); } finally { setSummarizing(false); } }}>{summarizing ? '生成中…' : '生成摘要'}</button></div></div> : <NoteBody projectId={id} fileId={note.id} version={note.extract} editable={editable && editing} onSaved={p.setSt} />}
+        <select className="note-filter" aria-label="笔记合集" value={note.group} onChange={(e) => void update({ group: e.target.value })}><option>全部笔记</option>{collections.map((g) => <option key={g}>{g}</option>)}</select>
+        <p className="muted" style={{ fontSize: 12 }}>修改自动保存 · 文件保存在这台电脑上</p>
+      </div></div>}
+    </section>{over && <div className="kb-over on">松开添加到知识库</div>}
+  </div>;
+}
 
-  return (
-    <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-      <aside className="side-list">
-        <b style={{ display: 'block', padding: '4px 6px 10px' }}>知识</b>
-        <div className="side-nav" role="tablist" aria-label="文件来源">
-          {([['all', '全部文件'], ['chat', '聊天附件'], ['upload', '直接上传']] as const).map(([t, l]) => (
-            <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>{l}<span className="tnum muted">{count(t)}</span></button>
-          ))}
-        </div>
-        <p className="muted" style={{ fontSize: 11.5, margin: '14px 6px 0', lineHeight: 1.6 }}>文件只保存在这台电脑的项目文件夹里。可以放参考剧本、人物小传、导演意见、参考视频。打开「写作时参考」后，AI 写作会读它的内容（PDF、Word、视频通过 Ancher 读取）。</p>
-      </aside>
-      <section style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative' }}
-        onDragEnter={(e) => { e.preventDefault(); setOver((n) => n + 1); }} onDragOver={(e) => e.preventDefault()} onDragLeave={() => setOver((n) => Math.max(0, n - 1))} onDrop={(e) => void drop(e)}>
-        <PageHead title="文件" count={list.length} right={<button className="btn btn-primary" style={{ height: 30 }} onClick={() => void pick()}><Icon name="plus" size={13} />添加文件</button>} />
-        <div className="page" style={{ padding: '16px 20px' }}>
-          {list.length === 0 ? (
-            <div className="empty-state">
-              <div className="kb-stack" aria-hidden="true"><i /><i /><i /></div>
-              <div>{tab === 'chat' ? '在对话里发给 AI 的文件会出现在这里' : '暂无文件'}</div>
-              <div style={{ fontSize: 12 }}>把文件拖进来，或点右上角「添加文件」</div>
-            </div>
-          ) : (
-            <div className="kb-list">
-              {list.map((f) => (
-                <div key={f.id} className="card kb-f">
-                  <span className="kb-ic">{(f.name.split('.').pop() ?? '').slice(0, 4).toUpperCase()}</span>
-                  <button className="linkish" style={{ flex: 1, minWidth: 0 }} onClick={async () => { const err = await window.api.files.open(id, f.id); if (err) toast(err); }} title="用系统默认程序打开">
-                    <b style={{ display: 'block', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</b>
-                    <span className="muted tnum" style={{ fontSize: 11.5 }}>{kb(f.size)} · {f.src === 'chat' ? '聊天附件' : '直接上传'} · {new Date(f.addedAt).toLocaleDateString('zh-CN')}</span>
-                  </button>
-                  <button className="chip" aria-pressed={f.pinned} disabled={f.extract === 'working'} title="打开后，AI 写作时会参考这份文件的内容"
-                    onClick={async () => { const s = await window.api.files.pin(id, f.id, !f.pinned); p.setSt(s); }}>
-                    {f.extract === 'working' ? <><span className="spinner" style={{ width: 10, height: 10, borderWidth: 1.5 }} />读取中</> : f.extract === 'failed' && !f.pinned ? '读取失败，重试' : f.pinned ? '写作时参考 ✓' : '写作时参考'}
-                  </button>
-                  <button className="btn btn-quiet btn-icon" style={{ width: 28, height: 28 }} aria-label={`移除 ${f.name}`} onClick={() => void remove(f)}><Icon name="trash" size={13} /></button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className={`kb-over${over ? ' on' : ''}`} aria-hidden="true">松开即可添加到知识库</div>
-      </section>
-    </div>
-  );
+
+function NoteBody({ projectId, fileId, version, editable, onSaved }: { projectId: string; fileId: string; version: string; editable: boolean; onSaved: (s: import('../../../shared/ipc.ts').ProjectState) => void }) {
+  const [text, setText] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const toast = useToast();
+  useEffect(() => { let live = true; setText(null); setError(''); void window.api.files.readBody(projectId, fileId).then((v) => { if (live) setText(v); }).catch((e) => { if (live) setError(String(e)); }); return () => { live = false; }; }, [projectId, fileId, version]);
+  if (error) return <div className="err">{error}</div>;
+  if (!editable) return <div className="note-body">{text === null ? '读取中…' : <Markdown text={text} />}</div>;
+  return <textarea className="note-body" aria-label="笔记原文" value={text ?? ''} readOnly={!editable || text === null} placeholder={text === null ? '读取中…' : '写下你的笔记…'} onChange={(e) => setText(e.target.value)} onBlur={async () => { if (editable && text !== null) { try { onSaved(await window.api.files.saveBody(projectId, fileId, text)); } catch (e) { toast(String(e)); } } }} />;
 }

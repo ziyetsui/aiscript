@@ -1,6 +1,8 @@
 # Spec 0002 §13.3: tag → matrix build (mac arm64/x64 + win x64) → sign / notarize when secrets exist
 # → draft release in the public releases repo → promote after smoke testing.
 name: Release
+permissions:
+  contents: write
 
 on:
   push:
@@ -32,12 +34,13 @@ jobs:
         env:
           LICENSE_PUBLIC_KEY: ${{ vars.LICENSE_PUBLIC_KEY }}
         run: |
-          test -n "$LICENSE_PUBLIC_KEY" || { echo "::error::Set repository variable LICENSE_PUBLIC_KEY (pnpm license keypair → public.pem)"; exit 1; }
-          printf '%s\n' "$LICENSE_PUBLIC_KEY" > apps/desktop/resources/license-public.pem
+          mkdir -p apps/desktop/resources
+          if [ -n "$LICENSE_PUBLIC_KEY" ]; then printf '%s\n' "$LICENSE_PUBLIC_KEY" > apps/desktop/resources/license-public.pem; fi
+          test -s apps/desktop/resources/license-public.pem || { echo "::error::Missing license public key"; exit 1; }
       - name: Build and publish (draft)
         working-directory: apps/desktop
         env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }} # write access to ziyetsui/aiscript-releases
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN || github.token }} # write access to ziyeprompttheworld/aiscript
           KEYGEN_ACCOUNT_ID: ${{ vars.KEYGEN_ACCOUNT_ID }}
           KEYGEN_VERIFY_KEY: ${{ vars.KEYGEN_VERIFY_KEY }}
           # macOS signing + notarization (Apple Developer ID). Unsigned when absent.
@@ -52,3 +55,41 @@ jobs:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: pnpm exec electron-vite build && pnpm exec electron-builder ${{ matrix.target }} --publish always
+
+      - name: Installed Windows package smoke
+        if: runner.os == 'Windows'
+        working-directory: apps/desktop
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/*-win-x64-setup.exe | Select-Object -First 1
+          $installPath = Join-Path $env:RUNNER_TEMP 'aiscript-install'
+          $process = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installPath") -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Installer failed: $($process.ExitCode)" }
+          $exe = Join-Path $installPath 'Ancher Scripter.exe'
+          if (-not (Test-Path $exe)) { throw 'Installed executable missing' }
+          pnpm exec node e2e/package-smoke.mjs "$exe" packaged-windows-installed-activation.png
+          if ($LASTEXITCODE -ne 0) { throw 'Installed package startup failed' }
+      - name: macOS package smoke
+        if: runner.os == 'macOS'
+        working-directory: apps/desktop
+        run: |
+          if [ "$(uname -m)" = arm64 ]; then pkg=mac-arm64; else pkg=mac; fi
+          pnpm exec node e2e/package-smoke.mjs "release/$pkg/Ancher Scripter.app/Contents/MacOS/Ancher Scripter" packaged-mac-ci-activation.png
+      - name: Preserve startup evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: startup-evidence-${{ matrix.os }}
+          path: delivery/evidence/*.png
+          if-no-files-found: warn
+
+      - name: Preserve installer artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*.zip
+            apps/desktop/release/*.exe
+          if-no-files-found: warn

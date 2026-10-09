@@ -17,3 +17,13 @@ node_modules/
 # The built prototype is a deliverable, keep it in the repo
 !specs/images/prototypes/dist/
 !specs/images/prototypes/v1/dist/
+
+# Local builds, runtime/test data and delivery artifacts
+apps/desktop/out/
+apps/desktop/release/
+apps/desktop/e2e/shots/
+/delivery/
+*.log
+.env
+.env.*
+**/private.pem

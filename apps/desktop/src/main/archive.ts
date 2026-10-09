@@ -22,6 +22,7 @@ export async function exportProject(win: BrowserWindow, id: string): Promise<{ o
   const dir = join(dataDir(), 'projects', id);
   // The Ancher conversation id belongs to this user's Ancher account; open previews are local state.
   const { conversationId: _c, pending: _p, ...meta } = JSON.parse(readFileSync(join(dir, 'meta.json'), 'utf8')) as Record<string, unknown>;
+  cleanPortableMeta(meta);
   const files: Zippable = {
     'manifest.json': strToU8(JSON.stringify({ format: FORMAT, version: 1, app: app.getVersion(), exportedAt: new Date().toISOString(), title: p.meta.title })),
     'meta.json': strToU8(JSON.stringify(meta)),
@@ -54,6 +55,7 @@ export async function importProject(win: BrowserWindow, path?: string): Promise<
   const dir = join(dataDir(), 'projects', id);
   mkdirSync(join(dir, 'files'), { recursive: true });
   const meta = JSON.parse(strFromU8(z['meta.json'])) as ProjectMeta & Record<string, unknown>;
+  cleanPortableMeta(meta);
   const taken = new Set(list().map((m) => m.title));
   const title = taken.has(meta.title) ? `${meta.title}（导入）` : meta.title;
   writeFileSync(join(dir, 'meta.json'), JSON.stringify({ ...meta, id, title, conversationId: null, pending: {}, updatedAt: Date.now() }));
@@ -94,4 +96,13 @@ export async function exportDiagnostics(win: BrowserWindow): Promise<{ ok: boole
   if (existsSync(logFile())) files['main.log'] = new Uint8Array(readFileSync(logFile()).subarray(-2 * 1024 * 1024));
   writeFileSync(r.filePath, zipSync(files));
   return { ok: true, path: r.filePath };
+}
+
+/** Remote conversation IDs and executable preview state cannot cross Ancher accounts. */
+function cleanPortableMeta(meta: Record<string, unknown>): void {
+  delete meta.conversationId; delete meta.pending;
+  const clearChat = (chat: unknown) => { if (!Array.isArray(chat)) return; for (const m of chat) if (m?.preview?.state === 'open') m.preview.state = 'stale'; };
+  clearChat(meta.chat);
+  if (Array.isArray(meta.archive)) for (const c of meta.archive) { c.conversationId = null; clearChat(c.chat); }
+  if (Array.isArray(meta.workflows)) for (const r of meta.workflows) if (r?.ctx) delete r.ctx.conversationId;
 }

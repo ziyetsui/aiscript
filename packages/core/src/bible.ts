@@ -62,6 +62,11 @@ export function readBible(doc: LoroDoc): Bible {
   // A relation whose character was removed (e.g. its AI turn was undone) is hidden, not shown dangling.
   const ids = new Set(b.characters.map((c) => c.id));
   b.relations = b.relations.filter((r) => ids.has(r.a) && ids.has(r.b));
+  // Same for shots whose scene heading no longer exists.
+  const nodes = doc.getMovableList('nodes');
+  const heads = new Set<string>();
+  for (let i = 0; i < nodes.length; i++) { const m = nodes.get(i) as LoroMap; if (m.get('type') === 'heading') heads.add(m.get('id') as string); }
+  b.shots = b.shots.filter((s) => heads.has(s.sceneId));
   return b;
 }
 

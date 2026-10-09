@@ -33,6 +33,7 @@ const step = (s: string) => console.log(`• ${s}`);
 /** Quick commands live in the composer's "+" menu (prototype PR #28): pick one, it prefills the box, Enter sends. */
 async function quick(page: Page, name: string) {
   await page.locator('#plus').filter({ visible: true }).click();
+  await page.getByRole('menuitem', { name: '快捷指令', exact: true }).click();
   await page.getByRole('menuitem', { name: new RegExp(`^${name}`) }).click();
   await page.getByLabel('给 AI 的指令', { exact: true }).filter({ visible: true }).press('Enter');
 }
@@ -169,7 +170,8 @@ try {
   await app.close();
   ({ app, page } = await launch());
   await page.getByText('最近').waitFor();
-  await page.locator('.recent').first().click();
+  await page.getByRole('button', { name: '最近项目', exact: true }).click();
+  await page.locator('.recent[data-project-id]').first().getByRole('button').first().click();
   await page.locator('.paper .node').first().waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), ['豆豆', '石头……石头说话了？']);
   await page.getByText('已拒绝，剧本没有改动').waitFor(); // the AI conversation is saved with the project
@@ -250,7 +252,7 @@ try {
   await app.evaluate(({ dialog }, p) => { dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [p] })) as typeof dialog.showOpenDialog; }, doc);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
   await page.getByRole('button', { name: '添加文件' }).click();
-  await page.getByText('导演意见.txt').waitFor();
+  await page.getByText('导演意见.txt', { exact: true }).first().waitFor();
   await page.getByRole('button', { name: '写作时参考' }).click();
   await page.getByRole('button', { name: '写作时参考 ✓' }).waitFor();
 
@@ -285,7 +287,10 @@ try {
   // "+" menu, keyboard only: ↓ through 添加 and 快捷指令 into 工作流, Enter picks 导演意见 → 规则 (the 13th row).
   await page.locator('#plus').filter({ visible: true }).click();
   await page.getByRole('menu', { name: '添加与快捷指令' }).waitFor();
-  for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowDown');
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('ArrowRight');
+  await page.locator('.pm-sub .pm-item:focus').waitFor();
+  for (let i = 0; i < 4; i++) await page.keyboard.press('ArrowDown');
   assert.match((await page.evaluate(() => document.activeElement?.textContent)) ?? '', /导演意见 → 规则/);
   await page.keyboard.press('Enter');
   await page.getByLabel('内容', { exact: true }).fill('第一集：笑点要来自孩子的视角，不要大人式的抖机灵。别让孩子玩手机。');
@@ -321,7 +326,8 @@ try {
   step('restart again: the whole bible persisted');
   await app.close();
   ({ app, page } = await launch());
-  await page.locator('.recent').first().click();
+  await page.getByRole('button', { name: '最近项目', exact: true }).click();
+  await page.locator('.recent[data-project-id]').first().getByRole('button').first().click();
   await page.locator('.paper .node').first().waitFor();
   await page.getByRole('button', { name: '角色', exact: true }).click();
   await page.getByRole('tab', { name: '关系' }).click();
@@ -333,7 +339,7 @@ try {
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   assert.match(await page.getByLabel('世界规则', { exact: true }).inputValue(), /只能“借”/);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
-  await page.getByText('导演意见.txt').waitFor();
+  await page.getByText('导演意见.txt', { exact: true }).first().waitFor();
   await page.getByRole('button', { name: '写作', exact: true }).click();
   await page.locator('.run', { hasText: '已加入规则库 1 条' }).waitFor(); // workflow runs are kept with the project
   await page.getByRole('tab', { name: '大纲' }).click();
@@ -343,9 +349,9 @@ try {
   await page.getByRole('button', { name: '设置', exact: true }).click();
   await page.getByText('测试工作室 · 第 1/3 台').waitFor();
   assert.ok(!(await page.locator('body').textContent())!.match(/积分余额|用量统计|credits/i));
-  await page.getByLabel('剧本字体').selectOption('song');
+  await page.getByRole('radio', { name: '宋体', exact: true }).click();
   assert.match(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-script')), /Songti SC/);
-  await page.getByLabel('剧本字体').selectOption('typewriter');
+  await page.getByRole('radio', { name: '打字机（Courier Prime + 仿宋）', exact: true }).click();
   await shot(page, '05-settings');
   const diag = join(tmp, 'diag.zip');
   await app.evaluate(({ dialog }, p) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath: p })) as typeof dialog.showSaveDialog; }, diag);
@@ -372,11 +378,11 @@ try {
   assert.ok(!readFileSync(arc).toString('latin1').includes('conversationId":"c1'), 'the Ancher conversation id is not exported');
   await page.getByRole('button', { name: '返回首页' }).last().click();
   await page.getByRole('button', { name: '导入项目' }).click();
-  await page.locator('.recent', { hasText: '（导入）' }).click();
+  await page.locator('.paper .node').first().waitFor();
   await page.locator('.paper .node').first().waitFor();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), original);
   await page.getByRole('button', { name: '知识库', exact: true }).click();
-  await page.getByText('导演意见.txt').waitFor(); // files travel with the project
+  await page.getByText('导演意见.txt', { exact: true }).first().waitFor(); // files travel with the project
   await page.getByRole('button', { name: '世界观', exact: true }).click();
   await page.locator('.tb td', { hasText: '笑点要来自孩子的视角' }).first().waitFor();
 
@@ -405,6 +411,33 @@ try {
   // The writer's edit (appended under 锁定核心) is what got locked in.
   assert.match(await page.getByLabel('锁定核心', { exact: true }).inputValue(), /旧东西里有爱[\s\S]*大壮最后也借到了鞋/);
 
+  step('制作: AI 分镜 for scene 1 (one undoable turn), cycle a shot size, image prompt, 制作设置 → 9:16, export the shot list; 分镜 view in the workspace');
+  await page.getByRole('button', { name: '制作', exact: true }).click();
+  await page.locator('.prod-strip .chip[aria-selected="true"]', { hasText: '1.' }).waitFor();
+  await page.getByRole('button', { name: 'AI 分镜' }).click();
+  await page.locator('.prod-shots .shot-row').nth(1).waitFor({ timeout: 20_000 });
+  assert.match(fake.prompts.at(-1)!, /setShots[\s\S]*每个镜头 15 秒左右/, 'the clip length goes into the instruction');
+  await page.locator('.prod-shots .shot-size').first().click();
+  await page.locator('.prod-shots .shot-size', { hasText: '中景' }).waitFor();
+  await page.getByRole('button', { name: '生成画面提示词' }).click();
+  await page.getByText('傍晚胡同口，暖橙色逆光').waitFor();
+  await page.getByRole('button', { name: '制作设置' }).click();
+  await page.getByRole('tab', { name: '竖屏 9:16' }).click();
+  await page.getByRole('radio', { name: /胡同水彩/ }).click();
+  await page.getByRole('button', { name: '确认' }).click();
+  await page.locator('.prod-frame.tall', { hasText: '9:16 · 胡同水彩' }).waitFor();
+  const csv = join(tmp, 'shots.csv');
+  await app.evaluate(({ dialog }, p) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath: p })) as typeof dialog.showSaveDialog; }, csv);
+  await page.getByRole('button', { name: '导出分镜表' }).click();
+  await page.getByText(`已导出到 ${csv}`).waitFor();
+  assert.match(readFileSync(csv, 'utf8'), /"1",".*?","1","中景","胡同口，夕阳斜照","4"/);
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await page.getByRole('tab', { name: '分镜' }).click();
+  assert.equal(await page.locator('.shot-scene').count(), 13);
+  await page.locator('.shot-scene').first().locator('.shot-row').nth(1).waitFor();
+  await shot(page, '13-shots');
+  await page.getByRole('tab', { name: '剧本' }).click();
+
   step('AI panel (Ancher agent UI): thinking + tip, 加入队列, long-bubble clamp, actions, save, new conversation + history');
   await page.getByRole('button', { name: '写作', exact: true }).click();
   await page.locator('.ag-hd .ico-btn[aria-label="新对话"]').filter({ visible: true }).click();
@@ -414,6 +447,8 @@ try {
   await ask.press('Enter');
   await page.locator('.ag-thinking .shimmer', { hasText: 'Thinking' }).waitFor();
   await page.locator('.wait-tip').waitFor();
+  const busyError = await page.evaluate(async () => { const id = (await window.api.projects.list())[0]!.id; try { await window.api.chat.newConversation(id); return ''; } catch (e) { return String(e); } });
+  assert.match(busyError, /等待当前生成完成/);
   assert.ok(await page.locator('.cmp-card.busy').count() === 1, 'running border while the agent works');
   const longMsg = '第二条：' + '豆豆蹲在门墩儿旁边，用手指头戳石狮子的鼻子。'.repeat(12);
   await ask.fill(longMsg);
@@ -443,7 +478,7 @@ try {
   await page.getByRole('menuitem', { name: /__SLOW__ 第一条/ }).click();
   await page.locator('.bubble', { hasText: '__SLOW__ 第一条' }).waitFor();
   await page.getByRole('button', { name: '知识库', exact: true }).click();
-  await page.getByText(/AI 回复 .*\.md/).waitFor();
+  await page.locator('.note-all').getByRole('button', { name: /AI 回复 .*\.md/ }).waitFor();
 
   step('Tab takes the ghost suggestion; an empty-chat tile prefills; 外观 → 暗色 switches to Ancher dark');
   await page.getByRole('button', { name: '写作', exact: true }).click();
@@ -483,6 +518,78 @@ try {
   await shot(page, '16-activity-dark');
   await page.getByRole('button', { name: '设置', exact: true }).click();
   await page.getByRole('radio', { name: '跟随系统' }).click();
+  step('final knowledge layout: full original text, metadata and shared content-page chat');
+  await page.getByRole('radio', { name: '亮色' }).click();
+  await page.getByRole('button', { name: '写作', exact: true }).click();
+  await page.getByRole('button', { name: '知识库', exact: true }).click();
+  const longNote = 'A'.repeat(21000) + '保留末尾正文';
+  const longFile = join(tmp, '长笔记.md'); writeFileSync(longFile, longNote);
+  await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [file] })) as typeof dialog.showOpenDialog; }, longFile);
+  await page.getByRole('button', { name: '添加文件', exact: true }).click();
+  await page.locator('.note-all').getByRole('button', { name: '长笔记.md', exact: true }).click();
+  await page.getByRole('button', { name: '编辑', exact: true }).click();
+  const body = page.getByLabel('笔记原文', { exact: true });
+  await page.waitForFunction(() => document.querySelector<HTMLTextAreaElement>('[aria-label="笔记原文"]')?.value.endsWith('保留末尾正文'));
+  await body.fill(longNote + '修改'); await body.blur();
+  await page.getByLabel('笔记标题').fill('客户参考笔记'); await page.getByLabel('笔记标题').blur();
+  await page.getByRole('button', { name: /添加标签/ }).click();
+  await page.getByLabel('添加标签').fill('Prompting'); await page.getByLabel('添加标签').press('Enter');
+  await page.getByLabel('笔记备注').fill('客户导演意见'); await page.getByLabel('笔记备注').blur();
+  const pid = await page.evaluate(async () => (await window.api.projects.list())[0]!.id);
+  const noteId = await page.evaluate(async (id) => (await window.api.projects.open(id)).bible.files.find((f) => f.title === '客户参考笔记')!.id, pid);
+  assert.equal(await page.evaluate(async ({ id, file }) => window.api.files.readBody(id, file), { id: pid, file: noteId }), longNote + '修改');
+  await page.getByRole('button', { name: '更多笔记操作' }).click();
+  await page.getByRole('menuitem', { name: '固定笔记', exact: true }).click();
+  await page.getByRole('button', { name: '新建合集', exact: true }).click();
+  await page.getByLabel('新合集名称').fill('客户资料'); await page.getByLabel('新合集名称').press('Enter');
+  await page.getByRole('tab', { name: '摘要', exact: true }).click();
+  await page.getByRole('button', { name: '生成摘要', exact: true }).click();
+  await page.getByText('笔记包含客户参考资料和导演意见。').waitFor();
+  await shot(page, '17-final-knowledge-light');
+  await page.getByRole('button', { name: '角色', exact: true }).click();
+  const beforeCount = await page.evaluate(async (id) => (await window.api.projects.open(id)).bible.characters.length, pid);
+  const dockAsk = page.getByLabel('给 AI 的指令').filter({ visible: true });
+  await dockAsk.fill('补充人物弧光'); await dockAsk.press('Enter');
+  await page.getByText('补充了人物弧光。', { exact: true }).filter({ visible: true }).waitFor();
+  await page.locator('.turn-line').filter({ visible: true }).last().getByRole('button', { name: '撤销' }).waitFor();
+  await page.waitForFunction(async ({ id, count }) => (await window.api.projects.open(id)).bible.characters.length === count + 1, { id: pid, count: beforeCount });
+  assert.ok(fake.prompts.at(-1)!.includes('当前页面：characters'));
+  await page.locator('.turn-line').filter({ visible: true }).last().getByRole('button', { name: '撤销' }).click();
+  assert.equal(await page.evaluate(async (id) => (await window.api.projects.open(id)).bible.characters.length, pid), beforeCount);
+  await shot(page, '18-final-characters-dock');
+  await page.getByRole('button', { name: '知识库', exact: true }).click();
+  await page.getByText('已撤销本轮 1 处修改').filter({ visible: true }).waitFor();
+  await page.getByRole('button', { name: '返回首页' }).last().click();
+  await page.getByRole('button', { name: '最近', exact: true }).click();
+  await page.getByRole('button', { name: /^删除 / }).first().click();
+  assert.ok(!(await page.evaluate(async () => window.api.projects.list())).some((p) => p.id === pid));
+  await page.getByRole('button', { name: '回收站', exact: true }).click();
+  await page.locator(`[data-project-id="${pid}"]`).getByRole('button', { name: '恢复', exact: true }).waitFor();
+  await shot(page, '19-final-trash');
+  await app.close(); ({ app, page } = await launch());
+  await page.getByRole('button', { name: '最近项目', exact: true }).click();
+  await page.getByRole('button', { name: '回收站', exact: true }).click();
+  await page.locator(`[data-project-id="${pid}"]`).getByRole('button', { name: '恢复', exact: true }).click();
+  await page.getByRole('button', { name: '最近', exact: true }).click();
+  await page.locator(`[data-project-id="${pid}"]`).getByRole('button').first().click();
+  await page.getByRole('button', { name: '知识库', exact: true }).click();
+  await page.locator('.note-all').getByRole('button', { name: '客户参考笔记' }).click();
+  assert.equal(await page.getByLabel('笔记备注').inputValue(), '客户导演意见');
+  assert.equal(await page.getByRole('button', { name: '删除标签 Prompting' }).count(), 1);
+  assert.equal(await page.getByRole('button', { name: '客户资料', exact: true }).count(), 1);
+  const savedNote = await page.evaluate(async ({ id, file }) => (await window.api.projects.open(id)).bible.files.find((f) => f.id === file)!, { id: pid, file: noteId });
+  assert.equal(savedNote.starred, true); assert.equal(savedNote.pinned, false); assert.equal(savedNote.revision, 2);
+  assert.equal(await page.evaluate(async ({ id, file }) => window.api.files.readBody(id, file), { id: pid, file: noteId }), longNote + '修改');
+  // Capture all content pages in both themes for visual review; empty and populated fixture data remain honest.
+  for (const theme of ['亮色', '暗色']) {
+    await page.getByRole('button', { name: '设置', exact: true }).click(); await page.getByRole('radio', { name: theme }).click();
+    for (const tab of ['写作', '角色', '地点', '道具', '世界观', '知识库', '制作']) {
+      await page.getByRole('button', { name: tab, exact: true }).click();
+      await page.locator(tab === '写作' ? '.writing-center' : '.content-main > *').first().waitFor({ state: 'visible' });
+      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+      await shot(page, `final-${tab}-${theme}`);
+    }
+  }
   console.log('\nE2E passed');
 } catch (e) {
   await shot(page, 'failure').catch(() => {});

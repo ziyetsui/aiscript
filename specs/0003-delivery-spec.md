@@ -1,6 +1,6 @@
 # 0003 · 从当前进度到交付客户：剩余工作规格（对照陈天 SDD）
 
-> 版本 v1.0 · 2026-10-09 · 上游：`0002-desktop-client-spec.md` v0.2（产品与架构仍以 0002 为准）
+> 版本 v1.1 · 2026-10-09 · 上游：`0002-desktop-client-spec.md` v0.2（产品与架构仍以 0002 为准）
 > 最终原型：`specs/images/prototypes/Ancher-Scripter-Prototype.html`（PR #34 合并后的综合版，默认「02 · Ancher 亮色」）
 > SDD 来源：`~/Developer/.crates/sdd-sop/saas-0-to-1-prompts.md`（陈天老师原提示词 S00–S11）
 
@@ -23,11 +23,11 @@
 5. 代码审查结果落盘（`specs/0004-code-review.md`），每条意见都标了「采纳 / 不采纳 + 理由」。
 6. 规格回写：0002 §11 进度、本文 §9 状态与代码一致。
 
-「发给客户」这一步本身（发邮件 / 发微信 / 上传网盘）是对外动作，由你来做；本轮产出的是可以直接发的目录和说明。
+最终目标包含发送给客户。先产出可核验交付目录；客户身份、机器码和发送渠道未提供时，保留待发送状态，不能报告已经发送。正式交付还需要 Windows 与 Intel Mac 的实际安装验收；无实机证据时仅能标识候选 beta 包。
 
 ---
 
-## 1. 现状快照（2026-10-09，main @ d5a0471）
+## 1. 现状快照（2026-10-09，工作目录 feat/shots-production；基线 5cdcbb7）
 
 | 方面 | 状态 | 证据 |
 |---|---|---|
@@ -39,7 +39,7 @@
 | 工作流 | ⌥1–⌥8 + ⌥9 一集剧本流水线，可取消 / 重试 / 重启恢复 | E2E |
 | 导出 | PDF / FDX / Fountain / TXT / DOCX / 整项目 .scripter / 诊断包 | E2E |
 | 打包 | electron-builder 配置齐（mac dmg+zip arm64/x64，win nsis x64），本机曾打出未签名 arm64 .app | PR #20 |
-| 测试 | 65 个单元测试 + 1 条覆盖 24 个场景的 Electron E2E，**本地全绿** | `pnpm test` / `e2e` |
+| 测试 | 68 个单元测试 + 1 条覆盖 24 个场景的 Electron E2E，**本轮 typecheck 和 68 单测通过；E2E 待重跑** | `pnpm test` / `e2e` |
 | CI | **GitHub Actions 全部未启动：账号付款失败或额度不足**（"recent account payments have failed or your spending limit needs to be increased"） | run 37881387922 |
 | 真实 key | 你本机已用真实 Ancher key 写过剧本；联网搜索返回「不可用」（疑似账号开关） | 实际使用 |
 
@@ -78,6 +78,7 @@
 | G4 | P4「分镜」视图 + P6 制作页（制作设置 + 镜头） | 没有 | 新增 |
 | G5 | P7 最近（项目网格、回收站） | 首页底部有「最近」列表，删除是硬删 | 新增最近页与回收站 |
 | G6 | P4 AI 面板为圆角停靠卡片 | 竖向分栏（360/380px） | 只改外观 |
+| G7 | 「+」菜单像 Claude 一样分级 | 一长串分组列表 | 顶层精简 + 级联子菜单 |
 
 ### G1 知识库（笔记式）
 
@@ -109,7 +110,7 @@
 - **分镜视图（工作区「分镜」）**：
   - 按场列出镜头，每个镜头有景别（远 / 全 / 中 / 近 / 特，点击切换）、描述、时长。
   - 「AI 拆镜」：单场或全部。走 Ancher 对话，返回 `<ops>` 新操作 `setShots{sceneId, shots[]}`，一轮可撤销。
-  - 数据存在 Loro 文档 `bible.shots`（按场景标题 + 序号定位，场景改名后按位置回退匹配）。
+  - 数据存在 Loro 文档 `bible.shots`（使用场景 heading 节点 ID 稳定关联；改标题仍保留镜头；删除场景后不导出孤立镜头）。
 - **制作页（导航「制作」）**：
   - 顶部场景标签条。
   - 镜头卡：片段时长 5/8/10/15s、镜头描述、添加镜头、AI 分镜。
@@ -126,6 +127,13 @@
 ### G6 工作区 AI 面板外观
 
 - 竖向分栏改成和 G2 同款的圆角停靠卡片（`margin 8px`、`radius 22px`、细描边）。行为不变。
+
+### G7 「+」菜单分级（2026-10-09 补充，参考 Claude 桌面端的「+」菜单）
+
+- **顶层**只放常用的：文件和图片（⌘U）、本地视频、知识库笔记，分隔线下面是「快捷指令 ›」「工作流 ›」。
+- **子菜单**向右弹出：每项是标题加一行灰色说明；工作流项右侧显示 ⌥1–⌥9。
+- **键盘**：↑↓ 移动，→ / Enter 打开子菜单，← / Esc 返回上一级，再按 Esc 关闭并把焦点还给「+」。鼠标悬停也能打开子菜单，子菜单不做动画（使用频繁）。
+- **范围**：工作区面板、停靠对话、首页输入框共用同一个菜单组件；首页没有项目上下文，不显示「工作流」。
 
 ---
 
@@ -153,7 +161,7 @@
 | E0 | 本 spec | `specs/0003-delivery-spec.md` | 合并 |
 | E1 | G1 知识库 + G2 停靠对话（5 个页面） | `DockChat` 组件、`Knowledge.tsx` 重写、`files.update`、`bible.files` 新字段 | E2E 新增：笔记改标题 / 标签、角色页对话写回角色卡并撤销 |
 | E2 | G4 分镜视图 + 制作页 + `setShots` op + 画面提示词 | `Shots`、`Production` 页面、core ops 与单测 | 单测：setShots 解析 / 撤销；E2E：AI 拆镜一场、导出 CSV |
-| E3 | G3 首页输入框、G5 最近与回收站、G6 面板外观 | `Home.tsx`、`Recents.tsx`、`projects.trash/restore/purge` | E2E：删除 → 回收站 → 恢复 |
+| E3 | G3 首页输入框、G5 最近与回收站、G6 面板外观、G7「+」菜单分级（原型 + 客户端） | `Home.tsx`、`Recents.tsx`、`projects.trash/restore/purge` | E2E：删除 → 回收站 → 恢复 |
 | E4 | 逐页对照原型走查（亮 / 暗）+ §6.2 自动化 | 修复 PR；`scripts/scan-secrets` | 走查表全部通过 |
 | E5 | 代码审查 + 回写 | `specs/0004-code-review.md`，采纳项的修复 PR；0002 §11 回写 | 每条意见都有结论 |
 | E6 | 打包与交付目录（R1–R7） | `delivery/…`、`安装与激活说明.md` | §0 第 1、2 条 |
@@ -217,10 +225,51 @@
 
 | 步 | 状态 | PR |
 |---|---|---|
-| E0 | 进行中 | — |
-| E1 | 未开始 | — |
-| E2 | 未开始 | — |
-| E3 | 未开始 | — |
-| E4 | 未开始 | — |
-| E5 | 未开始 | — |
-| E6 | 未开始 | — |
+| E0 | 已完成；主提示词 spec 为 0006 | 0003/0006 |
+| E1 | 实现与最终扩展 E2E 已通过 | 0005 |
+| E2 | core 与 Electron 验证通过 | 0005 |
+| E3 | 实现与最终扩展 E2E 已通过 | 0005 |
+| E4 | 逐项原型修复及截图复核中 | 0004/0005 |
+| E5 | 独立审查完成；采纳项已修复 | 0004 |
+| E6 | 三目标候选包已构建；签名/客户验收与发送待外部条件 | 0005 |
+
+
+## 10. 本轮执行基线与补充合同（2026-10-09）
+
+用户已要求「先输出 spec，然后按照 spec 彻底执行」：本文落盘后连续执行，无需重复请求流程批准。保留工作区已有改动。本轮以 final URL `http://localhost:4173/Ancher-Scripter-Prototype.html#p11-d2-mac-k2-a` 和综合原型源码为视觉基准；页面 hash 是知识库选中状态，不代表只实现知识库。
+
+### 10.1 实际验证的现状
+
+- `origin` 已是 `https://github.com/ziyeprompttheworld/aiscript.git`，目标仓库存在且为私有。原远端保留为 old-origin。发布源、工作流和 README 仍引用 ziyetsui，必须修复。
+- 当前分镜/制作、CSV、提示词、core ops 代码已存在未提交改动；不能重新生成或丢弃。68 单测和 typecheck 在本轮通过，E2E 和原型一致性需重新验证。
+- G1/G2/G3/G5/G7 尚有真实差距；0003 旧状态表不是完成证据。E2E mock 通过只能证明本地协议和行为，不证明真实 Ancher 联网搜索/媒体解析服务可用。
+- 当前 public.pem 已存在。复用现有签发密钥；不得轮换私钥。安装包只带公钥，发行者工具不进入 app.asar。
+
+### 10.2 文件与接口任务
+
+|任务|文件/接口|验收|
+|---|---|---|
+|T1 知识库笔记|core KnowledgeFile 增加 title/tags/memo/group/summary；files.update(id,fileId,patch)、files.createNote(id,title,body)；Knowledge.tsx|编辑标题、标签、备注、正文；分组/搜索；重开仍保留；文本离线可编辑，非文本原文只读|
+|T2 共享对话|Workspace 抽出同一 Chat 面板；App 将存活的 Workspace 对话挂载于内容页 dock；ai.write 增加 pageContext，主进程按页构建素材，不把资料当指令|切换角色/知识库仍是同一对话；写回并撤销；停止/排队/预览仍可用；页上下文进入实际 prompt|
+|T3 首页与菜单|Chat.Composer 共用两层输入；层级 PlusMenu；Home 支持创建时附件；未实现快速视频只显式提示|Enter 发送，中文 IME 不误发；菜单方向键/Esc；首页附件到新项目；无 key 仍可创建空白项目|
+|T4 最近与回收站|projects.trashList()/remove()/restore()/purge()；remove 改成移动目录；Recents.tsx|软删、退出重开、恢复；恢复不覆盖；清空仅经明确确认；正在生成的项目禁止移入回收站|
+|T5 发布工程|electron-builder、release.yml、updater、scripts/deliver.mjs、scan-package.mjs、docs/delivery|新 repo；默认手动更新；mac arm64/x64 dmg+zip、win x64 NSIS；公钥必需；交付脚本缺任一必需包失败；SHA256 与 manifest|
+|T6 联调/审查|扩展现有 E2E、独立审查 0004、执行证据 0005|门禁全绿；对照 11 页逐页记录；问题修复后再跑受影响测试|
+
+### 10.3 打包与外部条件
+
+保留锁定依赖，不为追逐最新版而升级整个运行时。electron-builder 26 配置按本地安装版本核验。官方资料：
+- https://www.electron.build/docs/features/multi-platform-build/ ：mac 签名需要 macOS，Windows 交叉构建受工具链限制，优先原生 Windows runner。
+- https://www.electronjs.org/docs/latest/api/safe-storage ：Windows 使用 DPAPI、mac 使用钥匙串；加密可用性需验证，不能降级为明文。
+- https://www.electron.build/v26/docs/features/build-lifecycle/ ：以 v26 的签名/构建流程为准。
+
+默认使用 1.0.0-beta.1 候选包，手动更新；有凭证才启用签名/公证。未签名不能宣称通过 Gatekeeper/SmartScreen。不安装未知 Wine、不关闭系统防护来制造通过结果；若本机交叉构建失败，记录具体错误并尝试原生 GitHub Actions。GitHub 付款旧结论需要重新核实，不能照抄为当前事实。
+
+### 10.4 验收分级与交付材料
+
+A 代码完成：T1–T4 行为与 final 原型一致、typecheck/单测/E2E 全绿。
+B 包完成：三个必需安装包+两个 mac zip、公钥有效、无私钥/API key、文件校验和、打包 mac 冷启动证据。
+C 客户交付：目标系统实际安装、签发该客户机器绑定码、接收人/渠道确定、发送后有可核验结果。
+任何层级未达成都留待办，不以「beta」自动豁免 C 或其他未完成要求。
+
+交付目录包含安装与激活说明、已知限制、SHA256SUMS、build-manifest.json；发行者说明包含密钥备份与按机器码签发方法，私钥和客户激活码不进入公开仓库。执行报告每项附命令/结果/路径，失败项写具体阻塞和下一步。

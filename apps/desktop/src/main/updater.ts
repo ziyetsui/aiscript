@@ -1,3 +1,4 @@
+declare const __AUTO_UPDATE__: boolean;
 // Auto-update from the public releases repo (spec 0002 §8, §13). Packaged builds only; never in dev or E2E.
 import { app, type BrowserWindow } from 'electron';
 import electronUpdater from 'electron-updater';
@@ -12,6 +13,8 @@ const send = (s: UpdateStatus) => { status = s; if (win && !win.isDestroyed()) w
 export function initUpdater(w: BrowserWindow): void {
   win = w;
   if (!app.isPackaged) return;
+  // Private source repository and beta builds use manual download until a signed public feed exists.
+  if (!__AUTO_UPDATE__) { send({ state: 'none', message: '此版本使用手动更新，请向提供者获取新版安装包' }); return; }
   const { autoUpdater } = electronUpdater;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -29,6 +32,7 @@ export function initUpdater(w: BrowserWindow): void {
 export const updateStatus = () => status;
 export function checkNow(): void {
   if (!app.isPackaged) { send({ state: 'none', message: '开发版不检查更新' }); return; }
+  if (!__AUTO_UPDATE__) { send({ state: 'none', message: '此版本使用手动更新，请向提供者获取新版安装包' }); return; }
   void electronUpdater.autoUpdater.checkForUpdates().catch(() => {});
 }
 export function installNow(): void {

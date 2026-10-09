@@ -14,6 +14,7 @@ extraResources:
     to: license-public.pem
 asar: true
 mac:
+  artifactName: Ancher-Scripter-${version}-mac-${arch}.${ext}
   category: public.app-category.productivity
   target:
     - target: dmg
@@ -28,6 +29,7 @@ mac:
 dmg:
   title: Ancher Scripter
 win:
+  artifactName: Ancher-Scripter-${version}-win-${arch}-setup.${ext}
   target:
     - target: nsis
       arch: [x64]
@@ -39,6 +41,6 @@ nsis:
   shortcutName: Ancher Scripter
 publish:
   provider: github
-  owner: ziyetsui
-  repo: aiscript-releases
+  owner: ziyeprompttheworld
+  repo: aiscript
   releaseType: draft

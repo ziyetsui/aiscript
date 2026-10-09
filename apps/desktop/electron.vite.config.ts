@@ -9,6 +9,7 @@ export default defineConfig({
   main: {
     build: { externalizeDeps: ws },
     define: {
+      __AUTO_UPDATE__: process.env.SCRIPTER_AUTO_UPDATE === 'true',
       __KEYGEN_ACCOUNT__: JSON.stringify(process.env.KEYGEN_ACCOUNT_ID ?? ''),
       __KEYGEN_VERIFY_KEY__: JSON.stringify(process.env.KEYGEN_VERIFY_KEY ?? ''),
     },

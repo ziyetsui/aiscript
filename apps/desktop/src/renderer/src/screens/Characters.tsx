@@ -15,6 +15,8 @@ export function Characters({ id }: { id: string }) {
   const [editing, setEditing] = useState<{ id: string | null; draft: Draft } | null>(null);
   const [error, setError] = useState('');
   const toast = useToast();
+  const [zoom, setZoom] = useState(1);
+  const [expanded, setExpanded] = useState(false);
   const st = p.st;
   const stats = useMemo(() => characterStats(st?.nodes ?? []), [st?.nodes]);
   if (!st) return null;
@@ -49,7 +51,7 @@ export function Characters({ id }: { id: string }) {
     <>
       <PageHead title="角色" count={chars.length}
         mid={<Tabs label="角色视图" value={view} onChange={setView} options={[['overview', '概览'], ['relations', '关系'], ['casting', '选角']]} />}
-        right={<button className="btn btn-primary" style={{ height: 30 }} onClick={() => { setError(''); setEditing({ id: null, draft: { ...EMPTY, color: PALETTE[chars.length % PALETTE.length]![1] } }); }}><Icon name="plus" size={13} />新角色</button>} />
+        right={<><button className="btn btn-ghost" aria-label="导出角色" onClick={async () => { try { const r = await window.api.exporter.save(id, 'characters'); if (r.ok) toast(`已导出到 ${r.path}`); } catch (e) { toast(String(e)); } }}><Icon name="export" size={14} /></button><button className="btn btn-primary" style={{ height: 30 }} onClick={() => { setError(''); setEditing({ id: null, draft: { ...EMPTY, color: PALETTE[chars.length % PALETTE.length]![1] } }); }}><Icon name="plus" size={13} />新角色</button></>} />
       {unregistered.length > 0 && (
         <div className="banner"><span style={{ flex: 1 }}>剧本里出现了还没建档的角色：{unregistered.join('、')}</span><button className="btn btn-ghost" style={{ height: 28 }} onClick={() => void registerAll()}>一键建档</button></div>
       )}
@@ -57,11 +59,11 @@ export function Characters({ id }: { id: string }) {
         chars.length === 0 ? (
           <div className="page dots"><div className="empty-state"><Icon name="users" size={34} /><div>还没有角色。新建一个，或者让 AI 写剧本时自动登记。</div></div></div>
         ) : (
-          <div className="page dots"><div className="grid-cards">
+          <div className="page dots character-board"><div className="grid-cards" style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', gridTemplateColumns: expanded ? 'repeat(auto-fill,minmax(320px,1fr))' : undefined }}>
             {chars.map((c) => <CharCard key={c.id} projectId={id} c={c} stat={stats.get(c.name.trim())} onEdit={() => { setError(''); setEditing({ id: c.id, draft: pick(c) }); }} onDelete={() => void remove(c)}
               onPortrait={async () => { try { const f = await window.api.files.pickImage(id); if (f) await p.update('characters', c.id, { portrait: f }); } catch (e) { toast(String((e as Error).message)); } }}
               onReverse={async () => { try { const r = await window.api.ai.reverse(id, 'characters', c.id); p.setSt(r.state); toast(`已写进 ${c.name} 的「外形」`); } catch (e) { toast(cleanErr(e)); } }} />)}
-          </div></div>
+          </div><div className="board-tools"><button aria-label="展开角色卡" aria-pressed={expanded} onClick={() => setExpanded((x) => !x)}>↔</button><button aria-label="缩小角色概览" onClick={() => setZoom((z) => Math.max(.6, z - .1))}>−</button><button aria-label="重置角色缩放" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</button><button aria-label="放大角色概览" onClick={() => setZoom((z) => Math.min(1.5, z + .1))}>+</button></div></div>
         )
       )}
       {view === 'relations' && <Relations chars={chars} rels={st.bible.relations} p={p} />}

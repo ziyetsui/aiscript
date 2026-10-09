@@ -18,6 +18,9 @@ const api: Api = {
     clear: call('keys:clear') as Api['keys']['clear'],
   },
   projects: {
+    trashList: call('projects:trashList') as Api['projects']['trashList'],
+    restore: call('projects:restore') as Api['projects']['restore'],
+    purge: call('projects:purge') as Api['projects']['purge'],
     list: call('projects:list') as Api['projects']['list'],
     create: call('projects:create') as Api['projects']['create'],
     open: call('projects:open') as Api['projects']['open'],
@@ -26,14 +29,18 @@ const api: Api = {
     edit: call('projects:edit') as Api['projects']['edit'],
     undoTurn: call('projects:undoTurn') as Api['projects']['undoTurn'],
     setOutline: call('projects:setOutline') as Api['projects']['setOutline'],
+    setProduction: call('projects:setProduction') as Api['projects']['setProduction'],
     exportArchive: call('projects:exportArchive') as Api['projects']['exportArchive'],
     importArchive: call('projects:importArchive') as Api['projects']['importArchive'],
   },
   ai: {
+    status: call('ai:status') as Api['ai']['status'],
     write: call('ai:write') as Api['ai']['write'],
     cancel: call('ai:cancel') as Api['ai']['cancel'],
     resolve: call('ai:resolve') as Api['ai']['resolve'],
     reverse: call('ai:reverse') as Api['ai']['reverse'],
+    summarizeNote: call('ai:summarizeNote') as Api['ai']['summarizeNote'],
+    scenePrompt: call('ai:scenePrompt') as Api['ai']['scenePrompt'],
     selection: call('ai:selection') as Api['ai']['selection'],
     onDelta(cb) {
       const h = (_e: Electron.IpcRendererEvent, d: { reqId: string; text: string }) => cb(d);
@@ -66,6 +73,12 @@ const api: Api = {
     move: call('bible:move') as Api['bible']['move'],
   },
   files: {
+    collection: call('files:collection') as Api['files']['collection'],
+    exportNote: call('files:exportNote') as Api['files']['exportNote'],
+    update: call('files:update') as Api['files']['update'],
+    createNote: call('files:createNote') as Api['files']['createNote'],
+    readBody: call('files:readBody') as Api['files']['readBody'],
+    saveBody: call('files:saveBody') as Api['files']['saveBody'],
     pick: call('files:pick') as Api['files']['pick'],
     addPaths: call('files:addPaths') as Api['files']['addPaths'],
     open: call('files:open') as Api['files']['open'],

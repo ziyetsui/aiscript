@@ -112,3 +112,36 @@ describe('reference brief', async () => {
     expect(r.length).toBeLessThan(1100);
   });
 });
+
+describe('storyboard shots', async () => {
+  const { shotsByScene, shotsCsv } = await import('../src/index.ts');
+  it('setShots replaces a scene\'s shots in one undoable turn; dropped with their heading', () => {
+    const d = new ScriptDoc();
+    const t0 = applyOps(d, parseReply('<ops>[{"op":"insertNode","type":"heading","text":"外景 胡同口 — 傍晚","id":"h1"},{"op":"insertNode","type":"action","text":"豆豆蹲着。"},{"op":"setShots","sceneId":"h1","shots":[{"size":"全景","desc":"胡同口，夕阳","dur":4},{"desc":"豆豆捏鞋"}]}]</ops>').ops, '第一场');
+    const head = d.nodes()[0]!;
+    let b = d.readBible();
+    expect(b.shots.map((s) => [s.sceneId, s.size, s.dur])).toEqual([[head.id, '全景', 4], [head.id, '中景', 3]]);
+    const r = parseReply(`<ops>[{"op":"setShots","sceneId":"${head.id}","shots":[{"size":"特写","desc":"鞋底的「林」字","dur":2}]}]</ops>`);
+    expect(r.errors).toEqual([]);
+    const t1 = applyOps(d, r.ops, '拆镜');
+    b = d.readBible();
+    expect(b.shots.map((s) => s.desc)).toEqual(['鞋底的「林」字']);
+    expect(shotsCsv(d.nodes(), b.shots)).toContain('"1","外景 胡同口 — 傍晚","1","特写"');
+    d.undoTurn(t1.id);
+    expect(d.readBible().shots).toHaveLength(2);
+    expect(shotsByScene(d.nodes(), d.readBible().shots)[0]!.shots).toHaveLength(2);
+    d.undoTurn(t0.id);
+    expect(d.readBible().shots).toEqual([]);
+  });
+
+  it('rejects an unknown shot size', () => {
+    expect(parseReply('<ops>[{"op":"setShots","sceneId":"x","shots":[{"size":"大远景","desc":"a"}]}]</ops>').errors).toHaveLength(1);
+  });
+
+  it('keeps production settings with defaults', () => {
+    const d = new ScriptDoc();
+    expect(d.production.aspect).toBe('16:9');
+    d.setProduction({ aspect: '9:16', style: '胡同水彩' });
+    expect(ScriptDoc.fromSnapshot(d.snapshot()).production).toMatchObject({ aspect: '9:16', style: '胡同水彩', kind: '叙事' });
+  });
+});

@@ -6,12 +6,19 @@ export const REPLY = '好的，先写开场。<ops>[{"op":"insertNode","type":"h
 
 /** "润色对白" rewrites the first dialogue line it sees in the packed script — exercises the modification preview. */
 function replyFor(prompt: string): string {
+  if (prompt.includes('你是笔记摘要助手')) return '笔记包含客户参考资料和导演意见。';
+  if (prompt.includes('用户：补充人物弧光')) return '补充了人物弧光。<ops>[{"op":"upsertCharacter","name":"弧光测试角色","desc":"从害怕变化到勇敢迈出一步"}]</ops>';
   if (prompt.includes('用户：总结大纲') || prompt.includes('用户：总结一下现在的大纲')) return '把大纲整理好了。<ops>[{"op":"appendOutline","text":"一、豆豆发现门墩儿会说话\\n二、两人约定保守秘密"}]</ops>';
   if (prompt.includes('用户：润色对白')) {
     const m = prompt.match(/\[([a-z0-9]+)\] dialogue: (.*)/);
     if (m) return `把这句改得更像孩子说话。<ops>[{"op":"updateNode","id":"${m[1]}","text":"石头……石头它会说话？！"}]</ops>`;
   }
   const r = (o: unknown) => `好的。<result>${JSON.stringify(o)}</result>`;
+  if (/用户：给(第 \d+ 场|全部 \d+ 场).*拆分镜/.test(prompt)) {
+    const ids = [...prompt.matchAll(/sceneId 是 (\S+?)）/g)].map((m) => m[1]);
+    return `拆好了。<ops>${JSON.stringify(ids.map((sceneId) => ({ op: 'setShots', sceneId, shots: [{ size: '全景', desc: '胡同口，夕阳斜照', dur: 4 }, { size: '特写', desc: '豆豆捏着开胶的鞋头', dur: 2 }] })))}</ops>`;
+  }
+  if (prompt.includes('写一条生图提示词')) return '{"local":"傍晚胡同口，暖橙色逆光，小男孩蹲在石门墩旁","en":"Beijing hutong at dusk, warm backlight, a boy crouching by a stone door pier"}';
   if (prompt.includes('为这一集少儿动画')) return '1. 孩子之间比鞋子很常见。';
   if (prompt.includes('写这一集的故事')) return r({ story: '豆豆想要一双会发光的鞋。门墩儿借来一双旧球鞋，鞋底刻着姥爷的名字。', core: { theme: '旧东西里有爱', keyScenes: ['鞋底刻字被发现'], motives: ['豆豆：不想输给大壮'] } });
   if (prompt.includes('把故事拆成')) return r({ scenes: Array.from({ length: 13 }, (_, i) => ({ heading: `外景 胡同口 — 日 ${i + 1}`, summary: `第 ${i + 1} 场`, key: i === 9 })) });

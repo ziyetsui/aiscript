@@ -1,5 +1,4 @@
 e2e/shots/
 out/
 release/
-# The real key is written by CI from vars.LICENSE_PUBLIC_KEY (or copied after `pnpm license keypair`).
-resources/license-public.pem
+# The public verification key is tracked; the issuer private key stays outside this repository.

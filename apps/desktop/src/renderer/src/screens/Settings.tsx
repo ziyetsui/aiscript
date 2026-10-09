@@ -4,12 +4,15 @@ import { SCRIPT_FONTS, applyFont, currentFont, type ScriptFont } from '../lib/ed
 import { bell, setSound, setVolume, soundOn, soundVolume } from '../lib/typewriter.ts';
 import type { KeyStatus, LicenseStatus, UpdateStatus } from '../../../shared/ipc.ts';
 import { KeyForm } from './Keys.tsx';
-import { useToast } from '../lib/ui.tsx';
+import type { Route } from '../App.tsx';
+import { Icon, useToast } from '../lib/ui.tsx';
 
-export function Settings({ license, keys, onChange }: { license: Extract<LicenseStatus, { state: 'active' }>; keys: KeyStatus; onChange: () => void }) {
+export function Settings({ license, keys, onChange, go, back }: { license: Extract<LicenseStatus, { state: 'active' }>; keys: KeyStatus; onChange: () => void; go: (r: Route) => void; back?: Route }) {
   const toast = useToast();
   const [ver, setVer] = useState('');
   const [up, setUp] = useState<UpdateStatus>({ state: 'idle' });
+  const [typing, setTyping] = useState(() => localStorage.getItem('script-typing') !== 'false');
+  const [defaultExport, setDefaultExport] = useState(() => localStorage.getItem('script-default-export') || 'pdf');
   const [font, setFont] = useState<ScriptFont>(currentFont());
   const [sound, setSoundOn] = useState(soundOn());
   const [vol, setVol] = useState(soundVolume());
@@ -31,9 +34,7 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
     onChange();
   }
   return (
-    <>
-      <div className="topbar drag"><b>设置</b></div>
-      <div className="settings">
+    <div className="collection-shell"><aside className="collection-nav"><b style={{ padding: '6px 12px', fontSize: 18 }}>设置</b>{['激活与授权', '模型与密钥', '外观', '编辑器', '版本与更新', '项目数据'].map((name, i) => <button key={name} onClick={() => document.querySelectorAll('.settings > section')[i]?.scrollIntoView({ block: 'start' })}>{name}</button>)}<span className="grow" /><button aria-label={back?.name === 'project' ? '写作' : '返回首页'} onClick={() => go(back?.name === 'project' ? { ...back, tab: 'write' } : back ?? { name: 'home' })}><Icon name="home" size={15} />返回</button>{back?.name === 'project' && <button aria-label="返回首页" onClick={() => go({ name: 'home' })}>返回首页</button>}</aside><div className="settings"><h1 style={{ fontSize: 28, margin: '0 0 16px' }}>设置</h1>
         <section className="card">
           <h2 style={{ fontSize: 15 }}>激活与授权</h2>
           <dl className="kv">
@@ -66,14 +67,15 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
               <button key={k} role="radio" aria-checked={theme === k} aria-selected={theme === k} onClick={async () => setTheme(await window.api.app.setTheme(k))}>{l}</button>
             ))}
           </div>
-          <h2 style={{ fontSize: 15, marginTop: 8 }}>编辑器</h2>
+        </section><section className="card">
+          <h2 style={{ fontSize: 15 }}>编辑器</h2>
           <div className="field">
             <label htmlFor="sf">剧本字体</label>
-            <select id="sf" className="input" value={font} onChange={(e) => { const f = e.target.value as ScriptFont; setFont(f); applyFont(f); }}>
-              {(Object.keys(SCRIPT_FONTS) as ScriptFont[]).map((k) => <option key={k} value={k}>{SCRIPT_FONTS[k].label}</option>)}
-            </select>
+            <div className="seg" role="radiogroup" aria-label="剧本字体">{(Object.keys(SCRIPT_FONTS) as ScriptFont[]).map((k) => <button key={k} role="radio" aria-checked={font === k} onClick={() => { setFont(k); applyFont(k); }}>{SCRIPT_FONTS[k].label}</button>)}</div>
             <div className="quote" style={{ fontSize: 14 }}>外景 胡同口 — 傍晚　门墩儿：别捏了，它要说话的。</div>
           </div>
+          <label className="toggle"><input type="checkbox" checked={typing} onChange={(e) => { setTyping(e.target.checked); localStorage.setItem('script-typing', String(e.target.checked)); }} />AI 剧本逐字生成</label>
+          <div className="field"><label>默认导出格式</label><div className="seg" role="radiogroup" aria-label="默认导出格式">{[['pdf', 'PDF'], ['docx', 'Word'], ['fdx', 'Final Draft'], ['fountain', 'Fountain'], ['txt', 'TXT']].map(([v, label]) => <button key={v} role="radio" aria-checked={defaultExport === v} onClick={() => { setDefaultExport(v!); localStorage.setItem('script-default-export', v!); }}>{label}</button>)}</div></div>
           <label className="toggle"><input type="checkbox" checked={sound} onChange={(e) => { setSound(e.target.checked); setSoundOn(e.target.checked); }} />AI 写作时播放打字机音效</label>
           <label className="fl" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>音量
             <input type="range" min={0} max={1} step={0.05} value={vol} disabled={!sound} aria-label="打字机音量" style={{ flex: 1, accentColor: 'var(--primary)' }}
@@ -100,6 +102,6 @@ export function Settings({ license, keys, onChange }: { license: Extract<License
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>诊断包只含版本信息和错误日志，不含密钥和剧本内容。遇到问题时发给提供者即可。</p>
         </section>
       </div>
-    </>
+    </div>
   );
 }

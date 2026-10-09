@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 // Workspace (prototype P4): scenes outline · script page · AI panel. AI edits arrive as one undoable turn
 // and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -7,6 +8,7 @@ import { RunCard, WF_MENU, WorkflowLauncher } from '../components/Workflows.tsx'
 import { Activity } from '../components/Activity.tsx';
 import { AssistantMessage, ChatHeader, Composer, EmptyChat, JumpPill, Thinking, UserBubble } from '../components/Chat.tsx';
 import { SelectionBar } from '../components/SelectionBar.tsx';
+import { ShotsView, shotInstruction } from '../components/Shots.tsx';
 import type { Route } from '../App.tsx';
 import { bell, carriageReturn, keyClick, onSound, setSound, soundOn } from '../lib/typewriter.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
@@ -15,12 +17,13 @@ import { Editor, placeCaret } from './Editor.tsx';
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 const visibleReply = (t: string) => t.split('<ops>')[0]!.trim();
 
-export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: string; pending?: string; pendingEpisode?: string; keys: KeyStatus; go: (r: Route) => void }) {
+export function Workspace({ id, pending, pendingWeb, pendingEpisode, keys, go, dockHost, pageContext }: { id: string; pending?: string; pendingWeb?: boolean; pendingEpisode?: string; keys: KeyStatus; go: (r: Route) => void; dockHost?: HTMLDivElement | null; pageContext?: { page: string; fileId?: string } }) {
   const [st, setSt] = useState<ProjectState | null>(null);
   const [nodes, setNodes] = useState<ScriptNode[]>([]);
   const [asking, setAsking] = useState<string | null>(null); // the user's message while its reply is in flight
   const [input, setInput] = useState('');
-  const [web, setWeb] = useState(false);
+  const [web, setWeb] = useState(pendingWeb ?? false);
+  const [externalBusy, setExternalBusy] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
   const [stream, setStream] = useState('');
   const [hidden, setHidden] = useState<Set<string>>(new Set());
@@ -28,7 +31,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
   const [fresh, setFresh] = useState<Set<string>>(new Set());
   const [sound, setSoundState] = useState(soundOn());
   const [exportOpen, setExportOpen] = useState(false);
-  const [view, setView] = useState<'script' | 'outline'>('script');
+  const [view, setView] = useState<'script' | 'outline' | 'shots'>('script');
   const [launcher, setLauncher] = useState<{ id: WorkflowId; focusId: string | null; focusText: string | null } | null>(null);
   const lastFocus = useRef<string | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -45,8 +48,22 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
   const [queue, setQueue] = useState<string[]>([]);
   const [ghost, setGhost] = useState(''); // Tab suggestion after a turn
 
-  const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); }, []);
+  const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); window.dispatchEvent(new CustomEvent('scripter:project', { detail: id })); }, [id]);
   useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, apply]);
+  useEffect(() => { void window.api.projects.open(id).then(apply); }, [id, pageContext?.page, pageContext?.fileId]);
+  useEffect(() => window.api.files.onProjectChanged((e) => { if (e.projectId === id) void window.api.projects.open(id).then(apply); }), [id, apply]);
+  useEffect(() => {
+    let live = true; let timer: ReturnType<typeof setTimeout>;
+    const check = async () => {
+      const status = await window.api.ai.status(id);
+      if (!live) return;
+      setExternalBusy(status.busy);
+      if (status.busy) timer = setTimeout(() => void check(), 700);
+      else void window.api.projects.open(id).then(apply);
+    };
+    void check(); return () => { live = false; clearTimeout(timer); };
+  }, [id, pageContext?.page, apply]);
+  useEffect(() => { const h = (e: Event) => { if ((e as CustomEvent<string>).detail === id) void window.api.projects.open(id).then(apply); }; window.addEventListener('scripter:note', h); return () => window.removeEventListener('scripter:note', h); }, [id, apply]);
   useEffect(() => onSound(setSoundState), []);
   useEffect(() => window.api.ai.onDelta((d) => { if (d.reqId === running) setStream((s) => s + d.text); }), [running]);
   const [acts, setActs] = useState<ActivityRow[]>([]); // live agent activity for the running request
@@ -108,7 +125,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
 
   /** Reveal newly inserted nodes one by one, character by character. */
   async function typeOut(newIds: string[], all: ScriptNode[]) {
-    if (reduced() || !newIds.length) { setFresh(new Set(newIds)); return; }
+    if (reduced() || localStorage.getItem('script-typing') === 'false' || !newIds.length) { setFresh(new Set(newIds)); return; }
     setHidden(new Set(newIds));
     for (const nid of newIds) {
       const n = all.find((x) => x.id === nid);
@@ -130,6 +147,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
   async function send(text: string) {
     const t = text.trim();
     if (!t) return;
+    if (externalBusy && !running) { toast('请等待当前任务完成'); return; }
     if (!keys.ancher) { toast('先到设置里填写 Ancher key'); return; }
     if (running) { setQueue((q) => [...q, t]); setInput(''); return; }
     stick.current = true;
@@ -144,7 +162,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     const before = new Set(nodes.map((n) => n.id));
     let r: AiWriteResult;
     try {
-      r = await window.api.ai.write({ reqId, projectId: id, instruction: t, webSearch: web, focusId });
+      r = await window.api.ai.write({ reqId, projectId: id, instruction: t, webSearch: web, focusId, pageContext });
     } catch (e) {
       r = { ok: false, narration: '', applied: 0, errors: [], citations: [], message: String(e) };
     }
@@ -245,64 +263,21 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
     if (st && title.trim() && title !== st.meta.title) setSt(await window.api.projects.rename(id, title));
   }
 
-  
+
   if (!st) return null;
   const shown = nodes
     .filter((n) => !hidden.has(n.id))
     .map((n) => (typing && n.id === typing.id ? { ...n, text: n.text.slice(0, typing.shown) } : n));
 
-  return (
-    <>
-      <div className="topbar drag">
-        <button className="btn btn-quiet no-drag" onClick={() => go({ name: 'home' })} aria-label="返回首页"><Icon name="home" size={15} /></button>
-        <input className="no-drag" defaultValue={st.meta.title} key={st.meta.title} onBlur={(e) => void rename(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-          aria-label="剧本标题" style={{ border: 0, background: 'transparent', fontWeight: 600, fontSize: 15, outline: 'none', minWidth: 120 }} />
-        <span className="muted tnum" style={{ fontSize: 12 }}>{st.scenes.length} 场 · {st.meta.words} 字</span>
-        <span style={{ flex: 1 }} />
-        <label className="toggle no-drag" title="打字机音效"><input type="checkbox" checked={sound} onChange={(e) => { setSound(e.target.checked); setSoundState(e.target.checked); }} />打字机音效</label>
-        <span className="no-drag" style={{ position: 'relative' }}>
-          <button className="btn btn-ghost" aria-haspopup="menu" aria-expanded={exportOpen} onClick={() => setExportOpen((o) => !o)}><Icon name="export" size={14} />导出</button>
-          {exportOpen && (
-            <div className="card menu" role="menu" style={{ right: 0, top: 'calc(100% + 6px)', transformOrigin: 'top right' }} onMouseLeave={() => setExportOpen(false)}>
-              {([['pdf', 'PDF', '发给导演、打印'], ['docx', 'Word（.docx）', '继续编辑、走审批'], ['fdx', 'Final Draft（.fdx）', '行业标准格式'], ['fountain', 'Fountain', '纯文本剧本标准'], ['txt', 'TXT', '纯文本']] as const).map(([f, t, d]) => (
-                <button key={f} role="menuitem" onClick={() => void doExport(f)}><span><b>{t}</b><br /><span className="muted" style={{ fontSize: 12 }}>{d}</span></span></button>
-              ))}
-              <div style={{ height: 1, background: 'var(--line)', margin: '4px 6px' }} />
-              <button role="menuitem" onClick={async () => { setExportOpen(false); const r = await window.api.projects.exportArchive(id); if (r.ok) toast(`已导出整个项目到 ${r.path}`); }}>
-                <span><b>整个项目（.scripter）</b><br /><span className="muted" style={{ fontSize: 12 }}>含设定、规则库、知识库和对话，换电脑时用</span></span></button>
-            </div>
-          )}
-        </span>
-      </div>
-      <div className="ws" ref={root}>
-        <aside className="outline" aria-label="场景">
-          <div className="view-switch" role="tablist" aria-label="视图">
-            <button role="tab" aria-current={view === 'outline'} aria-selected={view === 'outline'} onClick={() => setView('outline')}><Icon name="book" size={14} />大纲</button>
-            <button role="tab" aria-current={view === 'script'} aria-selected={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={14} />剧本</button>
-          </div>
-          <div className="eyebrow">场景</div>
-          {st.scenes.length === 0 ? <div className="muted" style={{ fontSize: 12, padding: '4px 8px' }}>写下第一个场景标题后会出现在这里</div>
-            : st.scenes.map((s) => (
-              <button key={s.nodeId} title={s.heading} onClick={() => jumpTo(s.nodeId)}>
-                <span className="tnum muted">{s.index}.</span> {s.heading || '（未命名场景）'}
-              </button>
-            ))}
-        </aside>
-        <SelectionBar container={view === 'script' ? paperRef.current : null} />
-        <div ref={paperRef} className="paper-scroll" onFocus={(e) => { const nid = (e.target as HTMLElement).dataset?.id; if (nid) lastFocus.current = nid; }}>
-          {view === 'script'
-            ? <Editor nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
-            : <textarea className="outline-doc" aria-label="大纲" key={outlineKey} defaultValue={st.outline} onChange={(e) => onOutline(e.target.value)}
-                placeholder={'写下这一集的故事大纲：起、承、转、合，重场戏，人物动机。\n「写飘检查」会对照这里检查剧本有没有跑偏。'} />}
-        </div>
-        <section className="agent" aria-label="AI 编剧">
-          <ChatHeader title={chatTitle(st.chat)} conversations={st.conversations} disabled={!!running}
+  const chatPanel = (
+<section className="agent" aria-label="AI 编剧">
+          <ChatHeader title={pageContext?.page && pageContext.page !== 'write' ? ({ characters: '关于这些角色', locations: '关于这些地点', props: '关于这些道具', world: '关于这个世界观', knowledge: '关于这条笔记', production: '关于这场制作' } as Record<string, string>)[pageContext.page]! : chatTitle(st.chat)} conversations={st.conversations} disabled={!!running || externalBusy}
             onNew={async () => { apply(await window.api.chat.newConversation(id)); setQueue([]); toast('已开始新对话'); }}
             onOpen={async (cid) => { apply(await window.api.chat.openConversation(id, cid)); stick.current = true; }}
             onSave={async () => { try { const r = await window.api.chat.saveAsNote(id, null); setSt(r.state); toast(`已存进知识库：${r.name}`); } catch (e) { toast(cleanErr(e)); } }} />
           <div className="ag-body">
             <div className="ag-feed" ref={feed} onScroll={onFeedScroll} aria-live="polite">
-              {st.chat.length === 0 && !running && !asking && <EmptyChat onAction={onAction} />}
+              {st.chat.length === 0 && !running && !asking && (!pageContext || pageContext.page === 'write') && <EmptyChat onAction={onAction} />}
               {st.chat.map((m) => {
                 const undone = !!m.turnId && st.turns.find((t) => t.id === m.turnId)?.undone;
                 const turnLine = m.turnId && (
@@ -331,11 +306,75 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
             <JumpPill show={awayFromBottom || unread > 0} unread={unread} onClick={toLatest} />
           </div>
           {launcher && <div className="launcher-wrap"><WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} /></div>}
-          <Composer value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input)} onStop={() => { if (running) void window.api.ai.cancel(running); }}
-            running={!!running} queue={queue} onDequeue={(i) => setQueue((q) => q.filter((_, k) => k !== i))} ghost={ghost}
+          {pageContext && pageContext.page !== 'write' && <div className="dock-context"><Icon name="doc" size={14} /><span>{pageContext.fileId ? (st.bible.files.find((f) => f.id === pageContext.fileId)?.title || st.bible.files.find((f) => f.id === pageContext.fileId)?.name || '当前笔记') : ({ characters: '角色表', locations: '地点表', props: '道具表', world: '世界观', production: '制作' } as Record<string, string>)[pageContext.page]}<small>当前页面参考</small></span></div>}
+          <Composer value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
+            running={!!running || externalBusy} queue={queue} onDequeue={(i) => setQueue((q) => q.filter((_, k) => k !== i))} ghost={ghost}
             web={web} onWeb={setWeb} onAction={onAction}
             mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })), ...st.bible.files.map((f) => ({ label: f.name, kind: '笔记' }))]} />
         </section>
+  );
+
+  const pageHeader = (
+      <div className="topbar drag">
+        <button className="btn btn-quiet no-drag" onClick={() => go({ name: 'home' })} aria-label="返回首页"><Icon name="home" size={15} /></button>
+        <input className="no-drag" defaultValue={st.meta.title} key={st.meta.title} onBlur={(e) => void rename(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          aria-label="剧本标题" style={{ border: 0, background: 'transparent', fontWeight: 600, fontSize: 15, outline: 'none', minWidth: 120 }} />
+        <span className="muted tnum" style={{ fontSize: 12 }}>{st.scenes.length} 场 · {st.meta.words} 字</span>
+        <span style={{ flex: 1 }} />
+        <label className="toggle no-drag" title="打字机音效"><input type="checkbox" checked={sound} onChange={(e) => { setSound(e.target.checked); setSoundState(e.target.checked); }} />打字机音效</label>
+        <span className="no-drag" style={{ position: 'relative' }}>
+          <button className="btn btn-ghost" aria-haspopup="menu" aria-expanded={exportOpen} onClick={() => setExportOpen((o) => !o)}><Icon name="export" size={14} />导出</button>
+          {exportOpen && (
+            <div className="card menu" role="menu" style={{ right: 0, top: 'calc(100% + 6px)', transformOrigin: 'top right' }} onMouseLeave={() => setExportOpen(false)}>
+              <button role="menuitem" onClick={() => { const f = localStorage.getItem('script-default-export') || 'pdf'; void doExport(['pdf', 'docx', 'fdx', 'fountain', 'txt'].includes(f) ? f as ExportFormat : 'pdf'); }}>按默认格式导出</button>
+              {([['pdf', 'PDF', '发给导演、打印'], ['docx', 'Word（.docx）', '继续编辑、走审批'], ['fdx', 'Final Draft（.fdx）', '行业标准格式'], ['fountain', 'Fountain', '纯文本剧本标准'], ['txt', 'TXT', '纯文本']] as const).map(([f, t, d]) => (
+                <button key={f} role="menuitem" onClick={() => void doExport(f)}><span><b>{t}</b><br /><span className="muted" style={{ fontSize: 12 }}>{d}</span></span></button>
+              ))}
+              <div style={{ height: 1, background: 'var(--line)', margin: '4px 6px' }} />
+              <button role="menuitem" onClick={async () => { setExportOpen(false); const r = await window.api.projects.exportArchive(id); if (r.ok) toast(`已导出整个项目到 ${r.path}`); }}>
+                <span><b>整个项目（.scripter）</b><br /><span className="muted" style={{ fontSize: 12 }}>含设定、规则库、知识库和对话，换电脑时用</span></span></button>
+            </div>
+          )}
+        </span>
+      </div>
+  );
+
+  return (
+    <>
+
+      <div className="ws" ref={root}>
+        <aside className="outline" aria-label="场景">
+          <div className="project-side-title"><b>{st.meta.title}</b><button aria-label="添加场景" onClick={async () => { const nodeId = crypto.randomUUID().replaceAll('-', ''); await edit([{ op: 'insert', after: 'end', type: 'heading', text: '', id: nodeId }]); setView('script'); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${nodeId}"]`), 'end')); }}><Icon name="plus" size={14} /></button></div>
+          <div className="episode-label">第 1 集</div>
+          <div className="view-switch" role="tablist" aria-label="视图">
+            <button role="tab" aria-current={view === 'outline'} aria-selected={view === 'outline'} onClick={() => setView('outline')}><Icon name="book" size={14} />大纲</button>
+            <button role="tab" aria-current={view === 'script'} aria-selected={view === 'script'} onClick={() => setView('script')}><Icon name="doc" size={14} />剧本</button>
+            <button role="tab" aria-current={view === 'shots'} aria-selected={view === 'shots'} onClick={() => { setView('shots'); void window.api.projects.open(id).then(apply); }}><Icon name="film" size={14} />分镜</button>
+          </div>
+          <div className="eyebrow">场景</div>
+          {st.scenes.length === 0 ? <div className="muted" style={{ fontSize: 12, padding: '4px 8px' }}>写下第一个场景标题后会出现在这里</div>
+            : st.scenes.map((s) => (
+              <button key={s.nodeId} title={s.heading} onClick={() => jumpTo(s.nodeId)}>
+                <span className="tnum muted">{s.index}.</span> {s.heading || '（未命名场景）'}
+              </button>
+            ))}
+        </aside>
+        <div className="writing-center">
+        {pageHeader}
+        <SelectionBar container={view === 'script' ? paperRef.current : null} />
+        <div ref={paperRef} className="paper-scroll" onFocus={(e) => { const nid = (e.target as HTMLElement).dataset?.id; if (nid) lastFocus.current = nid; }}>
+          {view === 'script' && <div className="script-toolbar" role="toolbar" aria-label="剧本格式">{([['heading','film','场景'], ['action','pen','动作'], ['character','user','角色'], ['parenthetical','indent','括号'], ['dialogue','chat','对白'], ['transition','export','转场'], ['shot','eye','镜头'], ['note','doc','注释'], ['subtitle','book','字幕']] as const).map(([type, icon, label]) => <button key={type} aria-label={`设为${label}`} onMouseDown={(e) => e.preventDefault()} onClick={async () => { const nodeId = lastFocus.current; if (nodeId && nodes.some((n) => n.id === nodeId)) { await edit([{ op: 'type', id: nodeId, type }]); placeCaret(document.querySelector(`[data-id="${nodeId}"]`), 'end'); } else { const newId = crypto.randomUUID().replaceAll('-', ''); await edit([{ op: 'insert', after: 'end', type, text: '', id: newId }]); requestAnimationFrame(() => placeCaret(document.querySelector(`[data-id="${newId}"]`), 'end')); } }}><Icon name={icon} size={14} /><span>{label}</span></button>)}</div>}
+          {view === 'script'
+            ? <Editor nodes={shown} typingId={typing?.id ?? null} freshIds={fresh} edit={edit} setLocal={setNodes} />
+            : view === 'shots'
+              ? <ShotsView st={st} projectId={id} setSt={apply} busy={!!running} onAI={(sc) => void send(shotInstruction(sc))}
+                  onAll={() => void send(`给全部 ${st.scenes.length} 场拆分镜：每场一个 setShots（sceneId 用场景标题的节点 id），景别有变化，一句话写清画面和动作。只写分镜，不要改剧本。`)}
+                  onExport={() => void doExport('shots')} />
+            : <textarea className="outline-doc" aria-label="大纲" key={outlineKey} defaultValue={st.outline} onChange={(e) => onOutline(e.target.value)}
+                placeholder={'写下这一集的故事大纲：起、承、转、合，重场戏，人物动机。\n「写飘检查」会对照这里检查剧本有没有跑偏。'} />}
+        </div>
+        </div>
+        {dockHost ? createPortal(chatPanel, dockHost) : chatPanel}
       </div>
     </>
   );
@@ -344,7 +383,7 @@ export function Workspace({ id, pending, pendingEpisode, keys, go }: { id: strin
 const TYPE_LABEL: Record<string, string> = { heading: '场景', action: '动作', character: '角色', parenthetical: '括号', dialogue: '对白', transition: '转场', shot: '镜头', note: '注释', subtitle: '字幕' };
 
 /** Modification preview: what would change, accept or reject. Nothing touches the script until 接受. */
-function PreviewCard({ m, onResolve }: { m: ChatMsg; onResolve: (accept: boolean) => void }) {
+export function PreviewCard({ m, onResolve }: { m: ChatMsg; onResolve: (accept: boolean) => void }) {
   const pv = m.preview!;
   const label = { open: '', accepted: '已接受并写入', rejected: '已拒绝，剧本没有改动', stale: '剧本已变化，没有写入', failed: '写入失败，剧本没有改动' }[pv.state];
   return (
@@ -358,7 +397,7 @@ function PreviewCard({ m, onResolve }: { m: ChatMsg; onResolve: (accept: boolean
             {it.kind === 'delete' && <del>{it.before}</del>}
             {it.kind === 'insert' && <ins><span className="muted">{TYPE_LABEL[it.type] ?? it.type} · </span>{it.text}</ins>}
             {it.kind === 'retype' && <span>{it.text}<span className="muted">（{TYPE_LABEL[it.from]} → {TYPE_LABEL[it.to]}）</span></span>}
-            {it.kind === 'bible' && <span className="muted">{it.text}</span>}
+            {it.kind === 'bible' && <span><span className="muted">{it.text}</span>{it.after && <ins style={{ whiteSpace: 'pre-wrap', display: 'block' }}>{it.after}</ins>}</span>}
             {it.kind === 'outline' && (it.mode === 'append'
               ? <ins><span className="muted">大纲 · </span>{it.after}</ins>
               : <span>{it.before && <del>{it.before}</del>}<ins><span className="muted">大纲 · </span>{it.after}</ins></span>)}

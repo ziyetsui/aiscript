@@ -1,8 +1,8 @@
 // Projects live in userData/projects/<id>/: script.loro (Loro snapshot, the source of truth) + meta.json.
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { ScriptDoc, scenes, wordCount, type BibleItem, type BibleKind, type Op, type Turn } from '@scripter/core';
+import { ScriptDoc, scenes, wordCount, type BibleItem, type BibleKind, type Op, type Production, type Turn } from '@scripter/core';
 import { recoverInterrupted, type RunState } from '@scripter/agent';
 import type { ChatMsg, Edit, ProjectMeta, ProjectState } from '../shared/ipc.ts';
 import { dataDir, writeAtomic } from './store.ts';
@@ -74,6 +74,10 @@ export function get(id: string): Open {
     const meta = readMeta(id);
     const doc = ScriptDoc.fromSnapshot(new Uint8Array(readFileSync(join(dirOf(id), 'script.loro'))));
     doc.loadTurns(meta.turns ?? []);
+    // Parsing tasks do not survive a restart or a trip through the recycle bin.
+    let interrupted = false;
+    for (const f of doc.bible('files').all()) if (f.extract === 'working') { doc.bible('files').update(f.id, { extract: 'failed', pinned: false }); interrupted = true; }
+    if (interrupted) doc.commit('recover file extraction');
     // Workflow runs left "running" by a quit become retryable failures.
     for (const r of meta.workflows ?? []) if (r.status === 'running') recoverInterrupted(r);
     p = { meta, doc };
@@ -85,7 +89,7 @@ export function get(id: string): Open {
 export function state(p: Open): ProjectState {
   const nodes = p.doc.nodes();
   const { conversationId: _c, turns: _t, chat = [], pending: _p, workflows = [], archive = [], ...meta } = p.meta;
-  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {} })), outline: p.doc.outline, conversations: archive.map((a) => ({ id: a.id, title: a.title, at: a.at, messages: a.chat.length })).reverse() };
+  return { meta: { ...meta, words: wordCount(nodes) }, nodes, scenes: scenes(nodes), turns: p.doc.listTurns().map(({ id, label, undone }) => ({ id, label, undone })), bible: p.doc.readBible(), chat, runs: workflows.map((r) => ({ ...r, ctx: {} })), outline: p.doc.outline, production: p.doc.production, conversations: archive.map((a) => ({ id: a.id, title: a.title, at: a.at, messages: a.chat.length })).reverse() };
 }
 
 export function edit(id: string, edits: Edit[]): ProjectState {
@@ -127,11 +131,29 @@ export function saveNow(p: Open): void {
   persist(p);
 }
 
+const trashRoot = () => join(dataDir(), 'trash');
+const trashDir = (id: string) => { dirOf(id); return join(trashRoot(), id); };
+export function trashList(): ProjectMeta[] {
+  if (!existsSync(trashRoot())) return [];
+  return readdirSync(trashRoot()).filter((id) => /^[0-9a-f-]{36}$/.test(id) && existsSync(join(trashDir(id), 'meta.json')))
+    .map((id) => { const m = JSON.parse(readFileSync(join(trashDir(id), 'meta.json'), 'utf8')) as Meta;
+      return { id: m.id, title: m.title, kind: m.kind, createdAt: m.createdAt, updatedAt: m.updatedAt, words: m.words }; })
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+}
+export function restore(id: string): void {
+  if (existsSync(dirOf(id))) throw new Error('同名项目已存在，恢复没有覆盖任何文件');
+  mkdirSync(root(), { recursive: true });
+  renameSync(trashDir(id), dirOf(id));
+}
+export function purge(id: string): void { rmSync(trashDir(id), { recursive: true, force: true }); }
 export function remove(id: string): void {
   const p = open.get(id);
   if (p) clearTimeout(p.timer);
   open.delete(id);
-  rmSync(dirOf(id), { recursive: true, force: true });
+  if (p) saveNow(p);
+  mkdirSync(trashRoot(), { recursive: true });
+  if (existsSync(trashDir(id))) throw new Error('回收站已有此项目');
+  renameSync(dirOf(id), trashDir(id));
 }
 
 /** Project-owned files (knowledge base, reference images) live in <project>/files/. Names are generated, never user paths. */
@@ -178,6 +200,13 @@ export function bibleMove(id: string, kind: BibleKind, itemId: string, to: numbe
   const p = get(id);
   p.doc.bible(kind).move(itemId, to);
   p.doc.commit(`move ${kind}`);
+  schedule(p);
+  return state(p);
+}
+
+export function setProduction(id: string, patch: Partial<Production>): ProjectState {
+  const p = get(id);
+  p.doc.setProduction(patch);
   schedule(p);
   return state(p);
 }

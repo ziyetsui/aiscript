@@ -1,7 +1,18 @@
 import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from 'electron';
 import { join } from 'node:path';
 import { checkGeminiKey } from '@scripter/agent';
-import type { BibleKind } from '@scripter/core';
+import { ART_STYLES, type BibleKind, type Production } from '@scripter/core';
+
+/** Only known production fields with known values cross the IPC boundary. */
+function pickProduction(x: object): Partial<Production> {
+  const v = x as Record<string, unknown>;
+  const out: Partial<Production> = {};
+  if (v.aspect === '16:9' || v.aspect === '9:16') out.aspect = v.aspect;
+  if (v.kind === '叙事' || v.kind === '商业') out.kind = v.kind;
+  if (typeof v.style === 'string' && (ART_STYLES.some((s) => s.name === v.style) || v.style === '自定义')) out.style = v.style;
+  if (typeof v.styleNote === 'string') out.styleNote = v.styleNote.slice(0, 400);
+  return out;
+}
 import type { AiWriteRequest, Edit, ExportFormat, KeyResult, ProjectMeta, WorkflowAction, WorkflowId, WorkflowInput } from '../shared/ipc.ts';
 import * as ai from './ai.ts';
 import { save as exportSave } from './exporter.ts';
@@ -36,7 +47,7 @@ function createWindow(): void {
   // Links open in the system browser; the app window never navigates away.
   win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) void shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('http://localhost') && !url.startsWith('file://')) e.preventDefault(); });
-  if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
+  if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
   else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'));
 }
 
@@ -50,7 +61,7 @@ function gated<A extends unknown[], R>(fn: (...a: A) => R) {
 
 /** 外观: 跟随系统 / 亮色 / 暗色. Electron's nativeTheme drives prefers-color-scheme in the renderer. */
 type Theme = 'system' | 'light' | 'dark';
-const themeSetting = (): Theme => { const t = readJson<{ theme?: Theme }>('settings.json', {}).theme; return t === 'light' || t === 'dark' ? t : 'system'; };
+const themeSetting = (): Theme => { const t = readJson<{ theme?: Theme }>('settings.json', {}).theme; return t === 'light' || t === 'dark' ? t : 'light'; };
 
 const active = () => { if (licenseStatus().state !== 'active') throw new Error('未激活'); };
 
@@ -96,7 +107,10 @@ function registerIpc(): void {
   ipcMain.handle('projects:create', gated((title: string, kind: ProjectMeta['kind']) => projects.create(title, kind)));
   ipcMain.handle('projects:open', gated((id: string) => projects.state(projects.get(id))));
   ipcMain.handle('projects:rename', gated((id: string, title: string) => projects.rename(id, title)));
-  ipcMain.handle('projects:remove', gated((id: string) => projects.remove(id)));
+  ipcMain.handle('projects:remove', gated((id: string) => { if (ai.isBusy(id) || projects.state(projects.get(id)).runs.some((r) => r.status === 'running')) throw new Error('请先停止正在生成的内容'); projects.remove(id); }));
+  ipcMain.handle('projects:trashList', gated(() => projects.trashList()));
+  ipcMain.handle('projects:restore', gated((id: string) => projects.restore(id)));
+  ipcMain.handle('projects:purge', gated((id: string) => projects.purge(id)));
   ipcMain.handle('projects:edit', gated((id: string, edits: Edit[]) => projects.edit(id, edits)));
   ipcMain.handle('projects:undoTurn', gated((id: string, turnId: string) => projects.undoTurn(id, turnId)));
   ipcMain.handle('projects:exportArchive', (e, id: string) => { active(); const w = BrowserWindow.fromWebContents(e.sender); return w ? archive.exportProject(w, id) : { ok: false }; });
@@ -107,6 +121,7 @@ function registerIpc(): void {
     try { return await archive.importProject(w); } catch (err) { archive.log('warn', `import failed: ${(err as Error).message}`); throw err; }
   });
   ipcMain.handle('projects:setOutline', gated((id: string, text: string) => projects.setOutline(id, text)));
+  ipcMain.handle('projects:setProduction', gated((id: string, patch: object) => projects.setProduction(id, pickProduction(patch))));
 
   ipcMain.handle('wf:start', (e, projectId: string, id: WorkflowId, input: WorkflowInput) => { active(); return wf.start(projectId, id, input, e.sender); });
   ipcMain.handle('wf:cancel', (_e, runId: string, projectId?: string) => wf.cancel(runId, projectId));
@@ -121,7 +136,7 @@ function registerIpc(): void {
     return r.canceled ? null : r.filePaths[0] ?? null;
   });
 
-  const KINDS = new Set<BibleKind>(['characters', 'relations', 'locations', 'props', 'world', 'files']);
+  const KINDS = new Set<BibleKind>(['characters', 'relations', 'locations', 'props', 'world', 'files', 'shots']);
   const kind = (k: string): BibleKind => { if (!KINDS.has(k as BibleKind)) throw new Error('bad kind'); return k as BibleKind; };
   ipcMain.handle('bible:add', gated((id: string, k: string, data: object) => projects.bibleAdd(id, kind(k), data)));
   ipcMain.handle('bible:update', gated((id: string, k: string, itemId: string, patch: object) => projects.bibleUpdate(id, kind(k), itemId, patch)));
@@ -130,6 +145,12 @@ function registerIpc(): void {
 
   const winOf = (e: Electron.IpcMainInvokeEvent) => { const w = BrowserWindow.fromWebContents(e.sender); if (!w) throw new Error('no window'); return w; };
   ipcMain.handle('files:pick', (e, id: string) => { if (licenseStatus().state !== 'active') throw new Error('未激活'); return files.pickFiles(winOf(e), id); });
+  ipcMain.handle('files:collection', gated(files.collection));
+  ipcMain.handle('files:exportNote', (e, id: string, fileId: string) => { active(); return files.exportNote(winOf(e), id, fileId); });
+  ipcMain.handle('files:update', gated(files.update));
+  ipcMain.handle('files:createNote', gated(files.createNote));
+  ipcMain.handle('files:readBody', gated(files.readBody));
+  ipcMain.handle('files:saveBody', gated(files.saveBody));
   ipcMain.handle('files:addPaths', gated((id: string, paths: string[]) => files.addPaths(id, paths)));
   ipcMain.handle('files:open', gated((id: string, fileId: string) => files.openFile(id, fileId)));
   ipcMain.handle('files:pickImage', (e, id: string) => { if (licenseStatus().state !== 'active') throw new Error('未激活'); return files.pickImage(winOf(e), id); });
@@ -140,11 +161,15 @@ function registerIpc(): void {
     return ai.write(req, e.sender);
   });
   ipcMain.handle('ai:cancel', (_e, reqId: string) => ai.cancel(reqId));
-  ipcMain.handle('chat:new', gated((id: string) => projects.newConversation(id)));
-  ipcMain.handle('chat:open', gated((id: string, convId: string) => projects.openConversation(id, convId)));
+  ipcMain.handle('ai:status', gated((id: string) => ({ busy: ai.isBusy(id) })));
+  const chatIdle = (id: string) => { if (ai.isBusy(id)) throw new Error('请等待当前生成完成后再切换对话'); };
+  ipcMain.handle('chat:new', gated((id: string) => { chatIdle(id); return projects.newConversation(id); }));
+  ipcMain.handle('chat:open', gated((id: string, convId: string) => { chatIdle(id); return projects.openConversation(id, convId); }));
   ipcMain.handle('chat:react', gated((id: string, msgId: string, r: 'like' | 'dislike' | null) => projects.react(id, msgId, r)));
   ipcMain.handle('chat:saveNote', gated((id: string, msgId: string | null) => files.saveNote(id, msgId)));
   ipcMain.handle('ai:reverse', gated((projectId: string, kind: 'characters' | 'locations', itemId: string) => ai.reverse(projectId, kind, itemId)));
+  ipcMain.handle('ai:summarizeNote', gated(ai.summarizeNote));
+  ipcMain.handle('ai:scenePrompt', gated((projectId: string, sceneId: string) => ai.scenePrompt(projectId, sceneId)));
   ipcMain.handle('ai:selection', gated((kind: 'explain' | 'summarize' | 'translate', text: string) => ai.selection(kind, text)));
   ipcMain.handle('files:pin', (e, id: string, fileId: string, on: boolean) => { active(); return files.pin(id, fileId, on, () => { if (!e.sender.isDestroyed()) e.sender.send('project:changed', { projectId: id }); }); });
   ipcMain.handle('ai:resolve', gated((projectId: string, msgId: string, accept: boolean) => ai.resolve(projectId, msgId, accept)));

@@ -1,10 +1,12 @@
+import { dataDir, writeAtomic } from './store.ts';
 // Knowledge base and reference images: copied into the project folder, so a project is self-contained
 // and "导出整个项目" (spec 0002 §8) can carry them. Nothing leaves the machine.
 import { dialog, shell, type BrowserWindow } from 'electron';
 import { randomBytes } from 'node:crypto';
-import { copyFileSync, mkdirSync, openAsBlob, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { basename, extname } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, openAsBlob, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename, extname, join } from 'node:path';
 import { parseWithAncher } from '@scripter/agent';
+import type { KnowledgeFile } from '@scripter/core/script';
 import type { ProjectState } from '../shared/ipc.ts';
 import { ancher } from './ai.ts';
 import { getSecret } from './secrets.ts';
@@ -112,6 +114,7 @@ export async function pin(id: string, fileId: string, on: boolean, notify: () =>
       } catch {
         ok = false;
       }
+      if (!existsSync(join(dataDir(), 'projects', id))) return;
       const cur = get(id);
       if (!cur.doc.bible('files').get(fileId)) return;
       cur.doc.bible('files').update(fileId, ok ? { excerpt: excerpt.trim().slice(0, EXCERPT_MAX), extract: 'ready' } : { extract: 'failed', pinned: false });
@@ -139,4 +142,60 @@ export function saveNote(id: string, msgId: string | null): { state: ProjectStat
   p.doc.commit('save note');
   saveNow(p);
   return { state: state(p), name };
+}
+
+
+export function update(id: string, fileId: string, patch: Partial<Pick<KnowledgeFile, 'title' | 'tags' | 'memo' | 'group' | 'starred'>>): ProjectState {
+  const p = get(id);
+  const clean: Partial<KnowledgeFile> = {};
+  for (const key of ['title', 'memo', 'group'] as const) if (typeof patch[key] === 'string') clean[key] = patch[key]!.slice(0, 20000);
+  if (Array.isArray(patch.tags)) clean.tags = patch.tags.slice(0, 30).filter((t) => t && typeof t.label === 'string').map((t) => ({ label: t.label.slice(0, 80), color: ['#496cc2', '#ad7438', '#608e53', '#777777'].includes(t.color) ? t.color : '#496cc2' }));
+  if (typeof patch.starred === 'boolean') clean.starred = patch.starred;
+  p.doc.bible('files').update(fileId, clean);
+  p.doc.commit('edit note'); saveNow(p); return state(p);
+}
+export function createNote(id: string, title: string, body: string): ProjectState {
+  const p = get(id);
+  const file = `${randomBytes(8).toString('hex')}.md`;
+  mkdirSync(filesDir(id), { recursive: true });
+  writeFileSync(filePath(id, file), body, 'utf8');
+  p.doc.bible('files').add({ name: `${title || '未命名笔记'}.md`, title: title || '未命名笔记', file, size: Buffer.byteLength(body), src: 'upload', addedAt: Date.now(), excerpt: body.slice(0, EXCERPT_MAX), extract: 'ready' });
+  p.doc.commit('create note'); saveNow(p); return state(p);
+}
+export function saveBody(id: string, fileId: string, body: string): ProjectState {
+  const p = get(id); const f = p.doc.bible('files').get(fileId);
+  if (!f || !['md', 'txt', 'fountain', 'srt'].includes(extname(f.file).slice(1))) throw new Error('此文件正文只读');
+  if (Buffer.byteLength(body) > 2 * 1024 * 1024) throw new Error('笔记不能超过 2MB');
+  const changed = readBody(id, fileId) !== body;
+  writeAtomic(filePath(id, f.file), body);
+  p.doc.bible('files').update(fileId, { excerpt: body.slice(0, EXCERPT_MAX), extract: 'ready', size: Buffer.byteLength(body), revision: (f.revision || 1) + (changed ? 1 : 0) });
+  p.doc.commit('save note body'); saveNow(p); return state(p);
+}
+
+export function readBody(id: string, fileId: string): string {
+  const f = get(id).doc.bible('files').get(fileId);
+  if (!f) throw new Error('文件不存在');
+  if (!['md', 'txt', 'fountain', 'srt'].includes(extname(f.file).slice(1))) return f.excerpt;
+  if (statSync(filePath(id, f.file)).size > 2 * 1024 * 1024) throw new Error('正文超过 2MB，请用原文件编辑器打开');
+  return readFileSync(filePath(id, f.file), 'utf8');
+}
+
+export function collection(id: string, action: 'create' | 'rename' | 'delete', name: string, next = ''): ProjectState {
+  const p = get(id); const old = name.trim().slice(0, 80); const title = next.trim().slice(0, 80);
+  if (!['create', 'rename', 'delete'].includes(action) || !old || old === '全部笔记') throw new Error('合集名称无效');
+  const groups = [...new Set([...(p.meta.noteGroups ?? []), ...p.doc.readBible().files.map((f) => f.group).filter((g) => g !== '全部笔记')])];
+  if (action === 'create') { if (groups.includes(old)) throw new Error('合集已存在'); groups.push(old); }
+  else {
+    if (!groups.includes(old)) throw new Error('合集不存在');
+    if (action === 'rename' && (!title || title === '全部笔记' || groups.includes(title))) throw new Error('新名称无效或已存在');
+    for (const f of p.doc.readBible().files.filter((f) => f.group === old)) p.doc.bible('files').update(f.id, { group: action === 'rename' ? title : '全部笔记' });
+    groups.splice(groups.indexOf(old), 1, ...(action === 'rename' ? [title] : []));
+  }
+  p.meta.noteGroups = groups; p.doc.commit('note collection'); saveNow(p); return state(p);
+}
+export async function exportNote(win: BrowserWindow, id: string, fileId: string): Promise<boolean> {
+ const f = get(id).doc.bible('files').get(fileId); if (!f) throw new Error('笔记不存在');
+ const name = (f.title || f.name).replace(/[\\/:*?"<>|]/g, '') + (extname(f.title || f.name) ? '' : extname(f.file));
+ const r = await dialog.showSaveDialog(win, { defaultPath: name }); if (r.canceled || !r.filePath) return false;
+ writeAtomic(r.filePath, readFileSync(filePath(id, f.file))); return true;
 }

@@ -2,7 +2,7 @@
 // Every AI turn is recorded as (before, after) frontiers so it can be undone on its own,
 // even after the writer has kept typing (§5.4 "turnId → commits", "Undo edit").
 import { LoroDoc, LoroMap, LoroText, type Frontiers, type LoroMovableList } from 'loro-crdt';
-import { Collection, readBible, type Bible, type BibleKind } from './bible.ts';
+import { Collection, PRODUCTION_DEFAULTS, readBible, type Bible, type BibleKind, type Production } from './bible.ts';
 import { ELEMENT_TYPES, newId, type ElementType, type ScriptNode } from './script.ts';
 
 export interface Turn { id: string; label: string; before: Frontiers; after: Frontiers; undone: boolean }
@@ -46,6 +46,17 @@ export class ScriptDoc {
     if (t.toString() === text) return;
     t.delete(0, t.length);
     t.insert(0, text);
+  }
+
+  /** 制作设置 (prototype P6). */
+  get production(): Production {
+    return { ...PRODUCTION_DEFAULTS, ...(this.doc.getMap('production').toJSON() as Partial<Production>) };
+  }
+
+  setProduction(patch: Partial<Production>): void {
+    const m = this.doc.getMap('production');
+    for (const [k, v] of Object.entries(patch)) if (v !== undefined) m.set(k, v as never);
+    this.doc.commit({ message: 'production' });
   }
 
   bible<K extends BibleKind>(kind: K): Collection<K> {

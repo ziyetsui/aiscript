@@ -55,7 +55,7 @@ export function Locations({ id }: { id: string }) {
     <>
       <PageHead title="地点管理" count={locs.length}
         mid={<Tabs label="地点视图" value={view} onChange={setView} options={[['grid', '地点总览'], ['list', '地点清单']]} />}
-        right={<button className="btn btn-primary" style={{ height: 30 }} onClick={() => { setError(''); setEditing({ id: null, draft: { ...EMPTY, color: PALETTE[locs.length % PALETTE.length]![1] } }); }}><Icon name="plus" size={13} />新建地点</button>} />
+        right={<><button className="btn btn-ghost" aria-label="导出地点" onClick={async () => { try { const r = await window.api.exporter.save(id, 'locations'); if (r.ok) toast(`已导出到 ${r.path}`); } catch (e) { toast(String(e)); } }}><Icon name="export" size={14} /></button><button className="btn btn-primary" style={{ height: 30 }} onClick={() => { setError(''); setEditing({ id: null, draft: { ...EMPTY, color: PALETTE[locs.length % PALETTE.length]![1] } }); }}><Icon name="plus" size={13} />新建地点</button></>} />
       {unregistered.length > 0 && <div className="banner"><span style={{ flex: 1 }}>场景标题里有还没建档的地点：{unregistered.join('、')}</span><button className="btn btn-ghost" style={{ height: 28 }} onClick={() => void registerAll()}>一键建档</button></div>}
       {locs.length === 0 ? (
         <div className="page dots"><div className="empty-state"><Icon name="map" size={34} /><div>还没有地点。新建一个，或者写下场景标题后一键建档。</div></div></div>
