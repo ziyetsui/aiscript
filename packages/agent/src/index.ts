@@ -7,3 +7,4 @@ export * from './activity.ts';
 export * from './notes.ts';
 export * from './chat-images.ts';
 export * from './outline-summary.ts';
+export * from './chat-notes.ts';

@@ -1,5 +1,5 @@
-import type { ClipboardImage } from '@scripter/agent';
-export type { ClipboardImage };
+import type { ClipboardImage, ChatNoteAttachment } from '@scripter/agent';
+export type { ClipboardImage, ChatNoteAttachment };
 export interface StoredChatImage { name: string; file: string }
 // The one contract between renderer and main (spec 0002 §4.1: typed IPC, no localhost port).
 import type { ExportSelection, PreviewItem } from '@scripter/core';
@@ -19,6 +19,7 @@ export interface ProjectMeta { id: string; title: string; kind: 'script' | 'vide
 export interface TurnInfo { id: string; label: string; undone: boolean }
 /** One entry in the project's AI conversation, persisted with the project. */
 export interface ChatMsg {
+  notes?: ChatNoteAttachment[];
   images?: StoredChatImage[];
   id: string;
   role: 'user' | 'ai';
@@ -57,6 +58,7 @@ export type Edit =
   | { op: 'remove'; id: string };
 
 export interface AiWriteRequest {
+  notes?: ChatNoteAttachment[];
   target?: 'outline';
   images?: ClipboardImage[];
   pageContext?: { page: string; fileId?: string }; reqId: string; projectId: string; instruction: string; webSearch: boolean; focusId?: string }

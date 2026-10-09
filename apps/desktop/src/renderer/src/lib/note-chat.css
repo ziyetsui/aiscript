@@ -1,0 +1,13 @@
+/* Match Ancher's size-5 / shrink-0 leading slot; long titles never shrink icons. */
+.note-leading { display: inline-flex; flex: 0 0 20px; width: 20px; height: 20px; align-items: center; justify-content: center; color: var(--ink-3); }
+.note-leading svg { width: 16px; height: 16px; flex: none; }
+.note-leading img { width: 20px; height: 20px; object-fit: cover; border-radius: 3px; }
+.note-items > button > svg { flex: none; }
+.note-items > button > span:not(.note-leading):not(.cloud-collection-icon) { min-width: 0; flex: 1; }
+.note-spinner { width: 14px; height: 14px; border: 1.5px solid var(--line-strong); border-top-color: var(--ink-3); border-radius: 50%; animation: note-spin 900ms linear infinite; }
+@keyframes note-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .note-spinner { animation: none; } }
+.chat-note-attachments { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 12px 0; }
+.chat-note-chip { display: inline-flex; max-width: 100%; align-items: center; gap: 4px; padding: 3px 6px; border-radius: 8px; background: var(--hover); font-size: 12px; }
+.chat-note-chip > span:not(.note-leading) { min-width: 0; max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-note-chip .ico-btn { flex: none; }

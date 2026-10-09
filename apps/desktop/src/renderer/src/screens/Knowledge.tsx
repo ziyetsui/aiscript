@@ -1,5 +1,8 @@
-import { useEffect, useState, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react';
 import { useProject } from '../lib/project.ts';
+import { NoteLeadingIcon } from '../components/NoteLeadingIcon.tsx';
+import { addNoteToChat } from '../lib/note-chat.ts';
+import { useNoteShortcuts } from '../lib/note-shortcuts.ts';
 import { Markdown } from '../lib/markdown.tsx';
 import { Icon, useToast } from '../lib/ui.tsx';
 import { AncherKnowledge } from './AncherKnowledge.tsx';
@@ -19,6 +22,8 @@ export function Knowledge(props: KnowledgeProps) {
 }
 function LocalKnowledge({ id, onSelect, toggleDock, dockOpen, switcher }: KnowledgeProps & { switcher: ReactNode }) {
   const p = useProject(id);
+  const root = useRef<HTMLDivElement>(null);
+  const search = useRef<HTMLInputElement>(null);
   const [group, setGroup] = useState<Group>('all');
   const [selected, setSelected] = useState<string | undefined>(() => sessionStorage.getItem(`scripter-note-${id}`) || undefined);
   const [query, setQuery] = useState('');
@@ -39,11 +44,13 @@ function LocalKnowledge({ id, onSelect, toggleDock, dockOpen, switcher }: Knowle
   const collections = [...new Set([...(p.st?.meta.noteGroups ?? []), ...files.map((f) => f.group).filter((g) => g && g !== '全部笔记')])];
   const list = [...files].sort((a, b) => reverseSort ? b.addedAt - a.addedAt : a.addedAt - b.addedAt).filter(matches).filter((f) => !collection || f.group === collection).filter((f) => `${f.title || f.name} ${f.memo} ${f.tags.map((t) => t.label).join(' ')}`.includes(query));
   const note = list.find((f) => f.id === selected) ?? list[0];
+  const attach = () => { if (note) addNoteToChat(id, { source:'project', id:note.id, title:note.title || note.name }); };
+  useNoteShortcuts(root, search, note?.id, list.map((f) => f.id), setSelected, attach, note?.extract === 'ready' && !!note.excerpt.trim());
   useEffect(() => { if (note) sessionStorage.setItem(`scripter-note-${id}`, note.id); onSelect?.(note?.id); }, [note?.id, onSelect]);
   const create = async () => {
     try { const s = await window.api.files.createNote(id, '未命名笔记', ''); p.setSt(s); setGroup('all'); setCollection(''); setQuery(''); setSelected(s.bible.files.at(-1)?.id); setMode('original'); setEditing(true); requestAnimationFrame(() => document.querySelector<HTMLInputElement>('[aria-label="笔记标题"]')?.select()); } catch (e) { toast(String(e)); }
   };
-  useEffect(() => { const h = (e: KeyboardEvent) => { if (!(e.metaKey || e.ctrlKey)) return; if (e.key.toLowerCase() === 'k') { e.preventDefault(); document.querySelector<HTMLInputElement>('[aria-label="搜索笔记"]')?.focus(); } if (e.shiftKey && e.key.toLowerCase() === 'o') { e.preventDefault(); void create(); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [id]);
+  useEffect(() => { const h = (e: KeyboardEvent) => { if (!(e.metaKey || e.ctrlKey)) return; if (e.shiftKey && e.key.toLowerCase() === 'o') { e.preventDefault(); void create(); } }; window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h); }, [id]);
   useEffect(() => { setMore(false); setAddingTag(false); }, [note?.id]);
   useEffect(() => { if (!more && !addingTag) return; const click = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest('.note-more-wrap')) setMore(false); }; const key = (e: KeyboardEvent) => { if (e.key === 'Escape') { setMore(false); setAddingTag(false); } }; window.addEventListener('pointerdown', click); window.addEventListener('keydown', key); return () => { window.removeEventListener('pointerdown', click); window.removeEventListener('keydown', key); }; }, [more, addingTag]);
   if (!p.st) return null;
@@ -61,14 +68,14 @@ function LocalKnowledge({ id, onSelect, toggleDock, dockOpen, switcher }: Knowle
     catch (e) { toast(String(e)); }
   }
   const editable = !!note && /\.(md|txt|fountain|srt)$/i.test(note.file);
-  return <div className="knowledge-layout" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={(e) => void drop(e)}>
+  return <div ref={root} className="knowledge-layout" onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={(e) => void drop(e)}>
     <aside className="side-list note-list">
       {switcher}
       <button className="btn btn-ghost" onClick={() => void create()}><Icon name="plus" size={14} />新建笔记<kbd>{isWindows ? 'Ctrl+Shift+O' : '⇧⌘O'}</kbd></button>
-      <input className="input" aria-label="搜索笔记" placeholder={isWindows ? '搜索笔记  Ctrl+K' : '搜索笔记  ⌘K'} value={query} onChange={(e) => setQuery(e.target.value)} />
-      <details open className="note-group"><summary>已固定 <span className="muted">{files.filter((f) => f.starred).length}</span></summary><div className="note-items">{files.filter((f) => f.starred).map((f) => <button key={f.id} onClick={() => { setGroup('all'); setCollection(''); setQuery(''); setSelected(f.id); }} aria-current={f.id === note?.id ? 'page' : undefined}><Icon name="doc" size={14} /><span>{f.title || f.name}</span></button>)}</div></details>
+      <input ref={search} className="input" aria-label="搜索笔记" placeholder={isWindows ? '搜索笔记  Ctrl+K' : '搜索笔记  ⌘K'} value={query} onChange={(e) => setQuery(e.target.value)} />
+      <details open className="note-group"><summary>已固定 <span className="muted">{files.filter((f) => f.starred).length}</span></summary><div className="note-items">{files.filter((f) => f.starred).map((f) => <button data-note-id={f.id} key={f.id} onClick={() => { setGroup('all'); setCollection(''); setQuery(''); setSelected(f.id); }} aria-current={f.id === note?.id ? 'page' : undefined}><NoteLeadingIcon kind={f.src === 'upload' ? 'file' : 'note'} /><span title={f.title || f.name}>{f.title || f.name}</span></button>)}</div></details>
       <details open className="note-group"><summary>合集 <span className="muted">{collections.length}</span><span className="grow" /><button aria-label="排序合集" onClick={(e) => { e.preventDefault(); setReverseSort((x) => !x); }}>↕</button><button aria-label="新建合集" onClick={(e) => { e.preventDefault(); setRenaming(undefined); setNewCollection(''); }}>+</button></summary><div className="note-items">{(reverseSort ? [...collections].reverse() : collections).map((g) => <button key={g} onClick={() => { setCollection(g); setGroup('all'); }}><Icon name="box" size={14} /><span>{g}</span></button>)}</div>{collection && <div className="collection-controls"><button aria-label="重命名合集" onClick={() => { setRenaming(collection); setNewCollection(collection); }}>重命名</button><button aria-label="删除合集" onClick={async () => { if (confirm('删除合集？笔记会回到全部笔记。')) { p.setSt(await window.api.files.collection(id, 'delete', collection)); setCollection(''); } }}>删除</button></div>}<button className="btn btn-quiet" onClick={() => { setRenaming(undefined); setNewCollection(''); }}>+ 新建合集</button>{newCollection !== null && <input autoFocus className="input" aria-label="新合集名称" placeholder="名称 · 回车保存" value={newCollection} onChange={(e) => setNewCollection(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.nativeEvent.keyCode !== 229 && newCollection.trim()) { void window.api.files.collection(id, renaming ? 'rename' : 'create', renaming || newCollection.trim(), renaming ? newCollection.trim() : undefined).then(p.setSt).catch((e) => toast(String(e))); setCollection(''); setNewCollection(null); } if (e.key === 'Escape') setNewCollection(null); }} />}</details>
-      <details open className="note-group note-all"><summary>笔记 <span className="muted">{list.length}</span><span className="grow" /><button aria-label="排序笔记" onClick={(e) => { e.preventDefault(); setReverseSort((x) => !x); }}>↕</button><button aria-label="新建笔记" onClick={(e) => { e.preventDefault(); void create(); }}>+</button></summary><div className="note-items">{list.map((f) => <button key={f.id} aria-current={f.id === note?.id ? 'page' : undefined} onClick={() => { setSelected(f.id); setEditing(false); }}><Icon name="doc" size={14} /><span>{f.title || f.name}</span></button>)}</div></details>
+      <details open className="note-group note-all"><summary>笔记 <span className="muted">{list.length}</span><span className="grow" /><button aria-label="排序笔记" onClick={(e) => { e.preventDefault(); setReverseSort((x) => !x); }}>↕</button><button aria-label="新建笔记" onClick={(e) => { e.preventDefault(); void create(); }}>+</button></summary><div className="note-items">{list.map((f) => <button data-note-id={f.id} key={f.id} aria-current={f.id === note?.id ? 'page' : undefined} onClick={() => { setSelected(f.id); setEditing(false); }}><NoteLeadingIcon kind={f.src === 'upload' ? 'file' : 'note'} /><span title={f.title || f.name}>{f.title || f.name}</span></button>)}</div></details>
       <select className="note-filter" aria-label="文件来源" value={group} onChange={(e) => { setGroup(e.target.value as Group); setCollection(''); }}><option value="all">全部笔记</option><option value="pinned">写作时参考</option><option value="chat">聊天附件</option><option value="upload">直接上传</option></select>
       <button className="btn btn-ghost" onClick={() => void pick()}><Icon name="upload" size={14} />添加文件</button>
     </aside>
@@ -77,6 +84,7 @@ function LocalKnowledge({ id, onSelect, toggleDock, dockOpen, switcher }: Knowle
       {!note ? <div className="empty-state">新建笔记，或把参考资料拖进来</div> : <div className="note-frame" key={note.id}>
         <div className="note-tools"><button className="note-version muted" onClick={() => toast(`版本：v${note.revision || 1}（当前）`)}><Icon name="undo" size={14} />v{note.revision || 1}⌄</button><span className="grow" />
           {(() => { const turn = [...p.st.turns].reverse().find((t) => t.label === `编辑笔记元数据：${note.id}` && !t.undone); return turn && <button className="btn btn-quiet" aria-label="撤销笔记信息修改" onClick={async () => { p.setSt(await window.api.projects.undoTurn(id, turn.id)); toast('已撤销笔记信息修改'); }}><Icon name="undo" size={14} /></button>; })()}
+          <button className="btn btn-ghost" disabled={note.extract !== 'ready' || !note.excerpt.trim()} title={isWindows ? '添加到对话 Ctrl+Shift+Enter' : '添加到对话 ⇧⌘↵'} onClick={attach}><Icon name="chat" size={14} />添加到对话</button>
           <button className="chip" aria-pressed={note.pinned} disabled={note.extract === 'working'} onClick={async () => p.setSt(await window.api.files.pin(id, note.id, !note.pinned))}>{note.extract === 'working' ? '读取中' : note.extract === 'failed' ? '读取失败，重试' : note.pinned ? '写作时参考 ✓' : '写作时参考'}</button>
           <button className="btn btn-ghost" aria-pressed={editing} onClick={() => { setEditing((x) => !x); setMode('original'); }}><Icon name="pen" size={14} />{editing ? '完成' : '编辑'}</button>
           <button className="btn btn-quiet" aria-label="切换 AI 对话" aria-pressed={dockOpen} onClick={toggleDock}><Icon name="chat" size={14} /></button><div className="note-more-wrap"><button className="btn btn-quiet" aria-label="更多笔记操作" aria-expanded={more} onClick={() => setMore((x) => !x)}>⋯</button>{more && <div className="note-more" role="menu">

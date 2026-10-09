@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 // and are typed out on the page with the typewriter sound (spec 0002 §5.4, §9.4).
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ScriptNode } from '@scripter/core/script';
-import type { ClipboardImage, ActivityRow, AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
+import type { ChatNoteAttachment, ClipboardImage, ActivityRow, AiWriteResult, ChatMsg, Edit, ExportFormat, KeyStatus, ProjectState, WorkflowId, WorkflowInput } from '../../../shared/ipc.ts';
 import { RunCard, WF_MENU, WorkflowLauncher } from '../components/Workflows.tsx';
 import { Activity } from '../components/Activity.tsx';
 import { ChatImages, AssistantMessage, ChatHeader, Composer, EmptyChat, JumpPill, Thinking, UserBubble } from '../components/Chat.tsx';
@@ -14,6 +14,7 @@ import { bell, carriageReturn, keyClick, onSound, setSound, soundOn } from '../l
 import { Icon, useToast } from '../lib/ui.tsx';
 import { Drawer } from '../components/Drawer.tsx';
 import { ExportDialog } from '../components/ExportDialog.tsx';
+import { NoteLeadingIcon } from '../components/NoteLeadingIcon.tsx';
 import { Editor, placeCaret } from './Editor.tsx';
 
 const reduced = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -26,6 +27,10 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
   const [input, setInput] = useState('');
   const [images, setImages] = useState<ClipboardImage[]>(pendingImages ?? []);
   const [askingImages, setAskingImages] = useState<ClipboardImage[]>([]);
+  const [notes, setNotes] = useState<ChatNoteAttachment[]>([]);
+  const noteFocus = useRef(false);
+  const [askingNotes, setAskingNotes] = useState<ChatNoteAttachment[]>([]);
+  const [cloudNotes, setCloudNotes] = useState<{ id: string; title: string; status: string }[]>([]);
   const [web, setWeb] = useState(pendingWeb ?? false);
   const [externalBusy, setExternalBusy] = useState(false);
   const [running, setRunning] = useState<string | null>(null);
@@ -45,12 +50,29 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
   const outlineSent = useRef<string | null>(null);
   const [outlineKey, setOutlineKey] = useState(0);
   const toast = useToast();
+  useEffect(() => {
+    const attach = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId: string; note: ChatNoteAttachment }>).detail;
+      if (detail?.projectId !== id || !detail.note) return;
+      noteFocus.current = true;
+      if (notes.some((note) => note.source === detail.note.source && note.id === detail.note.id)) toast('这条笔记已在待发送附件中');
+      else if (notes.length >= 10) { toast('每条消息最多添加 10 条笔记'); return; }
+      else setNotes((current) => [...current, detail.note]);
+      requestAnimationFrame(() => document.getElementById('agent-in')?.focus());
+    };
+    window.addEventListener('scripter:attach-note', attach);
+    return () => window.removeEventListener('scripter:attach-note', attach);
+  }, [id, notes, toast]);
+  useEffect(() => {
+    const el = document.getElementById('agent-in');
+    if (noteFocus.current && el?.offsetParent) { el.focus(); noteFocus.current = false; }
+  }, [notes, dockHost]);
   const sent = useRef(false);
   const feed = useRef<HTMLDivElement>(null);
   const stick = useRef(true); // follow the bottom only while the reader is there (Ancher use-conversation-scroll)
   const [unread, setUnread] = useState(0);
   const [awayFromBottom, setAway] = useState(false);
-  const [queue, setQueue] = useState<{ text: string; images: ClipboardImage[]; target?: 'outline' }[]>([]);
+  const [queue, setQueue] = useState<{ text: string; images: ClipboardImage[]; notes: ChatNoteAttachment[]; target?: 'outline' }[]>([]);
   const [ghost, setGhost] = useState(''); // Tab suggestion after a turn
 
   const apply = useCallback((s: ProjectState) => { setSt(s); setNodes(s.nodes); window.dispatchEvent(new CustomEvent('scripter:project', { detail: id })); }, [id]);
@@ -100,7 +122,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     if (running || !queue.length) return;
     const [next, ...rest] = queue;
     setQueue(rest);
-    void send(next!.text, next!.images, next!.target);
+    void send(next!.text, next!.images, next!.target, next!.notes);
   }, [running, queue]);
   // Remount the outline editor only when the outline changed from outside (e.g. 「写进大纲」), never while typing.
   useEffect(() => {
@@ -151,17 +173,19 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     bell();
   }
 
-  async function send(text: string, attached: ClipboardImage[] = [], target?: 'outline') {
-    const t = text.trim() || (attached.length ? '请描述这些图片。' : '');
+  async function send(text: string, attached: ClipboardImage[] = [], target?: 'outline', attachedNotes: ChatNoteAttachment[] = []) {
+    const t = text.trim() || (attached.length ? '请描述这些图片。' : attachedNotes.length ? '请总结这些笔记。' : '');
     if (!t) return;
     if (externalBusy && !running) { toast('请等待当前任务完成'); return; }
     if (!keys.ancher) { toast('先到设置里填写 Ancher key'); return; }
-    if (running) { setQueue((q) => [...q, { text: t, images: attached, target }]); setInput(''); setImages([]); return; }
+    if (running) { setQueue((q) => [...q, { text: t, images: attached, notes: attachedNotes, target }]); setInput(''); setImages([]); setNotes([]); return; }
     stick.current = true;
     setGhost('');
     const reqId = crypto.randomUUID();
     setAsking(t);
     setAskingImages(attached);
+    setAskingNotes(attachedNotes);
+    setNotes([]);
     setImages([]);
     setInput('');
     setStream('');
@@ -171,7 +195,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     const before = new Set(nodes.map((n) => n.id));
     let r: AiWriteResult;
     try {
-      r = await window.api.ai.write({ reqId, projectId: id, instruction: t, images: attached, target, webSearch: web, focusId, pageContext });
+      r = await window.api.ai.write({ reqId, projectId: id, instruction: t, images: attached, notes: attachedNotes, target, webSearch: web, focusId, pageContext });
     } catch (e) {
       r = { ok: false, narration: '', applied: 0, errors: [], citations: [], message: String(e) };
     }
@@ -181,6 +205,8 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     setActs([]);
     setAsking(null);
     setAskingImages([]);
+    setAskingNotes([]);
+    if (!r.ok && !r.cancelled && attachedNotes.length) { setNotes((current) => current.length ? current : attachedNotes); setInput((current) => current || text); }
     if (!r.ok && !r.cancelled && attached.length) { setImages((current) => current.length ? current : attached); setInput((current) => current || text); }
     const newIds = s.nodes.filter((n) => !before.has(n.id)).map((n) => n.id);
     apply(s);
@@ -202,7 +228,7 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
     else if (a.kind === 'video') { openWorkflow('transcribe'); return; }
     else if (a.kind === 'workflow') { openWorkflow(a.id); return; }
     else if (a.kind === 'web') { setWeb(true); setInput(a.text); }
-    else if (a.kind === 'outline') void send(a.text, [], 'outline');
+    else if (a.kind === 'outline') void send(a.text, [], 'outline', notes);
     else if (a.kind === 'prefill') setInput(a.text);
     else if (a.kind === 'mention') setInput((v) => `${v}@`);
     requestAnimationFrame(() => document.getElementById('agent-in')?.focus());
@@ -316,11 +342,11 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
                   </>
                 );
                 return m.role === 'user'
-                  ? <UserBubble key={m.id} text={m.text}>{m.images?.length ? <ChatImages projectId={id} images={m.images} /> : null}</UserBubble>
+                  ? <UserBubble key={m.id} text={m.text}>{m.notes?.map((note) => <span className="chat-note-chip" key={`${note.source}:${note.id}`}><NoteLeadingIcon />{note.title}</span>)}{m.images?.length ? <ChatImages projectId={id} images={m.images} /> : null}</UserBubble>
                   : <AssistantMessage key={m.id} m={m} onReact={async (r) => setSt(await window.api.chat.react(id, m.id, r))}
                       onSave={async () => { try { const r = await window.api.chat.saveAsNote(id, m.id); setSt(r.state); toast(`已存进知识库：${r.name}`); } catch (e) { toast(cleanErr(e)); } }} after={turnLine}>{extras}</AssistantMessage>;
               })}
-              {asking && <UserBubble text={asking}>{askingImages.map((image, i) => <img key={i} src={image.dataUrl} alt={image.name} style={{ width: 72, height: 72, objectFit: 'contain' }} />)}</UserBubble>}
+              {asking && <UserBubble text={asking}>{askingNotes.map((note) => <span className="chat-note-chip" key={`${note.source}:${note.id}`}><NoteLeadingIcon />{note.title}</span>)}{askingImages.map((image, i) => <img key={i} src={image.dataUrl} alt={image.name} style={{ width: 72, height: 72, objectFit: 'contain' }} />)}</UserBubble>}
               {running && acts.length > 0 && <Activity folded={false} items={acts.map((r) => ({ ...r, state: r.running ? 'running' : 'done' }))} />}
               {running && <Thinking partial={visibleReply(stream)} />}
             </div>
@@ -328,10 +354,10 @@ export function Workspace({ id, pending, pendingImages, pendingWeb, pendingEpiso
           </div>
           {launcher && <div className="launcher-wrap"><WorkflowLauncher id={launcher.id} focusText={launcher.focusText} onStart={(input) => void startWorkflow(launcher.id, input)} onClose={() => setLauncher(null)} /></div>}
           {pageContext && pageContext.page !== 'write' && <div className="dock-context"><Icon name="doc" size={14} /><span>{pageContext.fileId ? (st.bible.files.find((f) => f.id === pageContext.fileId)?.title || st.bible.files.find((f) => f.id === pageContext.fileId)?.name || '当前笔记') : ({ characters: '角色表', locations: '地点表', props: '道具表', world: '世界观', production: '制作' } as Record<string, string>)[pageContext.page]}<small>当前页面参考</small></span></div>}
-          <Composer images={images} onImagesChange={setImages} value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input, images)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
+          <Composer notes={notes} onNotesChange={setNotes} onMentionOpen={() => { void window.api.ancherNotes.list().then((library) => setCloudNotes(library.notes)).catch((e) => toast(String(e))); }} images={images} onImagesChange={setImages} value={input} onChange={(v) => { setInput(v); if (v) setGhost(''); }} onSend={() => void send(input, images, undefined, notes)} onStop={() => { if (running) void window.api.ai.cancel(running); else if (externalBusy) toast('任务正在其他页面执行，请稍候'); }}
             running={!!running || externalBusy} queue={queue.map((q) => q.text)} onDequeue={(i) => setQueue((q) => q.filter((_, k) => k !== i))} ghost={ghost}
             web={web} onWeb={setWeb} onAction={onAction}
-            mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })), ...st.bible.files.map((f) => ({ label: f.name, kind: '笔记' }))]} />
+            mentions={[...st.bible.characters.map((c) => ({ label: c.name, kind: '角色' })), ...st.bible.locations.map((l) => ({ label: l.name, kind: '地点' })), ...st.bible.world.filter((w) => w.title).map((w) => ({ label: w.title, kind: '设定' })), ...st.bible.files.map((f) => ({ label: f.title || f.name, kind: '项目笔记', note: { source: 'project' as const, id: f.id, title: f.title || f.name } })), ...cloudNotes.filter((n) => n.status === 'ready').map((n) => ({ label: n.title, kind: 'Ancher 笔记', note: { source: 'ancher' as const, id: n.id, title: n.title } }))]} />
         </section>
   );
 

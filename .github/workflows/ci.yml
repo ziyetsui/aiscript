@@ -48,6 +48,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @scripter/desktop e2e
       - run: pnpm --filter @scripter/desktop exec node e2e/ancher-original.e2e.ts
+      - run: pnpm --filter @scripter/desktop exec node e2e/note-chat.e2e.ts
       - uses: actions/upload-artifact@v4
         if: always()
         with:

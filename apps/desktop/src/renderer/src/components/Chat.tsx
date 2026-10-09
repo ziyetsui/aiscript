@@ -1,10 +1,11 @@
 // AI panel pieces, rebuilt after app.ancher.ai's agent UI (streamify-one-design-system ·
 // packages/domain-ui/agent-ui and apps/web/src/components/product/agent), same as prototype PR #26.
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type ClipboardEvent, type Dispatch, type SetStateAction } from 'react';
-import type { ChatMsg, ConversationInfo, WorkflowId, ClipboardImage, StoredChatImage } from '../../../shared/ipc.ts';
+import type { ChatNoteAttachment, ChatMsg, ConversationInfo, WorkflowId, ClipboardImage, StoredChatImage } from '../../../shared/ipc.ts';
 import type { IconName } from '../lib/icon-paths.ts';
 import { WF_MENU } from './Workflows.tsx';
 import { Markdown } from '../lib/markdown.tsx';
+import { NoteLeadingIcon } from './NoteLeadingIcon.tsx';
 import { Activity } from './Activity.tsx';
 import { Icon, isMac, useToast } from '../lib/ui.tsx';
 
@@ -155,7 +156,7 @@ export function JumpPill({ show, unread, onClick }: { show: boolean; unread: num
   );
 }
 
-export interface Mentionable { label: string; kind: string }
+export interface Mentionable { label: string; kind: string; note?: ChatNoteAttachment }
 
 /** "+" menu groups (Codex-style, prototype PR #28): 添加 · 快捷指令 · 工作流. */
 export type PlusAction = { kind: 'attach' } | { kind: 'video' } | { kind: 'blank' } | { kind: 'mention' } | { kind: 'prefill'; text: string } | { kind: 'outline'; text: string } | { kind: 'workflow'; id: WorkflowId };
@@ -194,12 +195,13 @@ export function EmptyChat({ onAction }: { onAction: (a: PlusAction | { kind: 'we
  * While a reply runs, typing turns send into 「加入队列 ↵」 and queued messages show above the box. After a turn,
  * a ghost suggestion sits in the empty box — Tab takes it.
  */
-export function Composer({ value, onChange, onSend, onStop, running, queue, onDequeue, ghost, web, onWeb, mentions, onAction, home = false, inputId = 'agent-in', inputLabel = '给 AI 的指令', model, images = [], onImagesChange }: {
+export function Composer({ value, onChange, onSend, onStop, running, queue, onDequeue, ghost, web, onWeb, mentions, onAction, home = false, inputId = 'agent-in', inputLabel = '给 AI 的指令', model, images = [], onImagesChange, notes = [], onNotesChange, onMentionOpen }: {
   value: string; onChange: (v: string) => void; onSend: () => void; onStop: () => void;
   running: boolean; queue: string[]; onDequeue: (i: number) => void; ghost: string;
   web: boolean; onWeb: (v: boolean) => void; mentions: Mentionable[];
   onAction: (a: PlusAction | { kind: 'web'; text: string }) => void;
   home?: boolean; inputId?: string; inputLabel?: string; model?: ReactNode;
+  notes?: ChatNoteAttachment[]; onNotesChange?: Dispatch<SetStateAction<ChatNoteAttachment[]>>; onMentionOpen?: () => void;
   images?: ClipboardImage[]; onImagesChange?: Dispatch<SetStateAction<ClipboardImage[]>>;
 }) {
   const toast = useToast();
@@ -263,7 +265,21 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
   useLayoutEffect(() => { if (submenu && focusSub.current) { plusRef.current?.querySelector<HTMLElement>('.pm-sub .pm-item')?.focus(); focusSub.current = false; } }, [submenu]);
   function openSub(group: string, focus: boolean) { focusSub.current = focus; setSubmenu(group); if (focus && submenu === group) plusRef.current?.querySelector<HTMLElement>('.pm-sub .pm-item')?.focus(); }
 
-  function insertMention(label: string) {
+  function insertMention(item: Mentionable) {
+    const label = item.label;
+    if (item.note && onNotesChange) {
+      const note = item.note;
+      if (!notes.some((n) => n.source === note.source && n.id === note.id)) {
+        if (notes.length >= 10) { toast('每条消息最多添加 10 条笔记'); return; }
+        onNotesChange((current) => [...current, note]);
+      }
+      const el = ta.current!;
+      const before = value.slice(0, el.selectionStart).replace(/@[^\s@]*$/, '');
+      onChange(before + value.slice(el.selectionStart)); setMention(null);
+      requestAnimationFrame(() => { el.focus(); el.setSelectionRange(before.length, before.length); });
+      return;
+    }
+
     const el = ta.current!;
     const pos = el.selectionStart;
     const before = value.slice(0, pos).replace(/@[^\s@]*$/, '');
@@ -277,6 +293,7 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
     onChange(v);
     const pos = ta.current?.selectionStart ?? v.length;
     const m = /@([^\s@]*)$/.exec(v.slice(0, pos));
+    if (m && !mention) onMentionOpen?.();
     setMention(m ? { q: m[1]!, sel: 0 } : null);
   }
 
@@ -285,14 +302,14 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
     if (mention && list.length) {
       if (e.key === 'ArrowDown') { setMention({ ...mention, sel: (mention.sel + 1) % list.length }); e.preventDefault(); return; }
       if (e.key === 'ArrowUp') { setMention({ ...mention, sel: (mention.sel - 1 + list.length) % list.length }); e.preventDefault(); return; }
-      if (e.key === 'Enter' || e.key === 'Tab') { insertMention(list[mention.sel]!.label); e.preventDefault(); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { insertMention(list[mention.sel]!); e.preventDefault(); return; }
       if (e.key === 'Escape') { setMention(null); e.preventDefault(); return; }
     }
-    if (e.key === 'Tab' && !value && ghost) { e.preventDefault(); onChange(ghost); return; }
-    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!readingRef.current && (value.trim() || images.length)) onSend(); }
+    if (e.key === 'Tab' && !value && !notes.length && !images.length && ghost) { e.preventDefault(); onChange(ghost); return; }
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (!readingRef.current && (value.trim() || images.length || notes.length)) onSend(); }
   }
 
-  const has = !reading && (!!value.trim() || images.length > 0);
+  const has = !reading && (!!value.trim() || images.length > 0 || notes.length > 0);
   return (
     <div className="cmp-wrap">
       {queue.length > 0 && (
@@ -314,19 +331,21 @@ export function Composer({ value, onChange, onSend, onStop, running, queue, onDe
 
           </div>
         )}
-        <form className={`cmp-card${running ? ' busy' : ''}`} onSubmit={(e) => { e.preventDefault(); if (!readingRef.current && (value.trim() || images.length)) onSend(); }}>
+        <form className={`cmp-card${running ? ' busy' : ''}`} onSubmit={(e) => { e.preventDefault(); if (!readingRef.current && (value.trim() || images.length || notes.length)) onSend(); }}>
+          {notes.length > 0 && <div className="chat-note-attachments" aria-label="待发送笔记">{notes.map((note) => <span className="chat-note-chip" key={`${note.source}:${note.id}`}><NoteLeadingIcon /><span title={note.title}>{note.title}</span><button type="button" className="ico-btn xs" aria-label={`移除笔记 ${note.title}`} onClick={() => onNotesChange?.((current) => current.filter((n) => n.source !== note.source || n.id !== note.id))}><Icon name="x" size={12} /></button></span>)}</div>}
           {images.length > 0 && <div aria-label="待发送图片" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', padding: '12px 12px 0' }}>{images.map((image, i) => <div key={`${i}-${image.name}`} style={{ position: 'relative' }}><img src={image.dataUrl} alt={image.name} style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8 }} /><button type="button" className="ico-btn xs" aria-label={`移除图片 ${i + 1}`} style={{ position: 'absolute', right: 0, top: 0, background: 'var(--paper)' }} onClick={() => onImagesChange?.((current) => current.filter((_, n) => n !== i))}><Icon name="x" size={12} /></button></div>)}</div>}
           <label htmlFor={inputId} className="sr-only">{inputLabel}</label>
-          {!value && !images.length && ghost && !running && <div className="ghost" aria-hidden="true"><span>{ghost}</span><kbd>Tab</kbd></div>}
+          {!value && !images.length && !notes.length && ghost && !running && <div className="ghost" aria-hidden="true"><span>{ghost}</span><kbd>Tab</kbd></div>}
           <textarea id={inputId} ref={ta} value={value} rows={2} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey} onPaste={(e) => void paste(e)}
             placeholder={ghost && !running ? '' : '随便问，@ 提及角色、地点或设定'} aria-description={ghost && !value ? `按 Tab 采纳建议：${ghost}` : undefined} />
           {mention && list.length > 0 && (
             <div className="card menu cmp-mention" role="listbox" aria-label="提及">
               {list.map((m, k) => (
-                <button key={`${m.kind}-${m.label}`} type="button" role="option" aria-selected={k === mention.sel} onMouseDown={(e) => { e.preventDefault(); insertMention(m.label); }}>
-                  <span className="muted" style={{ fontSize: 11.5, width: 34 }}>{m.kind}</span>{m.label}
+                <button key={`${m.kind}-${m.note?.id ?? m.label}`} type="button" role="option" aria-selected={k === mention.sel} onMouseDown={(e) => { e.preventDefault(); insertMention(m); }}>
+                  <span className="muted" style={{ fontSize: 11.5, flex: 'none' }}>{m.kind}</span><span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.label}</span>
                 </button>
               ))}
+              <div className="muted" role="presentation" style={{ fontSize: 11, padding: '4px 10px' }}>↑↓ 选择 · Tab 确认 · Esc 关闭</div>
             </div>
           )}
           <div className="cmp-bar">

@@ -1,8 +1,9 @@
 import type { AncherSdk } from '@ancher-ai/sdk';
-import type { Note } from '@ancher-ai/sdk/contracts';
+import { getNoteSourceUrl, getNoteSource, getNoteThumbnailFile, getFileUrl, type Note } from '@ancher-ai/sdk/contracts';
 
-/** Account data sent to the renderer; contains no keys or expiring download URLs. */
+/** Account metadata and thumbnail URLs sent to the renderer; API keys stay in main. */
 export interface AncherNote {
+  kind?: 'note' | 'file' | 'link'; thumbnail?: string;
   id: string; title: string; description: string; memo: string;
   status: 'queued' | 'processing' | 'fetched' | 'ready' | 'error'; error: string;
   addedAt: number; updatedAt: number; starred: boolean;
@@ -31,7 +32,10 @@ function publicNote(note: Note, starred = false): AncherNote {
   // The current API adds fetched; legacy notes expose the article's lifecycle separately.
   const pending = ['queued', 'processing', 'fetched'] as const;
   const status = pending.find((s) => (note.status as string) === s || (note.article?.status as string | undefined) === s) ?? note.status;
+  const kind = getNoteSourceUrl(note) ? 'link' : ['file','document','pdf'].includes(getNoteSource(note) ?? '') ? 'file' : 'note';
+  const thumbnail = getFileUrl(getNoteThumbnailFile(note));
   return {
+    kind, ...(thumbnail && /^https:\/\//.test(thumbnail) ? { thumbnail } : {}),
     id: note.id, title: note.title || note.article?.title || '未命名笔记',
     description: note.description || note.article?.description || '', memo: note.comment || '',
     status, error: note.error_message || '', addedAt: note.created_at * 1000, updatedAt: note.updated_at * 1000,

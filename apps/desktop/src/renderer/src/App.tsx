@@ -32,6 +32,14 @@ export function App() {
   const [fileId, setFileId] = useState<string>();
   const [dockHidden, setDockHidden] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('dock-hidden') || '{}'); } catch { return {}; } });
   const [route, setRoute] = useState<Route>({ name: 'home' });
+  useEffect(() => {
+    const showChat = (event: Event) => {
+      if (route.name !== 'project' || (event as CustomEvent).detail?.projectId !== route.id) return;
+      setDockHidden((current) => { const next = { ...current, [route.tab]: false }; localStorage.setItem('dock-hidden', JSON.stringify(next)); return next; });
+    };
+    window.addEventListener('scripter:attach-note', showChat); return () => window.removeEventListener('scripter:attach-note', showChat);
+  }, [route]);
+
 
   const refresh = useCallback(async () => {
     const l = await window.api.license.status();

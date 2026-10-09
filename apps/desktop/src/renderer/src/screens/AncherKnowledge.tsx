@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AncherLibrary, AncherNoteContent } from '@scripter/agent';
 import { AncherMarkdown, AncherOriginalViewer } from './AncherNoteContent.tsx';
-import { Icon, useToast } from '../lib/ui.tsx';
+import { NoteLeadingIcon } from '../components/NoteLeadingIcon.tsx';
+import { addNoteToChat } from '../lib/note-chat.ts';
+import { useNoteShortcuts } from '../lib/note-shortcuts.ts';
+import { Icon, isMac, useToast } from '../lib/ui.tsx';
 
 const statusLabel = { queued: '等待处理', processing: '正在处理', fetched: '内容已获取，正在生成', ready: '已就绪', error: '处理失败' };
 export function AncherKnowledge({ id, switcher, onImported, onSelect, toggleDock, dockOpen }: {
@@ -24,6 +27,8 @@ export function AncherKnowledge({ id, switcher, onImported, onSelect, toggleDock
   const [refreshKey, setRefreshKey] = useState(0);
   const alive = useRef(false);
   const inFlight = useRef(false);
+  const root = useRef<HTMLDivElement>(null);
+  const search = useRef<HTMLInputElement>(null);
   const toast = useToast();
   const refresh = useCallback(async () => {
     if (inFlight.current) return;
@@ -74,6 +79,11 @@ export function AncherKnowledge({ id, switcher, onImported, onSelect, toggleDock
   }, [noteId, note?.updatedAt, note?.status, refreshKey]);
   const current = content?.note ?? note;
   const pick = (noteId: string) => { setSelected(noteId); setMode('summary'); setOriginalFileId(''); };
+  const attach = () => {
+    if (!current || current.id !== noteId || current.status !== 'ready') return;
+    addNoteToChat(id, { source:'ancher', id:current.id, title:current.title });
+  };
+  useNoteShortcuts(root, search, noteId, list.map((n) => n.id), pick, attach, current?.id === noteId && current?.status === 'ready');
   const byId = new Map(notes.map((n) => [n.id, n]));
   const pinned = (library?.pinnedNoteIds ?? []).flatMap((id) => byId.has(id) ? [byId.get(id)!] : []);
   async function importNote() {
@@ -86,14 +96,14 @@ export function AncherKnowledge({ id, switcher, onImported, onSelect, toggleDock
     } catch (e) { toast(String(e)); }
     finally { if (alive.current) setImporting(false); }
   }
-  return <div className="knowledge-layout ancher-knowledge">
+  return <div ref={root} className="knowledge-layout ancher-knowledge">
     <aside className="side-list note-list">
       {switcher}
       <button className="btn btn-ghost" disabled={loading} onClick={() => { void refresh(); setRefreshKey((x) => x + 1); }}><Icon name="undo" size={14} />{loading ? '刷新中…' : '刷新 Ancher 笔记'}</button>
-      <input className="input" aria-label="搜索 Ancher 笔记" placeholder="搜索笔记" value={query} onChange={(e) => setQuery(e.target.value)} />
-      <details open className="note-group"><summary>已固定 <span>{pinned.length}</span></summary><div className="note-items">{pinned.map((n) => <button key={n.id} onClick={() => { setCollection(''); setQuery(''); pick(n.id); }} aria-current={n.id === noteId ? 'page' : undefined}><Icon name="doc" size={14} /><span>{n.title}</span></button>)}</div></details>
+      <input ref={search} className="input" aria-label="搜索 Ancher 笔记" placeholder={isMac ? '搜索笔记  ⌘K' : '搜索笔记  Ctrl+K'} value={query} onChange={(e) => setQuery(e.target.value)} />
+      <details open className="note-group"><summary>已固定 <span>{pinned.length}</span></summary><div className="note-items">{pinned.map((n) => <button data-note-id={n.id} key={n.id} onClick={() => { setCollection(''); setQuery(''); pick(n.id); }} aria-current={n.id === noteId ? 'page' : undefined}><NoteLeadingIcon kind={n.kind} status={n.status} thumbnail={n.thumbnail} /><span title={n.title}>{n.title}</span></button>)}</div></details>
       <details open className="note-group"><summary>合集 <span>{library?.collections.length ?? 0}</span></summary><div className="note-items">{library?.collections.map((c) => <button key={c.id} aria-current={collection === c.id ? 'page' : undefined} onClick={() => { setCollection(c.id); setSelected(''); setQuery(''); }}><span className="cloud-collection-icon" style={{ color: `var(--color-${c.color}-500, var(--primary))` }}><Icon name="box" size={16} /></span><span>{c.name}</span></button>)}</div></details>
-      <details open className="note-group note-all"><summary>笔记 <span>{list.length}</span><span className="grow" /><button aria-label="排序 Ancher 笔记" onClick={(e) => { e.preventDefault(); setReverse((x) => !x); }}>↕</button></summary><div className="note-items">{list.map((n) => <button key={n.id} aria-current={n.id === noteId ? 'page' : undefined} onClick={() => pick(n.id)}><Icon name="doc" size={14} /><span>{n.title}</span>{n.status !== 'ready' && <small>{statusLabel[n.status]}</small>}</button>)}</div></details>
+      <details open className="note-group note-all"><summary>笔记 <span>{list.length}</span><span className="grow" /><button aria-label="排序 Ancher 笔记" onClick={(e) => { e.preventDefault(); setReverse((x) => !x); }}>↕</button></summary><div className="note-items">{list.map((n) => <button data-note-id={n.id} key={n.id} aria-current={n.id === noteId ? 'page' : undefined} onClick={() => pick(n.id)}><NoteLeadingIcon kind={n.kind} status={n.status} thumbnail={n.thumbnail} /><span title={n.title}>{n.title}</span>{n.status !== 'ready' && <small>{statusLabel[n.status]}</small>}</button>)}</div></details>
       <button className="btn btn-ghost" onClick={() => { setCollection(''); setQuery(''); }}>全部 Ancher 笔记</button>
       <p className="muted cloud-hint">与官网同一账号 · 自动刷新</p>
     </aside>
@@ -101,7 +111,7 @@ export function AncherKnowledge({ id, switcher, onImported, onSelect, toggleDock
       {error ? <div className="empty-state"><div role="alert" className="err">{error}</div><button className="btn" onClick={() => void refresh()}>重试</button></div>
         : !current ? <div className="empty-state">{loading ? '正在读取 Ancher 笔记…' : library && notes.length ? '没有符合条件的笔记' : '这个 Ancher 账号还没有笔记，请先在官网保存'}</div>
         : <div className="note-frame">
-          <div className="note-tools"><span className="muted">Ancher 笔记 · {statusLabel[current.status]}</span><span className="grow" /><button className="btn btn-ghost" disabled={importing || current.status !== 'ready' || content?.body == null || !!bodyError || !!content?.summaryError} onClick={() => void importNote()}>{importing ? '保存中…' : '保存到项目'}</button><button className="btn btn-quiet" aria-label="切换 AI 对话" aria-pressed={dockOpen} onClick={toggleDock}><Icon name="chat" size={14} /></button></div>
+          <div className="note-tools"><span className="muted">Ancher 笔记 · {statusLabel[current.status]}</span><span className="grow" /><button className="btn btn-ghost" disabled={current.status !== 'ready'} title={isMac ? '添加到对话 ⇧⌘↵' : '添加到对话 Ctrl+Shift+Enter'} onClick={attach}><Icon name="chat" size={14} />添加到对话</button><button className="btn btn-ghost" disabled={importing || current.status !== 'ready' || content?.body == null || !!bodyError || !!content?.summaryError} onClick={() => void importNote()}>{importing ? '保存中…' : '保存到项目'}</button><button className="btn btn-quiet" aria-label="切换 AI 对话" aria-pressed={dockOpen} onClick={toggleDock}><Icon name="chat" size={14} /></button></div>
           <div className="page note-content">
             <div className="note-kicker muted">笔记 · {new Date(current.addedAt).toLocaleDateString('zh-CN')}</div>
             <h1 className="cloud-note-title">{current.title}</h1>
@@ -116,7 +126,7 @@ export function AncherKnowledge({ id, switcher, onImported, onSelect, toggleDock
                 : current.status !== 'ready' ? <div className="note-processing">{statusLabel[current.status]}…<p>转写完成后这里会自动显示正文。</p></div>
                 : !content ? '正在读取内容…' : <AncherMarkdown text={content.body || current.description || '暂无摘要。'} imageUrls={content.imageUrls} onMediaError={() => setMediaRetry(true)} />}
             </div>
-            <p className="muted cloud-hint">官网笔记只读 · 保存到项目后可离线编辑和用于写作参考</p>
+            <p className="muted cloud-hint">添加到对话后可直接询问这条笔记 · 保存到项目后可离线编辑</p>
           </div>
         </div>}
     </section>

@@ -4,7 +4,7 @@
 import { app, type WebContents } from 'electron';
 import { randomUUID } from 'node:crypto';
 import { applyOps, bibleBrief, needsReview, parseReply, previewOps, referenceBrief, type Op } from '@scripter/core';
-import { outlineSummaryReply, decodeChatImages, uploadChatImages, addCall, buildMessage, checkAncherKey, endCall, toolLabel, type ActivityRow, createAncher, describeError, parseScenePrompt, reversePrompt, runChat, scenePromptMessage, selectionAction } from '@scripter/agent';
+import { prepareChatNotes, outlineSummaryReply, decodeChatImages, uploadChatImages, addCall, buildMessage, checkAncherKey, endCall, toolLabel, type ActivityRow, createAncher, describeError, parseScenePrompt, reversePrompt, runChat, scenePromptMessage, selectionAction } from '@scripter/agent';
 import type { AiWriteRequest, AiWriteResult, ChatMsg, TurnInfo } from '../shared/ipc.ts';
 import { filePath, get, pushChat, saveNow, state } from './projects.ts';
 import { openAsBlob, mkdirSync, writeFileSync } from 'node:fs';
@@ -26,6 +26,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   const p = get(req.projectId);
   const key = getSecret('ancher');
   if (!key) return { ok: false, narration: '', applied: 0, errors: [], citations: [], message: '还没有填写 Ancher API key，请到设置里填写' };
+  const noteInput = prepareChatNotes(req.notes ?? [], p.doc.readBible());
   const images = decodeChatImages(req.images ?? []);
   const storedImages = images.map((image) => {
     const file = `${randomUUID().replaceAll('-', '')}.${image.mime.split('/')[1] === 'jpeg' ? 'jpg' : image.mime.split('/')[1]}`;
@@ -33,7 +34,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
     writeFileSync(filePath(req.projectId, file), image.bytes);
     return { name: image.name, file };
   });
-  pushChat(p, msg({ role: 'user', text: req.instruction, ...(storedImages.length ? { images: storedImages } : {}) }));
+  pushChat(p, msg({ role: 'user', text: req.instruction, ...(noteInput.notes.length ? { notes: noteInput.notes } : {}), ...(storedImages.length ? { images: storedImages } : {}) }));
   // Agent activity: rows stream to the renderer live and are kept on the reply, finished (a cancelled call stays as a row).
   let rows: ActivityRow[] = [];
   const labels = new Map<string, string>();
@@ -44,10 +45,10 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
   busyProjects.add(req.projectId);
   try {
     const sdk = ancher(key);
-    const attachments = await uploadChatImages(sdk, images, ac.signal);
+    const attachments = [...await uploadChatImages(sdk, images, ac.signal), ...noteInput.attachments];
     const bible = p.doc.readBible();
     // Full rules only when this starts a new Ancher conversation; later turns carry a one-line reminder.
-    const content = buildMessage(req.target === 'outline' ? '根据当前剧本和已有大纲，总结这一集的完整大纲，包含故事起因、主要情节和结尾。直接输出完整大纲正文，使用 Markdown 标题和列表，不要输出说明、剧本节点或其他修改。' : req.instruction, `${p.meta.title} · ${p.doc.episodes().find((e) => e.id === p.doc.activeEpisodeId)?.title}`,  p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible) + (req.pageContext ? `\n当前页面：${req.pageContext.page.slice(0, 80)}\n` + (() => {
+    const content = buildMessage(req.target === 'outline' ? '根据当前剧本和已有大纲，总结这一集的完整大纲，包含故事起因、主要情节和结尾。直接输出完整大纲正文，使用 Markdown 标题和列表，不要输出说明、剧本节点或其他修改。' : req.instruction, `${p.meta.title} · ${p.doc.episodes().find((e) => e.id === p.doc.activeEpisodeId)?.title}`,  p.doc.nodes(), req.focusId, bibleBrief(bible), referenceBrief(bible) + (noteInput.reference ? `\n本次消息添加的笔记：\n${noteInput.reference}` : '') + (req.pageContext ? `\n当前页面：${req.pageContext.page.slice(0, 80)}\n` + (() => {
       const f = bible.files.find((x) => x.id === req.pageContext?.fileId);
       return f ? `当前笔记（素材）：${f.title || f.name}\n${f.summary}\n${f.excerpt.slice(0, 8000)}` : '';
     })() : ''), p.doc.outline, !p.meta.conversationId);
