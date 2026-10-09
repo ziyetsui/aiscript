@@ -5,6 +5,7 @@ const call = (ch: string) => (...a: unknown[]) => ipcRenderer.invoke(ch, ...a);
 
 const api: Api = {
   app: { info: call('app:info') as Api['app']['info'], diagnostics: call('app:diagnostics') as Api['app']['diagnostics'], getTheme: call('app:getTheme') as Api['app']['getTheme'], setTheme: call('app:setTheme') as Api['app']['setTheme'] },
+  localData: { info: call('data:info') as Api['localData']['info'], backup: call('data:backup') as Api['localData']['backup'], recover: call('data:recover') as Api['localData']['recover'], showFolder: call('data:showFolder') as Api['localData']['showFolder'] },
   license: {
     status: call('license:status') as Api['license']['status'],
     activateKeygen: call('license:activateKeygen') as Api['license']['activateKeygen'],

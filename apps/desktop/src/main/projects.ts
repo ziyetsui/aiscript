@@ -1,6 +1,9 @@
-// Projects live in userData/projects/<id>/: script.loro (Loro snapshot, the source of truth) + meta.json.
+// Projects live in userData/projects/<id>/: SQLite is authoritative; JSON/Loro are portable mirrors.
+import { app } from 'electron';
+import { loadSnapshot, saveSnapshot, backupSnapshot, listBackups, readBackup } from './local-data.ts';
+declare const __DATA_BUILD__: string;
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ScriptDoc, scenes, wordCount, type BibleItem, type BibleKind, type Op, type Production, type Turn } from '@scripter/core';
 import { recoverInterrupted, type RunState } from '@scripter/agent';
@@ -27,15 +30,17 @@ const dirOf = (id: string) => {
 const open = new Map<string, Open>();
 
 function readMeta(id: string): Meta {
-  return JSON.parse(readFileSync(join(dirOf(id), 'meta.json'), 'utf8')) as Meta;
+  return JSON.parse(loadSnapshot(dirOf(id)).meta) as Meta;
 }
 
 function persist(p: Open): void {
   p.meta.updatedAt = Date.now();
   p.meta.words = p.doc.episodes().reduce((n, e) => n + wordCount(p.doc.episode(e.id).nodes()), 0);
   p.meta.turns = [...p.doc.listTurns()];
-  writeAtomic(join(dirOf(p.meta.id), 'script.loro'), p.doc.snapshot());
-  writeAtomic(join(dirOf(p.meta.id), 'meta.json'), JSON.stringify(p.meta, null, 2));
+  const snapshot = { script: p.doc.snapshot(), meta: JSON.stringify(p.meta, null, 2) };
+  saveSnapshot(dirOf(p.meta.id), snapshot, `${app.getVersion()}:${__DATA_BUILD__}`);
+  writeAtomic(join(dirOf(p.meta.id), 'script.loro'), snapshot.script);
+  writeAtomic(join(dirOf(p.meta.id), 'meta.json'), snapshot.meta);
 }
 
 /** Coalesce keystrokes: save 400ms after the last edit, and always on quit. */
@@ -51,8 +56,9 @@ export function flushAll(): void {
 export function list(): ProjectMeta[] {
   if (!existsSync(root())) return [];
   return readdirSync(root())
-    .filter((d) => existsSync(join(root(), d, 'meta.json')))
-    .map((d) => { const { conversationId: _c, turns: _t, chat: _h, pending: _p, workflows: _w, archive: _a, ...m } = readMeta(d); return m; })
+    .filter((d) => /^[0-9a-f-]{36}$/.test(d) && (existsSync(join(root(), d, 'meta.json')) || existsSync(join(root(), d, 'project.sqlite'))))
+    .map((d) => { let stored: Meta; try { stored = readMeta(d); } catch { try { stored = JSON.parse(readFileSync(join(dirOf(d), 'meta.json'), 'utf8')) as Meta; } catch { stored = { id: d, title: '待恢复项目', kind: 'script', createdAt: 0, updatedAt: 0, words: 0 }; } }
+      const { conversationId: _c, turns: _t, chat: _h, pending: _p, workflows: _w, archive: _a, ...m } = stored; return m; })
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
@@ -71,8 +77,15 @@ export function create(title: string, kind: ProjectMeta['kind']): ProjectMeta {
 export function get(id: string): Open {
   let p = open.get(id);
   if (!p) {
-    const meta = readMeta(id);
-    const doc = ScriptDoc.fromSnapshot(new Uint8Array(readFileSync(join(dirOf(id), 'script.loro'))));
+    let snapshot: ReturnType<typeof loadSnapshot>;
+    try { snapshot = loadSnapshot(dirOf(id)); } catch (e) { if (e instanceof Error && e.message.includes('较新版本')) throw e; throw new Error('本地项目数据无法读取。请到设置 → 项目数据，从备份恢复为副本；原文件未被覆盖。'); }
+    const meta = JSON.parse(snapshot.meta) as Meta;
+    if (meta.id !== id) throw new Error('项目标识不匹配，原文件未被覆盖');
+    const doc = ScriptDoc.fromSnapshot(snapshot.script);
+    // Validate the old snapshot before migration, and back it up before any recovery changes.
+    if (snapshot.legacy) saveSnapshot(dirOf(id), snapshot, `${app.getVersion()}:${__DATA_BUILD__}`);
+    writeAtomic(join(dirOf(id), 'meta.json'), snapshot.meta);
+    writeAtomic(join(dirOf(id), 'script.loro'), snapshot.script);
     doc.loadTurns(meta.turns ?? []);
     // Parsing tasks do not survive a restart or a trip through the recycle bin.
     let interrupted = false;
@@ -134,7 +147,6 @@ export function undoTurn(id: string, turnId: string): ProjectState {
 
 export function pushChat(p: Open, m: ChatMsg): ChatMsg {
   (p.meta.chat ??= []).push(m);
-  if (p.meta.chat.length > 400) p.meta.chat.splice(0, p.meta.chat.length - 400);
   return m;
 }
 
@@ -147,8 +159,8 @@ const trashRoot = () => join(dataDir(), 'trash');
 const trashDir = (id: string) => { dirOf(id); return join(trashRoot(), id); };
 export function trashList(): ProjectMeta[] {
   if (!existsSync(trashRoot())) return [];
-  return readdirSync(trashRoot()).filter((id) => /^[0-9a-f-]{36}$/.test(id) && existsSync(join(trashDir(id), 'meta.json')))
-    .map((id) => { const m = JSON.parse(readFileSync(join(trashDir(id), 'meta.json'), 'utf8')) as Meta;
+  return readdirSync(trashRoot()).filter((id) => /^[0-9a-f-]{36}$/.test(id) && (existsSync(join(trashDir(id), 'meta.json')) || existsSync(join(trashDir(id), 'project.sqlite'))))
+    .map((id) => { let m: Meta; try { m = JSON.parse(loadSnapshot(trashDir(id)).meta) as Meta; } catch { try { m = JSON.parse(readFileSync(join(trashDir(id), 'meta.json'), 'utf8')) as Meta; } catch { m = { id, title: '待恢复项目', kind: 'script', createdAt: 0, updatedAt: 0, words: 0 }; } }
       return { id: m.id, title: m.title, kind: m.kind, createdAt: m.createdAt, updatedAt: m.updatedAt, words: m.words }; })
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -241,7 +253,6 @@ function archiveCurrent(p: Open): void {
   const chat = p.meta.chat ?? [];
   if (!chat.length) return;
   (p.meta.archive ??= []).push({ id: randomUUID(), title: conversationTitle(chat), at: chat.at(-1)!.at, chat, conversationId: p.meta.conversationId ?? null });
-  if (p.meta.archive.length > 50) p.meta.archive.splice(0, p.meta.archive.length - 50);
 }
 
 export function newConversation(id: string): ProjectState {
@@ -279,3 +290,30 @@ export function react(id: string, msgId: string, reaction: 'like' | 'dislike' | 
 export function setBeats(id: string, text: string): ProjectState { const p = get(id); p.doc.setBeats(text); p.doc.commit('beats'); schedule(p); return state(p); }
 
 export function setCover(id: string, patch: Partial<ProjectState['cover']>): ProjectState { const p = get(id); p.doc.setCover(patch); schedule(p); return state(p); }
+
+
+export function localDataInfo() {
+  return { path: dataDir(), projects: list().map((p) => ({ id: p.id, title: p.title, backups: listBackups(dirOf(p.id)) })) };
+}
+export function backupProject(id: string): string {
+  saveNow(get(id));
+  return backupSnapshot(dirOf(id));
+}
+/** Recover into a new local project; never overwrite a client's current project. */
+export function recoverBackup(id: string, name: string): ProjectMeta {
+  const snapshot = readBackup(dirOf(id), name);
+  const meta = JSON.parse(snapshot.meta) as Meta;
+  const doc = ScriptDoc.fromSnapshot(snapshot.script);
+  doc.loadTurns(meta.turns ?? []);
+  for (const f of doc.bible('files').all()) if (f.extract === 'working') doc.bible('files').update(f.id, { extract: 'failed', pinned: false, extractError: '备份中的读取任务未完成，请重试。' });
+  const nextId = randomUUID(), title = `${meta.title}（备份恢复）`;
+  meta.id = nextId; meta.title = title; meta.conversationId = null; meta.pending = {};
+  for (const conv of meta.archive ?? []) conv.conversationId = null;
+  for (const msgs of [meta.chat ?? [], ...(meta.archive ?? []).map((a) => a.chat)]) for (const msg of msgs) if (msg.preview?.state === 'open') msg.preview.state = 'stale';
+  for (const run of meta.workflows ?? []) if (run.status === 'running') recoverInterrupted(run);
+  doc.setTitle(title); doc.commit('restore local backup');
+  mkdirSync(dirOf(nextId), { recursive: true });
+  if (existsSync(filesDir(id))) cpSync(filesDir(id), filesDir(nextId), { recursive: true });
+  const restored = { meta, doc }; persist(restored); open.set(nextId, restored);
+  return list().find((p) => p.id === nextId)!;
+}

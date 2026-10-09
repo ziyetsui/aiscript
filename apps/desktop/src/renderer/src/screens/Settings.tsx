@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { SCRIPT_FONTS, applyFont, currentFont, type ScriptFont } from '../lib/editor-font.ts';
 import { bell, setSound, setVolume, soundOn, soundVolume } from '../lib/typewriter.ts';
 import type { KeyStatus, LicenseStatus, UpdateStatus } from '../../../shared/ipc.ts';
+import { LocalData } from './LocalData.tsx';
 import { KeyForm } from './Keys.tsx';
 import type { Route } from '../App.tsx';
 import { Icon, useToast } from '../lib/ui.tsx';
@@ -95,7 +96,7 @@ export function Settings({ license, keys, onChange, go, back }: { license: Extra
         </section>
         <section className="card">
           <h2 style={{ fontSize: 15 }}>项目数据</h2>
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>所有项目都只保存在这台电脑上。换电脑时，在剧本的「导出 → 整个项目」导出 .scripter 文件，再到新电脑的首页「导入项目」。</p>
+          <LocalData />
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="btn btn-ghost" onClick={async () => { const r = await window.api.app.diagnostics(); if (r.ok) toast(`已导出诊断包到 ${r.path}`); }}>导出诊断包</button>
           </div>

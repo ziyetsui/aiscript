@@ -48,6 +48,7 @@ win:
       arch: [x64]
   # Azure Trusted Signing is configured in CI via environment (AZURE_*); unsigned locally.
 nsis:
+  deleteAppDataOnUninstall: false
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

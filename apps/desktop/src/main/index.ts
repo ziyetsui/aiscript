@@ -24,7 +24,7 @@ import * as ancherNotes from './ancher-notes.ts';
 import * as wf from './workflows.ts';
 import * as projects from './projects.ts';
 import { encryptionAvailable, getSecret, setSecret } from './secrets.ts';
-import { readJson, writeJson } from './store.ts';
+import { dataDir, readJson, writeJson } from './store.ts';
 
 // Dev/test-only overrides (never honoured in a packaged build): isolated data dir for E2E runs.
 if (!app.isPackaged && process.env.SCRIPTER_USER_DATA) app.setPath('userData', process.env.SCRIPTER_USER_DATA);
@@ -74,6 +74,10 @@ const themeSetting = (): Theme => { const t = readJson<{ theme?: Theme }>('setti
 const active = () => { if (licenseStatus().state !== 'active') throw new Error('未激活'); };
 
 function registerIpc(): void {
+  ipcMain.handle('data:info', gated(() => projects.localDataInfo()));
+  ipcMain.handle('data:backup', gated((id: string) => projects.backupProject(id)));
+  ipcMain.handle('data:recover', gated((id: string, name: string) => projects.recoverBackup(id, name)));
+  ipcMain.handle('data:showFolder', async () => { const error = await shell.openPath(dataDir()); if (error) throw new Error(error); });
   ipcMain.handle('app:info', () => ({ version: app.getVersion(), platform: process.platform }));
   ipcMain.handle('app:getTheme', () => themeSetting());
   ipcMain.handle('app:setTheme', (_e, t: Theme) => {
