@@ -21,6 +21,7 @@ node_modules/
 # Local builds, runtime/test data and delivery artifacts
 apps/desktop/out/
 apps/desktop/release/
+apps/desktop/buildres/ffmpeg/
 apps/desktop/e2e/shots/
 /delivery/
 *.log

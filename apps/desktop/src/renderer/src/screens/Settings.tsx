@@ -54,11 +54,11 @@ export function Settings({ license, keys, onChange, go, back }: { license: Extra
           </div>
           <KeyForm which="ancher" onSaved={onChange} compact />
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-            <span style={{ flex: 1 }}>Gemini：{keys.gemini ? <span className="ok">已填写</span> : <span className="muted">未填写（可选，用于视频转写）</span>}</span>
+            <span style={{ flex: 1 }}>Gemini：{keys.gemini ? <span className="ok">已填写 · {keys.geminiService === 'google-cloud' ? 'Google Cloud' : 'AI Studio'}</span> : <span className="muted">未填写（可选，用于视频转写）</span>}</span>
             {keys.gemini && <button className="btn btn-quiet" onClick={() => clear('gemini')}>移除</button>}
           </div>
-          <KeyForm which="gemini" onSaved={onChange} compact />
-          <p className="muted" style={{ fontSize: 12, margin: 0 }}>密钥只保存在这台电脑的系统钥匙串里，不会上传到任何服务器。用量请在各自的服务商账户里查看。</p>
+          <KeyForm key={keys.geminiService} geminiService={keys.geminiService} which="gemini" onSaved={onChange} compact />
+          <p className="muted" style={{ fontSize: 12, margin: 0 }}>密钥在本机加密保存，仅用于向对应服务商发起请求。Gemini 转写会将音视频或提取的音频发送给 Google。用量请在服务商账户查看。</p>
         </section>
         <section className="card">
           <h2 style={{ fontSize: 15 }}>外观</h2>

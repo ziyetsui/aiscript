@@ -2,14 +2,16 @@ import { createRequire } from 'node:module';
 // Workflow runs (spec 0002 §5.6): started from the chat, persisted with the project after every step,
 // cancellable, retryable from the failed step, and recovered after a quit. Results are only applied
 // by an explicit choice; rewrites go through the modification preview.
-import type { WebContents } from 'electron';
+import { app, type WebContents } from 'electron';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdirSync, openAsBlob, writeFileSync } from 'node:fs';
-import { basename } from 'node:path';
-import { confirm, execute, fetchNewsNow, stopNewsNowProcesses, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
+import { basename, join } from 'node:path';
+import { confirm, execute, fetchNewsNow, stopNewsNowProcesses, geminiService, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, transcribeWithGoogleCloud, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
 import { ancher, propose } from './ai.ts';
 import { filePath, filesDir, get, pushChat, saveNow, state } from './projects.ts';
 import { getSecret } from './secrets.ts';
+import { readJson } from './store.ts';
+import { transcribeCloudMedia } from './gemini-media.ts';
 import type { ProjectState, WorkflowAction } from '../shared/ipc.ts';
 
 type Open = ReturnType<typeof get>;
@@ -63,6 +65,9 @@ function envFor(p: Open, run: RunState): WorkflowEnv {
       if (provider === 'gemini') {
         const g = getSecret('gemini');
         if (!g) throw new Error('还没有填写 Gemini key');
+        if (geminiService(readJson<{ geminiService?: string }>('settings.json', {}).geminiService) === 'google-cloud') {
+          return transcribeCloudMedia(path, signal, audio => transcribeWithGoogleCloud(g, audio, signal), { ffmpegPath: app.isPackaged ? join(process.resourcesPath, 'ffmpeg', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg') : undefined });
+        }
         return transcribeWithGemini(g, await fileBlob(path), basename(path), signal);
       }
       const text = await parseWithAncher(ancher(key()), { file: await fileBlob(path) }, signal);

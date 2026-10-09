@@ -11,6 +11,7 @@ files:
   # Vendor READMEs contain sample private keys; exclude documentation, retain licenses.
   - "!node_modules/**/README*.md"
   - "!node_modules/**/readme*.md"
+  - "!node_modules/ffmpeg-static/ffmpeg*"
 extraResources:
   # Preserve upstream license/notice texts alongside bundled writing methods.
   - from: ../../packages/agent/src/skills/vendor
@@ -24,6 +25,7 @@ extraResources:
   - from: resources/license-public.pem
     to: license-public.pem
 asar: true
+afterPack: scripts/pack-ffmpeg.cjs
 mac:
   artifactName: Ancher-Scripter-${version}-mac-${arch}.${ext}
   category: public.app-category.productivity

@@ -10,7 +10,19 @@ pnpm dev          # 启动桌面端（热更新）
 pnpm test         # 单元测试
 pnpm typecheck
 pnpm --filter @scripter/desktop e2e   # 构建并用 Playwright 驱动真实 Electron 窗口
+pnpm --filter @scripter/desktop exec node e2e/gemini.e2e.ts  # Cloud 转写集成测试（模拟 Google 响应）
 ```
+
+## 本地音视频转写
+
+在「设置 → 模型与密钥」选择 Gemini 服务，再验证并保存对应的 API key：
+
+- Google AI Studio：沿用 Files API 上传音视频；已有配置默认使用此服务。
+- Google Cloud（GCP API key）：使用 `aiplatform.googleapis.com/v1/publishers/google/models/gemini-2.5-flash:generateContent`，与 Cloud 的 API-key / express mode REST 示例一致。此选项不处理 OAuth access token 或服务账号 JSON。验证会发送一次简短生成请求。
+
+使用「视频 → 逐字稿」选择本地文件。Cloud 模式通过随客户端打包的 FFmpeg，在本机提取单声道音频并按 10 分钟分段，逐段直接发送给 Google，再合并字幕时间；结果保存为项目知识库中的 TXT 和 SRT。取消、失败或完成后清理临时音频，不需要自行部署服务器。没有人声的分段会跳过；格式无效或生成被截断时显示错误，避免保存不完整逐字稿。转写准确度和说话人识别仍需人工复核。
+
+密钥在本机加密保存，请求时用于 Google 认证；音视频或提取的音频会发送给 Google，用量在对应 Google 账户结算。403 会提示权限/API 配置问题，429 会提示配额或限流，不再统一显示「key 无效」。
 
 ## 激活（开发时）
 
