@@ -36,7 +36,8 @@ try {
       const body = JSON.parse(init!.body as string);
       const inline = body.contents[0].parts[0].inlineData;
       if (inline && (inline.mimeType !== 'audio/mpeg' || !inline.data)) throw new Error('Expected extracted MP3');
-      return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '1\n00:00:00,000 --> 00:00:00,500\n小明：你好。' }] } }] }));
+      if (inline && (body.generationConfig.responseMimeType !== 'application/json' || !body.generationConfig.responseSchema)) throw new Error('Expected structured transcription request');
+      return new Response(JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: JSON.stringify({ segments: [{ startMs: 0, endMs: 500, text: '小明：你好。' }] }) }] } }] }));
     };
   });
   await page.locator('#k-gemini').fill('denied-cloud-key');
