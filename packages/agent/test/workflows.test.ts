@@ -22,6 +22,7 @@ function env(replies: (string | Error)[], over: Partial<WorkflowEnv> = {}) {
   const e: WorkflowEnv = {
     title: () => '门墩儿', nodes: () => d.nodes(), bible: () => d.readBible(), outline: () => '豆豆发现门墩儿会说话，两人约定保守秘密。',
     chat, parse: vi.fn(async () => '参考作品：小明 用 神奇口袋 帮朋友。'), transcribe: vi.fn(async () => ({ text: '你好', srt: '1\n00:00:00,000 --> 00:00:01,000\n你好\n' })),
+    hotspots: vi.fn(async () => ({ items: [{ title: '北京修鞋铺', url: 'https://example.com/hot', sources: ['知乎'] }], failedSources: ['微博'], fetchedAt: 123 })),
     hasGemini: () => false, ...over,
   };
   return { e, d, chat };
@@ -213,4 +214,41 @@ describe('episode pipeline (spec §5.4)', () => {
     expect(heads).toEqual(Array.from({ length: 13 }, (_, i) => `场${i + 1}`)); // no duplicates of 1–3
     expect(chat).toHaveBeenCalledTimes(3 + 6 + 1);
   });
+});
+
+
+describe('NewsNow topics workflow', () => {
+  it('grounds brief links in MCP input and uses the existing model without web search', async () => {
+    const { e, chat } = env([res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }), res({ items: [{ title: '修鞋铺', logline: '门墩儿修鞋', why: '贴近生活' }] })]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'news'), e, ac().signal, () => {});
+    expect(run.status).toBe('done');
+    expect(run.result).toMatchObject({ kind: 'topics', brief: [{ headline: '修鞋铺', citations: [{ url: 'https://example.com/hot' }] }], sourceWarning: '未获取到：微博', fetchedAt: 123 });
+    expect(chat.mock.calls[0]![0]).toContain('北京修鞋铺');
+    expect(chat.mock.calls.every(([, opts]) => opts.webSearch === false)).toBe(true);
+    expect(e.hotspots).toHaveBeenCalledTimes(1);
+  });
+  it('rejects invented source indexes and does not proceed to pick', async () => {
+    const { e, chat } = env([res({ brief: [{ headline: '假热点', summary: '假', sourceIndexes: [99] }] })]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'news'), e, ac().signal, () => {});
+    expect(run.status).toBe('failed'); expect(run.error).toContain('来源索引');
+    expect(chat).toHaveBeenCalledTimes(1);
+  });
+  it('does not invent topics when none are appropriate and retries pick without fetching again', async () => {
+    const { e } = env([res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }), new Error('网络断了'), res({ items: [] })]);
+    const def = workflow('topics'), run = newRun(def, {}, 'news');
+    await execute(def, run, e, ac().signal, () => {}); expect(run.status).toBe('failed');
+    await execute(def, run, e, ac().signal, () => {}); expect(run.status).toBe('done');
+    expect(run.result).toMatchObject({ items: [] }); expect(e.hotspots).toHaveBeenCalledTimes(1);
+  });
+  it('does not call the model when the MCP provider fails', async () => {
+    const { e, chat } = env([], { hotspots: async () => { throw new Error('NewsNow 暂时不可用'); } });
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'news'), e, ac().signal, () => {});
+    expect(run.status).toBe('failed'); expect(chat).not.toHaveBeenCalled();
+  });
+  it('rejects embedded fabricated Markdown links even when source indexes are valid', async () => {
+    const { e, chat } = env([res({ brief: [{ headline: '修鞋铺', summary: '[来源](https://invented.example)', sourceIndexes: [0] }] })]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'news'), e, ac().signal, () => {});
+    expect(run.status).toBe('failed'); expect(run.result).toBeUndefined(); expect(chat).toHaveBeenCalledTimes(1);
+  });
+
 });

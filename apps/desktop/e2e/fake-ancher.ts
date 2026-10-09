@@ -38,6 +38,7 @@ function replyFor(prompt: string): string {
     const id = prompt.match(/\[([a-z0-9]+)\] dialogue:/)?.[1] ?? null;
     return r({ summary: '有一处可能跑偏', items: [{ nodeId: id, quote: '石头', problem: '豆豆太快接受了石头会说话', suggestion: '加一拍怀疑' }] });
   }
+  if (prompt.includes('中文时事简报')) return r({ brief: [{ headline: '胡同修鞋铺', summary: '热榜关注北京胡同修鞋铺。', sourceIndexes: [0, 1] }] });
   if (prompt.includes('搜索今天')) return '1. 北京胡同口新开了修鞋铺。2. 学校推广跳绳。';
   if (prompt.includes('筛出最多 5 个')) return r({ items: [{ title: '修鞋铺', logline: '门墩儿想修好姥爷的旧鞋', why: '贴近胡同生活' }, { title: '跳绳比赛', logline: '豆豆为跳绳比赛借来一双鞋', why: '学校题材' }, { title: '雨天', logline: '下雨天门墩儿怕冷', why: '季节' }] });
   return REPLY;
@@ -53,6 +54,10 @@ export function startFakeAncher(): Promise<{ url: string; server: Server; prompt
   const server = createServer((req, res) => {
     const auth = req.headers.authorization;
     const json = (status: number, body: unknown) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+    if (req.url?.startsWith('/api/s?id=')) {
+      if (auth) return json(400, { message: 'NewsNow must not receive model API keys' });
+      return json(200, { status: 'success', items: [{ title: '北京胡同口新开修鞋铺', url: 'https://example.com/hutong' }, { title: '学校推广跳绳', url: 'http://example.com/school' }] });
+    }
     if (req.url === '/test-note-body') {
       if (auth) return json(400, { message: 'CDN must not receive an API key' });
       if (cloudFailures.body > 0) { cloudFailures.body--; return json(503, { message: '正文暂时不可用' }); }

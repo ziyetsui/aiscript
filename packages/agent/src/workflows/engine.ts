@@ -4,6 +4,7 @@
 // Nothing is written to the script by a run: it ends in a result the writer chooses to apply.
 import type { Bible, Op, ScriptNode } from '@scripter/core';
 import { z } from 'zod';
+import type { NewsNowDigest } from '../newsnow.ts';
 
 export type StepStatus = 'pending' | 'running' | 'done' | 'failed' | 'skipped' | 'waiting';
 export type RunStatus = 'running' | 'waiting' | 'done' | 'failed' | 'cancelled';
@@ -17,7 +18,7 @@ export type WorkflowResult =
   | { kind: 'issues'; items: { nodeId: string | null; quote: string; problem: string; suggestion: string }[]; summary: string }
   | { kind: 'rules'; items: { text: string; scope: string; level: 'hard' | 'pref'; conflict: string }[]; source: string }
   | { kind: 'transcript'; fileName: string; text: string; srt: string; provider: string }
-  | { kind: 'topics'; items: { title: string; logline: string; why: string }[]; citations: { url: string; title: string }[] };
+  | { kind: 'topics'; items: { title: string; logline: string; why: string }[]; citations: { url: string; title: string }[]; brief?: { headline: string; summary: string; citations: { url: string; title: string }[] }[]; sourceWarning?: string; fetchedAt?: number };
 
 export interface WorkflowInput { text?: string; url?: string; filePath?: string; focusId?: string; target?: number; provider?: 'gemini' | 'ancher'; minutes?: number }
 
@@ -39,7 +40,7 @@ export interface RunState {
   endedAt?: number;
 }
 
-/** What a workflow may touch. Everything is local except `chat` (Ancher) and `transcribe` / `parse` (Ancher or Gemini). */
+/** What a workflow may touch. Everything is local except `hotspots` (NewsNow MCP), `chat` (Ancher) and `transcribe` / `parse` (Ancher or Gemini). */
 export interface WorkflowEnv {
   title(): string;
   nodes(): ScriptNode[];
@@ -49,6 +50,7 @@ export interface WorkflowEnv {
   /** Turn a URL / file into text with Ancher's parser (notes). */
   parse(src: { url?: string; filePath?: string }, signal: AbortSignal): Promise<string>;
   transcribe(filePath: string, provider: 'gemini' | 'ancher', signal: AbortSignal): Promise<{ text: string; srt: string }>;
+  hotspots(signal: AbortSignal): Promise<NewsNowDigest>;
   hasGemini(): boolean;
 }
 

@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 // Workflow runs (spec 0002 §5.6): started from the chat, persisted with the project after every step,
 // cancellable, retryable from the failed step, and recovered after a quit. Results are only applied
 // by an explicit choice; rewrites go through the modification preview.
@@ -5,7 +6,7 @@ import type { WebContents } from 'electron';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdirSync, openAsBlob, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
-import { confirm, execute, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
+import { confirm, execute, fetchNewsNow, stopNewsNowProcesses, mimeFor, newRun, parseWithAncher, runChat, transcribeWithGemini, workflow, type RunState, type WorkflowEnv, type WorkflowId, type WorkflowInput } from '@scripter/agent';
 import { ancher, propose } from './ai.ts';
 import { filePath, filesDir, get, pushChat, saveNow, state } from './projects.ts';
 import { getSecret } from './secrets.ts';
@@ -43,6 +44,10 @@ function envFor(p: Open, run: RunState): WorkflowEnv {
     nodes: () => p.doc.nodes(),
     bible: () => p.doc.readBible(),
     outline: () => p.doc.outline,
+    hotspots: (signal) => fetchNewsNow({ command: process.execPath, serverPath: createRequire(import.meta.url).resolve('newsnow-mcp-server'),
+      // Only deterministic E2E uses a local fake upstream; production always uses the public service.
+      baseUrl: process.env.SCRIPTER_E2E === '1' ? process.env.SCRIPTER_NEWSNOW_BASE_URL : undefined,
+    }, signal),
     hasGemini: () => !!getSecret('gemini'),
     // One Ancher conversation per run, separate from the writing chat.
     async chat(prompt, { webSearch, signal }) {
@@ -213,3 +218,6 @@ export function apply(projectId: string, runId: string, a: WorkflowAction): { ok
   }
   return done('无法应用这个结果', false);
 }
+
+/** Close official MCP children before the main process exits. */
+export function shutdown(): void { for (const ac of live.values()) ac.abort(); stopNewsNowProcesses(); }

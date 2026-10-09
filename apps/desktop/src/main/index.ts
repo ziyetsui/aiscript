@@ -53,7 +53,7 @@ function createWindow(): void {
   win.once('ready-to-show', () => (e2e ? win?.showInactive() : win?.show()));
   if (!e2e) updater.initUpdater(win);
   // Links open in the system browser; the app window never navigates away.
-  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https:\/\//.test(url)) void shell.openExternal(url); return { action: 'deny' }; });
+  win.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//.test(url)) void shell.openExternal(url); return { action: 'deny' }; });
   win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith('http://localhost') && !url.startsWith('file://')) e.preventDefault(); });
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL);
   else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'));
@@ -204,5 +204,5 @@ app.whenReady().then(() => {
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
-app.on('before-quit', () => projects.flushAll());
+app.on('before-quit', () => { wf.shutdown(); projects.flushAll(); });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
