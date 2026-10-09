@@ -11,6 +11,7 @@ import type { ChatMsg, Edit, ProjectMeta, ProjectState } from '../shared/ipc.ts'
 import { dataDir, writeAtomic } from './store.ts';
 
 interface Meta extends ProjectMeta {
+  clarification?: import('@scripter/agent').PendingClarification | null;
   conversationId?: string | null;
   turns?: Turn[];
   chat?: ChatMsg[];

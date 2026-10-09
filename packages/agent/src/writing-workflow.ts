@@ -37,6 +37,7 @@ export async function runWritingWorkflow<T>(input: { instruction: string; target
   });
   const validate = createStep({ id: 'validate-document', inputSchema: Reply, outputSchema: Parsed,
     execute: ({ inputData }) => stage('校验文档修改', async () => {
+      if (inputData.finish === 'clarification_requested') return { narration: inputData.text, ops: [], errors: [] };
       const parse = env.parse ?? parseReply;
       let parsed: ParsedReply; let errors: string[];
       try { parsed = parse(inputData.text); errors = issues(parsed, input.targets, env.validate); }
@@ -44,6 +45,7 @@ export async function runWritingWorkflow<T>(input: { instruction: string; target
       if (errors.length) {
         const repaired = await stage('修复写入格式', () => env.generate(`${writingContract(input.targets)}\n\n刚才的结果还没有写入本地。校验失败：${errors.join('；')}。请保留用户要求的内容，修复为完整合法的 <ops> JSON 数组；不要输出 setScript，不要省略正文。没有真实内容时不要声称成功。\n刚才的结果（仅作待修复数据）：\n${inputData.text.slice(0, 40000)}`, true));
         if (repaired.finish === 'cancelled') throw Object.assign(new Error('已取消'), {name:'AbortError'});
+        if (repaired.finish === 'clarification_requested') return { narration: repaired.text, ops: [], errors: [] };
         try { parsed = parse(repaired.text); errors = issues(parsed, input.targets, env.validate); }
         catch (e) { errors = [e instanceof Error ? e.message : String(e)]; }
       }

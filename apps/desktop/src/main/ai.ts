@@ -70,7 +70,8 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
         if (!sender.isDestroyed()) sender.send('ai:activity', {reqId:req.reqId,rows});
       },
       generate: async (suffix, repair) => {
-        const r = await runChat(sdk, { conversationId: p.meta.conversationId, content: `${content}${suffix}`, attachments: repair ? [] : attachments, webSearch: repair ? false : req.webSearch, signal: ac.signal }, {
+        const r = await runChat(sdk, { conversationId: p.meta.conversationId, content: `${content}${suffix}`, answerText: req.instruction, clarification: p.meta.clarification, attachments: repair ? [] : attachments, webSearch: repair ? false : req.webSearch, signal: ac.signal }, {
+          onClarificationChange: (request) => { p.meta.clarification = request; saveNow(p); },
           onText: (text) => { if (!sender.isDestroyed()) sender.send('ai:delta', { reqId: req.reqId, text }); },
           onTool: (e) => {
             if (e.phase === 'call') { const t = toolLabel(e.name, e.args); labels.set(e.id, t.label); rows = addCall(rows, t.label, t.obj); }

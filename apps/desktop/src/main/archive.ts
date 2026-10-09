@@ -100,6 +100,7 @@ export async function exportDiagnostics(win: BrowserWindow): Promise<{ ok: boole
 
 /** Remote conversation IDs and executable preview state cannot cross Ancher accounts. */
 function cleanPortableMeta(meta: Record<string, unknown>): void {
+  delete meta.clarification;
   delete meta.conversationId; delete meta.pending;
   const clearChat = (chat: unknown) => { if (!Array.isArray(chat)) return; for (const m of chat) if (m?.preview?.state === 'open') m.preview.state = 'stale'; };
   clearChat(meta.chat);

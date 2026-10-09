@@ -20,34 +20,74 @@ export async function checkAncherKey(sdk: Pick<AncherSdk, 'User'>): Promise<KeyC
 }
 
 export interface RunHandlers {
+  onClarificationChange?: (request: PendingClarification | null) => void;
   onText?: (delta: string) => void;
   /** Tool calls and returns from any run (main agent or its sub-agents), for the activity rows. */
   onTool?: (e: ToolEvent) => void;
   onCitations?: (c: ChatCitation[]) => void;
 }
 export interface RunResult { conversationId: string; text: string; citations: ChatCitation[]; finish: string }
+export interface PendingClarification { request_id: string; conversation_id: string; questions: { id: string; prompt: string; options: { label: string }[] }[] }
+
+function clarificationAnswer(request: PendingClarification, text: string): Schemas.ClarificationSubmitPayload {
+  return { action: 'answer', request_id: request.request_id, answers: request.questions.map((q) => ({ question_id: q.id, value: text })), note: text };
+}
+
+/** Recover a question missed by older clients; terminal responses prevent resurrecting old requests. */
+async function recoverClarification(sdk: Partial<Pick<AncherSdk, 'Message'>>, id: string): Promise<PendingClarification | undefined> {
+  if (!sdk.Message) return;
+  const resolved = new Set<string>();
+  let cursor: string | undefined;
+  for (let page = 0; page < 5; page++) {
+    const history = await sdk.Message.list(id, cursor ? { cursor } : { limit: 50, orderBy: '-created_at' });
+    for (const m of history.items) {
+      const c = m.clarification;
+      if (!c) continue;
+      if ('status' in c) resolved.add(c.request_id);
+      else if (!resolved.has(c.request_id) && c.conversation_id === id && c.questions.length) return c;
+    }
+    if (!history.has_more || !history.next_cursor) break;
+    cursor = history.next_cursor;
+  }
+}
 
 /** One agent run. Starts a conversation or continues one; streams main-agent text; cancellable with `signal`. */
 export async function runChat(
-  sdk: Pick<AncherSdk, 'Conversation'>,
-  opts: { conversationId?: string | null; content: string; attachments?: Schemas.ResourceAttachment[]; webSearch?: boolean; signal?: AbortSignal },
+  sdk: Pick<AncherSdk, 'Conversation'> & Partial<Pick<AncherSdk, 'Message'>>,
+  opts: { conversationId?: string | null; content: string; answerText?: string; clarification?: PendingClarification | null; attachments?: Schemas.ResourceAttachment[]; webSearch?: boolean; signal?: AbortSignal },
   h: RunHandlers = {},
 ): Promise<RunResult> {
   const body = { content: opts.content, enable_web_search: !!opts.webSearch, enable_kb_search: false, ...(opts.attachments?.length ? { attachments: opts.attachments } : {}) };
   opts.signal?.throwIfAborted();
-  const receipt = opts.conversationId ? await sdk.Conversation.send(opts.conversationId, body) : await sdk.Conversation.start(body);
+  let request = opts.clarification?.conversation_id === opts.conversationId ? opts.clarification : undefined;
+  const answerText = opts.answerText ?? opts.content;
+  // The server accepts clarification answers exclusively: content/attachments would invalidate the request.
+  const submit = () => opts.conversationId ? sdk.Conversation.send(opts.conversationId, request ? { clarification: clarificationAnswer(request, answerText) } : body) : sdk.Conversation.start(body);
+  let receipt;
+  try { receipt = await submit(); }
+  catch (e) {
+    if (!opts.conversationId || request || !/pending clarification/i.test(e instanceof Error ? e.message : String(e))) throw e;
+    request = await recoverClarification(sdk, opts.conversationId);
+    opts.signal?.throwIfAborted();
+    if (!request) throw e;
+    receipt = await submit();
+  }
+  if (request) h.onClarificationChange?.(null);
   const id = receipt.conversation_id;
   const onAbort = () => { void sdk.Conversation.interrupt(id).catch(() => {}); };
   opts.signal?.addEventListener('abort', onAbort, { once: true });
   let text = '';
   const citations: ChatCitation[] = [];
   let finish = 'stop';
+  let clarification: PendingClarification | undefined;
   try {
     for await (const ev of sdk.Conversation.stream(id, { signal: opts.signal }) as AsyncIterable<ChatEvent>) {
       if (ev.type === 'text' && (!ev.run || ev.run.isMain)) { text += ev.text; h.onText?.(ev.text); }
       else if (ev.type === 'tool-call') h.onTool?.({ phase: 'call', id: ev.toolCallId, name: ev.toolName, args: ev.args });
       else if (ev.type === 'tool-return') h.onTool?.({ phase: 'return', id: ev.toolCallId, name: ev.toolName });
       else if (ev.type === 'citations') { citations.push(...ev.citations); h.onCitations?.(ev.citations); }
+      else if (ev.type === 'clarification-requested') { clarification = ev.clarification; h.onClarificationChange?.(clarification); }
+      else if (ev.type === 'clarification-resolved') { clarification = undefined; h.onClarificationChange?.(null); }
       else if (ev.type === 'done') { finish = ev.finishReason; break; }
       else if (ev.type === 'error') throw new Error(ev.message);
     }
@@ -55,6 +95,11 @@ export async function runChat(
     opts.signal?.removeEventListener('abort', onAbort);
   }
   if (opts.signal?.aborted) finish = 'cancelled';
+  if (clarification && finish !== 'cancelled') {
+    finish = 'clarification_requested';
+    const questions = clarification.questions.map((q, i) => `${i + 1}. ${q.prompt}${q.options.length ? '\n' + q.options.map((o) => `   - ${o.label}`).join('\n') : ''}`).join('\n\n');
+    text += `\n\n等待你确认：\n${questions}\n\n请直接回复你的选择或说明，我会将回复作为确认答案继续处理。`;
+  }
   return { conversationId: id, text, citations, finish };
 }
 
