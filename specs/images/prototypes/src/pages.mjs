@@ -12,7 +12,7 @@ const I = {
   home: 'M3 10.5 12 3l9 7.5V21H3ZM9 21v-6h6v6', plus: 'M12 5v14M5 12h14', export: 'M12 3v12M7 8l5-5 5 5M5 21h14',
   chart: 'M3 3v18h18M7 15v3M12 10v8M17 6v12', panel: 'M3 3h18v18H3ZM15 3v18', laptop: 'M4 5h16v11H4ZM2 19h20',
   doc: 'M14 3H6v18h12V7ZM14 3v4h4', video: 'M3 6h13v12H3ZM16 10l5-3v10l-5-3', send: 'M12 19V5M5 12l7-7 7 7', stop: 'M7 7h10v10H7Z',
-  x: 'M18 6 6 18M6 6l12 12', at: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm0 0v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1', mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM19 11a7 7 0 0 1-14 0M12 18v3', square: 'M7 7h10v10H7Z', tag: 'M3 12V3h9l9 9-9 9ZM7.5 7.5h.01', arrowDown: 'M12 5v14M5 12l7 7 7-7', note: 'M14 3H6v18h12V7ZM14 3v4h4M12 11v6M9 14h6', newchat: 'M12 20H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v4M16 16h6M19 13v6', phone: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM11 18h2', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
+  x: 'M18 6 6 18M6 6l12 12', at: 'M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm0 0v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.5 7.1', mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3ZM19 11a7 7 0 0 1-14 0M12 18v3', square: 'M7 7h10v10H7Z', clip: 'M21 12l-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L15 8', image: 'M3 5h18v14H3ZM3 16l5-5 4 4 3-3 6 6M15.5 9.5h.01', bolt: 'M13 2 4 14h7l-1 8 9-12h-7Z', link: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1', search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14ZM20 20l-4-4', tag: 'M3 12V3h9l9 9-9 9ZM7.5 7.5h.01', arrowDown: 'M12 5v14M5 12l7 7 7-7', note: 'M14 3H6v18h12V7ZM14 3v4h4M12 11v6M9 14h6', newchat: 'M12 20H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v4M16 16h6M19 13v6', phone: 'M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM11 18h2', play: 'M7 4.5v15l12-7.5Z', chev: 'm6 9 6 6 6-6', menu: 'M4 6h16M4 12h16M4 18h16', expand: 'M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7',
   chat: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z', copy: 'M9 9h12v12H9ZM5 15H3V3h12v2', up: 'M7 10v11M15 5.9 14 10h5.8a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 18.4 21H7V10l4-8a3 3 0 0 1 4 3.9Z',
   down: 'M17 14V3M9 18.1 10 14H4.2a2 2 0 0 1-2-2.3l1.4-7A2 2 0 0 1 5.6 3H17v11l-4 8a3 3 0 0 1-4-3.9Z', undo: 'M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8',
   eye: 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12ZM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6', trash: 'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15', check: 'M20 6 9 17l-5-5',
@@ -305,9 +305,19 @@ const WORKFLOWS = [
   ['视频 → 逐字稿', '本机抽音轨 → Ancher / Gemini 转写 → 存入项目'],
   ['今日热点选题', 'Ancher 联网搜索，按儿童 / 家庭 / 学校筛选'],
 ];
-const welcome = `<div id="welcome" style="display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 8px;text-align:center">
-  <div style="width:100%;height:96px;border-radius:var(--r-xl);background:radial-gradient(60% 90% at 30% 40%, var(--primary-soft), transparent 70%),radial-gradient(50% 80% at 75% 60%, var(--hl), transparent 70%),var(--muted)"></div>
-  <b>你的编剧搭档，随时待命。</b><div class="muted" style="font-size:13px">我的任务是替你处理繁琐的格式工作。<br>还有更多。</div></div>`;
+const PLUS_MENU = [
+  ['添加', [['clip', '文件和图片', '剧本、PDF、Word、截图', "toast('选择文件或图片')"], ['video', '本地视频', '转成逐字稿，存进知识库', 'runWF(7)'], ['book', '知识库笔记', '作为这次对话的参考', "prefill($('ask').value+'@')"]]],
+  ['快捷指令', [['spark', '润色格式', '整理成标准剧本格式', "prefill('把这一场润色成标准格式。')"], ['book', '总结大纲', '写进大纲', "prefill('总结一下现在的大纲。')"], ['chat', '润色对白', '更口语、更像孩子说话', "prefill('润色对白：')"], ['pen', '续写场景', '接着往下写一场', "prefill('续写场景：')"], ['users', '检查人物一致性', '名字、性格、口头禅', "prefill('检查人物一致性：')"]]],
+  ['工作流', WORKFLOWS.map(([t, d], i) => ['bolt', t, d, `runWF(${i + 1})`, `⌥${i + 1}`])],
+];
+const plusMenu = `<div class="plus-menu" id="plus-menu" role="menu" aria-label="添加与快捷指令" hidden>${PLUS_MENU.map(([h, items]) => `<div class="pm-h">${h}</div>${items.map(([ic, t, d, act, k]) => `<button class="pm-item" role="menuitem" onclick="closePlus();${act}">${icon(ic, 15)}<b>${t}</b><span>${d}</span>${k ? `<kbd>${k}</kbd>` : ''}</button>`).join('')}`).join('')}</div>`;
+// Empty chat: an Ancher-style action grid and key hints.
+const GRID = [['pen', '写第一场', "prefill('写第一场：')"], ['book', '写大纲', "prefill('帮我写这一集的大纲')"], ['user', '角色小传', "prefill('给主角写一份人物小传')"],
+  ['globe', '搜索网页', "$('web').setAttribute('aria-pressed','true');prefill('联网搜一下：')"], ['search', '搜索知识库', "prefill($('ask').value+'@')"], ['film', '参考结构重写', 'runWF(2)'],
+  ['spark', '笑点方案', 'runWF(3)'], ['chat', '导演意见 → 规则', 'runWF(5)'], ['video', '视频转逐字稿', 'runWF(7)'],
+  ['eye', '写飘检查', 'runWF(4)'], ['indent', '控字数', 'runWF(6)'], ['bulb', '今日热点选题', 'runWF(8)']];
+const welcome = `<div id="welcome" class="ag-empty"><div class="ag-grid">${GRID.map(([ic, t, act]) => `<button class="ag-tile" onclick="${act}">${icon(ic, 18)}<span>${t}</span></button>`).join('')}</div>
+  <div class="ag-hints"><div><kbd>@</kbd>提及角色、地点或设定</div><div><kbd>↵</kbd>发送消息</div><div><kbd>+</kbd>文件、快捷指令和工作流</div></div></div>`;
 const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本</span>', `
   ${rail('写作')}
   <aside class="col2">
@@ -336,17 +346,9 @@ const workspace = () => chrome('Ancher Scripter — <span id="t-proj">新剧本<
         <button class="ag-save" onclick="toast('已把这段对话存为笔记')">${icon('note', 15)}保存</button><button class="ico-btn" aria-label="新对话" onclick="toast('新对话')">${icon('newchat', 16)}</button><button class="ico-btn" aria-label="收起" onclick="agentOpen(false)">${icon('chev', 14)}</button></div>
       <div class="ag-body"><div class="ag-feed" id="feed">${welcome}</div><button class="jump-pill" id="jump" onclick="toLatest()" aria-label="回到最新消息">${icon('arrowDown', 13)}最新<span class="n" id="jump-n" hidden></span></button></div>
       <div class="agent-ft" style="border:0;padding:0 0 0;gap:0">
-        <div id="chips" class="cmp-chips">
-          <button class="chip" onclick="prefill('把这一场润色成标准格式。')">${icon('spark', 12)} 润色格式</button><button class="chip" onclick="prefill('总结一下现在的大纲。')">${icon('book', 12)} 总结大纲</button>
-          ${['润色对白', '续写场景', '检查人物一致性'].map((t) => `<button class="chip" onclick="prefill('${t}：')">${t}</button>`).join('')}
-          <span id="wf-wrap" style="position:relative"><button class="chip" style="background:var(--primary-soft);color:var(--primary);font-weight:600" onclick="wfMenu()" aria-haspopup="menu">⚡ 工作流 ${icon('chev', 11)}</button>
-            <div class="pop" id="wf-menu" role="menu" style="width:330px;left:0">
-              <div class="eyebrow" style="padding:4px 8px 6px">针对客户痛点 · 本地执行，可取消、可重试</div>
-              ${WORKFLOWS.map(([t, d], i) => `<button class="wf-item" role="menuitem" onclick="runWF(${i + 1})"><span style="flex:1;text-align:left"><b style="font-weight:600">${t}</b><br><span class="muted" style="font-size:11.5px">${d}</span></span><span class="kbd">⌥${i + 1}</span></button>`).join('')}
-            </div></span></div>
         <div class="queue" id="queue" aria-live="polite"></div>
-        <div class="cmp"><div class="cmp-card" id="cmp-card"><div class="ghost" id="ghost" hidden><span></span><kbd>Tab</kbd></div><textarea id="ask" aria-label="给 AI 的指令" placeholder="随便问，@ 提及角色、地点或设定" rows="2" onkeydown="composerKey(event)" oninput="composerInput()"></textarea>
-          <div class="cmp-bar"><button class="ico-btn" aria-label="提及" onclick="prefill($('ask').value+'@')">${icon('at', 16)}</button><button class="ico-btn" aria-label="添加文件或图片" onclick="toast('选择文件或图片')">${icon('plus', 16)}</button>
+        <div class="cmp">${plusMenu}<div class="cmp-card" id="cmp-card"><div class="ghost" id="ghost" hidden><span></span><kbd>Tab</kbd></div><textarea id="ask" aria-label="给 AI 的指令" placeholder="随便问，@ 提及角色、地点或设定" rows="2" onkeydown="composerKey(event)" oninput="composerInput()"></textarea>
+          <div class="cmp-bar"><button class="ico-btn" aria-label="提及" onclick="prefill($('ask').value+'@')">${icon('at', 16)}</button><button class="ico-btn" id="plus" aria-label="添加与快捷指令" aria-haspopup="menu" aria-expanded="false" onclick="plusMenu()">${icon('plus', 16)}</button>
             <button class="ico-btn" id="web" aria-pressed="false" aria-label="联网搜索" title="联网搜索" onclick="this.setAttribute('aria-pressed',this.getAttribute('aria-pressed')!=='true')">${icon('globe', 15)}</button><span style="flex:1"></span>
             <span id="model-wrap" style="position:relative"><button class="chip" style="height:28px;font-weight:600" onclick="modelMenu()" aria-haspopup="menu"><span style="width:6px;height:6px;border-radius:50%;background:var(--color-success-500)"></span><span id="model">Ancher</span><span id="model-caret" hidden>${icon('chev', 11)}</span></button>
               <div class="pop" id="model-menu" role="menu" style="width:270px;right:0;left:auto;bottom:calc(100% + 6px);top:auto;transform-origin:bottom right"></div></span>
@@ -535,7 +537,15 @@ const WF={
   7:{name:'视频 → 逐字稿', say:'把 ~/Movies/参考第1集.mp4 转成逐字稿。', steps:()=>[['检查格式和大小','MP4 · 22:14 · 412 MB'],['抽取音轨（ffmpeg，本机）','16 kHz 单声道 · 21 MB',700],[model==='Ancher'?'上传音频到 Ancher':'上传音频到 Gemini Files API','21 MB',900,true],[model==='Ancher'?'Ancher 转写':'Gemini 转写','分段 · 时间轴 · 说话人',1100],['保存到项目','逐字稿 / SRT / JSON']], result:()=>resTranscript()},
   8:{name:'今日热点选题', say:'从今天的热点里挑 5 个适合 5–10 岁孩子的选题。', steps:[['Ancher 联网搜索','开学季 · 校园 · 家庭',900],['按儿童 / 家庭 / 学校筛选','保留 5 个'],['生成选题卡']], result:()=>resTopics()},
 };
-function wfMenu(open){ const m=$('wf-menu'); m.classList.toggle('open', open===undefined?!m.classList.contains('open'):open); }
+function wfMenu(){ closePlus(); }
+// + menu (Codex-style): grouped rows, ↑↓ to move, Enter to pick, Esc / outside click to close. No animation on keyboard moves.
+function plusMenu(){ const m=$('plus-menu'), o=m.hidden; m.hidden=!o; $('plus').setAttribute('aria-expanded',o); if(o) m.querySelector('.pm-item').focus(); }
+function closePlus(){ const m=$('plus-menu'); if(m&&!m.hidden){ m.hidden=true; $('plus').setAttribute('aria-expanded','false'); } }
+document.addEventListener('pointerdown',e=>{ if(!e.target.closest('#plus-menu,#plus')) closePlus(); });
+document.addEventListener('keydown',e=>{ const m=$('plus-menu'); if(!m||m.hidden) return; const items=[...m.querySelectorAll('.pm-item')], i=items.indexOf(document.activeElement);
+  if(e.key==='Escape'){ closePlus(); $('ask').focus(); e.preventDefault(); }
+  else if(e.key==='ArrowDown'){ items[(i+1)%items.length].focus(); e.preventDefault(); }
+  else if(e.key==='ArrowUp'){ items[(i-1+items.length)%items.length].focus(); e.preventDefault(); } });
 async function runWF(k){ wfMenu(false); if(busy){ toast('AI 正在写，等这一轮结束再试'); return; } const w=WF[k]; const steps=typeof w.steps==='function'?w.steps():w.steps;
   lock(true); wfCancel=false; userSay(w.say);
   const card=add('<div class="wf"><div class="row"><b style="flex:1">⚡ '+w.name+'</b><span class="muted tnum wf-state" style="font-size:12px">0 / '+steps.length+'</span><button class="btn btn-ghost wf-cancel" style="height:24px;padding:0 8px;font-size:12px">取消</button></div>'+
