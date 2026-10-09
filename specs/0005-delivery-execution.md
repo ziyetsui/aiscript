@@ -56,3 +56,4 @@
 - Windows 原生安装冒烟已通过，不等于客户激活/完整编辑导出/覆盖升级/卸载验收；发行签名、公证、客户机器码与接收渠道仍未提供。
 - 下载的 Windows 安装器提取 app.asar，以及只读挂载两种架构的 CI dmg，237 文本文件扫描与正式公钥检查均通过；两个 CI dmg 在本机分别 ARM64 原生、x64 Rosetta 启动到激活页，已卸载挂载卷。云端原生包证据与客户完整验收明确分开。
 - 草稿 Windows 资产因先前并发轮次与新 run artifact 不一致，已以第二轮实际安装验证的 artifact 替换；候选包与草稿必须逐文件核对 SHA256 后才作为交付来源。
+- 流水线修复提交 f710ac2 的 [CI 37890486763](https://github.com/ziyeprompttheworld/aiscript/actions/runs/37890486763) 全部通过。GitHub 会将中文资产文件名归一为 default.md，交付脚本统一使用 INSTALLATION.zh-CN.md，避免下载后的说明文件名与校验清单不一致；源说明仍使用中文文件名。
