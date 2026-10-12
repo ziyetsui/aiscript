@@ -238,6 +238,43 @@ describe('episode pipeline (spec §5.4)', () => {
 
 
 describe('NewsNow topics workflow', () => {
+  it.each([39, 40])('keeps all %i hotspots and topic directions, including unsuitable ones', async (count) => {
+    const hotspots = Array.from({ length: count }, (_, i) => ({ title: `热点${i}`, url: `https://example.com/hot/${i}`, sources: ['知乎'] }));
+    const brief = hotspots.map((x, i) => ({ headline: x.title, summary: '标题简报', sourceIndexes: [i] }));
+    const items = hotspots.map((x, i) => ({ title: x.title, logline: i === count - 1 ? '暂不建议改编' : '豆豆探索身边的故事', why: i === count - 1 ? '不适合：超出儿童观众的理解范围' : '贴近生活' }));
+    const { e } = env([res({ brief }), res({ items })], {
+      hotspots: async () => ({ items: hotspots, failedSources: [], fetchedAt: 123 }),
+    });
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'all-news'), e, ac().signal, () => {});
+    expect(run.status).toBe('done');
+    expect(run.result).toMatchObject({ kind: 'topics', items: expect.arrayContaining([{ title: `热点${count - 1}`, logline: '暂不建议改编', why: '不适合：超出儿童观众的理解范围' }]) });
+    if (run.result?.kind !== 'topics') throw new Error('Expected topics');
+    expect(run.result.items).toHaveLength(count);
+    expect(run.result.brief).toHaveLength(count);
+    expect(run.result.brief?.[count - 1]?.citations).toEqual([{ url: `https://example.com/hot/${count - 1}`, title: `知乎：热点${count - 1}` }]);
+  });
+
+  it('rejects repeated brief sources that leave a hotspot uncovered', async () => {
+    const { e } = env([res({ brief: [
+      { headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] },
+      { headline: '修鞋铺重复', summary: '胡同生活', sourceIndexes: [0] },
+    ] })], { hotspots: async () => ({ items: [
+      { title: '北京修鞋铺', url: 'https://example.com/hot', sources: ['知乎'] },
+      { title: '校园运动会', url: 'https://example.com/sports', sources: ['微博'] },
+    ], failedSources: [], fetchedAt: 123 }) });
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'missing-brief-source'), e, ac().signal, () => {});
+    expect(run.status).toBe('failed');
+    expect(run.error).toContain('未覆盖全部热点');
+    expect(run.result).toBeUndefined();
+  });
+
+  it('rejects an incomplete topic list instead of silently dropping hotspots', async () => {
+    const { e } = env([res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }), res({ items: [] })]);
+    const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'incomplete-topics'), e, ac().signal, () => {});
+    expect(run.status).toBe('failed');
+    expect(run.result).toBeUndefined();
+  });
+
   it('corrects unescaped dialogue quotes once before saving topics', async () => {
     const { e, chat } = env([
       res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }),
@@ -274,11 +311,11 @@ describe('NewsNow topics workflow', () => {
     const { e } = env([
       '<result>{"brief":[{"headline":"修鞋铺","summary":"练习"绝活"","sourceIndexes":[0]}]}</result>',
       res({ brief: [{ headline: '修鞋铺', summary: '练习“绝活”', sourceIndexes: [0] }] }),
-      res({ items: [] }),
+      res({ items: [{ title: '修鞋铺', logline: '暂不建议改编', why: '不适合：与已否选题重复' }] }),
     ]);
     const run = await execute(workflow('topics'), newRun(workflow('topics'), {}, 'brief-quotes'), e, ac().signal, () => {});
     expect(run.status).toBe('done');
-    expect(run.result).toMatchObject({ brief: [{ summary: '练习“绝活”', citations: [{ url: 'https://example.com/hot' }] }], items: [] });
+    expect(run.result).toMatchObject({ brief: [{ summary: '练习“绝活”', citations: [{ url: 'https://example.com/hot' }] }], items: [{ logline: '暂不建议改编', why: '不适合：与已否选题重复' }] });
   });
 
   it('rejects invented source indexes in a syntax-corrected brief', async () => {
@@ -319,12 +356,12 @@ describe('NewsNow topics workflow', () => {
     expect(run.status).toBe('failed'); expect(run.error).toContain('来源索引');
     expect(chat).toHaveBeenCalledTimes(1);
   });
-  it('does not invent topics when none are appropriate and retries pick without fetching again', async () => {
-    const { e } = env([res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }), new Error('网络断了'), res({ items: [] })]);
+  it('keeps unsuitable hotspots with reasons and retries pick without fetching again', async () => {
+    const { e } = env([res({ brief: [{ headline: '修鞋铺', summary: '胡同生活', sourceIndexes: [0] }] }), new Error('网络断了'), res({ items: [{ title: '修鞋铺', logline: '暂不建议改编', why: '不适合：与已否选题重复' }] })]);
     const def = workflow('topics'), run = newRun(def, {}, 'news');
     await execute(def, run, e, ac().signal, () => {}); expect(run.status).toBe('failed');
     await execute(def, run, e, ac().signal, () => {}); expect(run.status).toBe('done');
-    expect(run.result).toMatchObject({ items: [] }); expect(e.hotspots).toHaveBeenCalledTimes(1);
+    expect(run.result).toMatchObject({ items: [{ logline: '暂不建议改编', why: '不适合：与已否选题重复' }] }); expect(e.hotspots).toHaveBeenCalledTimes(1);
   });
   it('does not call the model when the MCP provider fails', async () => {
     const { e, chat } = env([], { hotspots: async () => { throw new Error('NewsNow 暂时不可用'); } });

@@ -211,8 +211,68 @@ try {
   await page.getByText('已写进大纲，点左侧「大纲」查看').waitFor({ timeout: 20_000 });
   await page.getByRole('tab', { name: '大纲' }).click();
   assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /一、豆豆发现门墩儿会说话\n二、两人约定保守秘密/);
+  step('outline versions save, preview read-only, and restore without changing the script');
+  const originalOutline = await page.getByLabel('大纲', { exact: true }).inputValue();
+  await page.getByRole('button', { name: '大纲版本历史', exact: true }).click();
+  await page.getByRole('menuitem', { name: '保存当前版本', exact: true }).click();
+  const outlineVersion = await page.evaluate(async () => {
+    const id = (await window.api.projects.list())[0]!.id;
+    const state = await window.api.projects.open(id);
+    return (await window.api.projects.outlineRevisions(id, state.activeEpisodeId))[0]!.revision;
+  });
+  await page.getByLabel('大纲', { exact: true }).fill('另一版大纲：门墩儿公开了秘密');
+  await page.getByRole('button', { name: '大纲版本历史', exact: true }).click();
+  await page.getByRole('menuitem', { name: `预览 v${outlineVersion}`, exact: true }).click();
+  const outlinePreview = page.getByLabel(`大纲 v${outlineVersion} 只读预览`, { exact: true });
+  assert.equal(await outlinePreview.inputValue(), originalOutline);
+  assert.equal(await outlinePreview.getAttribute('readonly'), '');
+  await page.getByRole('button', { name: '恢复为当前', exact: true }).click();
+  await page.getByLabel('大纲', { exact: true }).waitFor();
+  assert.equal(await page.getByLabel('大纲', { exact: true }).inputValue(), originalOutline);
+  assert.ok(await page.evaluate(async () => {
+    const id = (await window.api.projects.list())[0]!.id;
+    const state = await window.api.projects.open(id);
+    const versions = await window.api.projects.outlineRevisions(id, state.activeEpisodeId);
+    for (const version of versions) {
+      if ((await window.api.projects.outlineRevision(id, state.activeEpisodeId, version.revision)).text === '另一版大纲：门墩儿公开了秘密') return true;
+    }
+    return false;
+  }), 'the outline before restoration remains in history');
   await page.getByRole('tab', { name: '剧本' }).click();
   await page.locator('.paper .node').first().waitFor();
+  assert.deepEqual(await page.locator('.paper .node').allTextContents(), before);
+
+  step('beat versions are standalone, read-only in preview, and recoverable');
+  await page.getByRole('button', { name: '故事节拍', exact: true }).click();
+  await page.getByRole('textbox', { name: '故事节拍', exact: true }).fill('第一版节拍：开场 → 催化 → 结尾');
+  await page.getByRole('button', { name: '故事节拍版本历史', exact: true }).click();
+  await page.getByRole('menuitem', { name: '保存当前版本', exact: true }).click();
+  const beatsVersion = await page.evaluate(async () => {
+    const id = (await window.api.projects.list())[0]!.id;
+    const state = await window.api.projects.open(id);
+    return (await window.api.projects.beatsRevisions(id, state.activeEpisodeId))[0]!.revision;
+  });
+  await page.getByRole('textbox', { name: '故事节拍', exact: true }).fill('第二版节拍：新的起因 → 新的反转');
+  await page.getByRole('button', { name: '故事节拍版本历史', exact: true }).click();
+  await page.getByRole('menuitem', { name: `预览 v${beatsVersion}`, exact: true }).click();
+  const beatsPreview = page.getByLabel(`故事节拍 v${beatsVersion} 只读预览`, { exact: true });
+  assert.equal(await beatsPreview.inputValue(), '第一版节拍：开场 → 催化 → 结尾');
+  assert.equal(await beatsPreview.getAttribute('readonly'), '');
+  await page.getByRole('button', { name: '恢复为当前', exact: true }).click();
+  await page.getByRole('textbox', { name: '故事节拍', exact: true }).waitFor();
+  assert.equal(await page.getByRole('textbox', { name: '故事节拍', exact: true }).inputValue(), '第一版节拍：开场 → 催化 → 结尾');
+  assert.ok(await page.evaluate(async () => {
+    const id = (await window.api.projects.list())[0]!.id;
+    const state = await window.api.projects.open(id);
+    const versions = await window.api.projects.beatsRevisions(id, state.activeEpisodeId);
+    for (const version of versions) {
+      if ((await window.api.projects.beatsRevision(id, state.activeEpisodeId, version.revision)).text === '第二版节拍：新的起因 → 新的反转') return true;
+    }
+    return false;
+  }));
+  await page.getByRole('tab', { name: '大纲', exact: true }).click();
+  assert.equal(await page.getByLabel('大纲', { exact: true }).inputValue(), originalOutline);
+  await page.getByRole('tab', { name: '剧本', exact: true }).click();
   assert.deepEqual(await page.locator('.paper .node').allTextContents(), before);
 
   step('export FDX and PDF (save dialog stubbed)');
@@ -431,6 +491,7 @@ try {
   await run1.getByText('已写进大纲：走向2：门墩儿的秘密2').waitFor();
   await page.getByRole('tab', { name: '大纲' }).click();
   assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /【走向】走向2：门墩儿的秘密2[\s\S]*冲突：冲突来源2/);
+  assert.ok(!(await page.getByLabel('大纲', { exact: true }).inputValue()).includes(originalOutline), 'a selected direction is a standalone outline version');
   await page.getByRole('tab', { name: '剧本' }).click();
 
   step('⚡ ⌥5 from the menu: director notes become confirmed rules that reach the next prompt');
@@ -460,7 +521,7 @@ try {
   await page.keyboard.press('Alt+8');
   const run8 = page.locator('.run').last();
   await run8.getByText('门墩儿想修好姥爷的旧鞋').waitFor({ timeout: 20_000 });
-  await run8.getByText('热点简报', { exact: true }).waitFor();
+  await run8.getByText('全部热点简报（2 条）', { exact: true }).waitFor();
   await run8.getByRole('link', { name: /知乎.*北京胡同口/ }).waitFor();
   const oldOpenExternal = await app.evaluate(({ shell }) => {
     const original = shell.openExternal;
@@ -476,8 +537,8 @@ try {
   assert.equal(await app.evaluate(() => (globalThis as typeof globalThis & { newsnowOpen?: string }).newsnowOpen), 'http://example.com/school');
   await app.evaluate(() => (globalThis as typeof globalThis & { restoreNewsNowOpen?: () => void }).restoreNewsNowOpen?.());
   assert.ok(fake.prompts.some((p) => p.includes('中文时事简报') && p.includes('https://example.com/hutong')));
-  await run8.getByRole('button', { name: '加入选题池（3）' }).click();
-  await run8.getByText('已加入选题池 3 个').waitFor();
+  await run8.getByRole('button', { name: '加入选题池（2）' }).click();
+  await run8.getByText('已加入选题池 2 个').waitFor();
   await page.getByLabel('给 AI 的指令').fill('续写下一场');
   await page.keyboard.press('Enter');
   await page.getByText('本轮 6 处修改').last().waitFor({ timeout: 20_000 });
@@ -489,7 +550,7 @@ try {
   await page.getByRole('button', { name: '选题池', exact: true }).click();
   const shoeTopic = page.getByRole('article', { name: '修鞋铺', exact: true });
   await shoeTopic.getByText('门墩儿想修好姥爷的旧鞋', { exact: true }).waitFor();
-  assert.equal(await page.getByRole('article').count(), 3);
+  assert.equal(await page.getByRole('article').count(), 2);
   await page.getByRole('button', { name: '关于这些选题', exact: true }).waitFor();
   await shoeTopic.getByRole('button', { name: '查看选题 修鞋铺', exact: true }).click();
   await page.getByRole('dialog', { name: '修鞋铺', exact: true }).getByRole('button', { name: '选这个', exact: true }).click();
@@ -608,6 +669,7 @@ try {
   await page.waitForFunction(() => document.querySelectorAll('.paper .node[data-type="heading"]').length === 13, null, { timeout: 30_000 });
   await page.getByRole('tab', { name: '大纲' }).click();
   assert.match(await page.getByLabel('大纲', { exact: true }).inputValue(), /【故事】\n豆豆想要一双会发光的鞋/);
+  assert.ok(!(await page.getByLabel('大纲', { exact: true }).inputValue()).includes('【走向】'), 'a confirmed story starts a standalone outline version');
   // The writer's edit remains in project settings without a dedicated world panel.
   const lockedCore = await page.evaluate(async () => { const id = (await window.api.projects.list())[0]!.id; return (await window.api.projects.open(id)).bible.world.find(s => s.title === '锁定核心')?.value; });
   assert.match(lockedCore ?? '', /旧东西里有爱[\s\S]*大壮最后也借到了鞋/);

@@ -101,6 +101,7 @@ export async function write(req: AiWriteRequest, sender: WebContents): Promise<A
         }
         let turn;
         try {
+          saveNow(p); // Capture manual edits before the generated version replaces them.
           turn = applyOps(p.doc, parsed.ops, req.instruction.slice(0, 24));
         } catch (e) {
           reply({ text: '', citations, error: 'AI 给出的修改无法执行，剧本没有改动' });

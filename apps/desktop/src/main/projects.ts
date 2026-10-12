@@ -1,6 +1,6 @@
 // Projects live in userData/projects/<id>/: SQLite is authoritative; JSON/Loro are portable mirrors.
 import { app } from 'electron';
-import { loadSnapshot, saveSnapshot, backupSnapshot, listBackups, readBackup, listScriptRevisions, readScriptRevision, importScriptRevisions } from './local-data.ts';
+import { loadSnapshot, saveSnapshot, backupSnapshot, listBackups, readBackup, listScriptRevisions, readScriptRevision, importScriptRevisions, listOutlineRevisions, readOutlineRevision, importOutlineRevisions, listBeatsRevisions, readBeatsRevision, importBeatsRevisions } from './local-data.ts';
 declare const __DATA_BUILD__: string;
 import { randomUUID } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs';
@@ -40,14 +40,14 @@ function readMeta(id: string): Meta {
   return JSON.parse(loadSnapshot(dirOf(id)).meta) as Meta;
 }
 
-function persist(p: Open, checkpoint?: { episodeId: string; label: string }): void {
+function persist(p: Open, checkpoint?: { episodeId: string; label: string; target?: 'outline' | 'beats' }): void {
   p.meta.updatedAt = Date.now();
   p.meta.words = p.doc.episodes().reduce((n, e) => n + wordCount(p.doc.episode(e.id).nodes()), 0);
   p.meta.turns = [...p.doc.listTurns()];
   const snapshot = { script: p.doc.snapshot(), meta: JSON.stringify(p.meta, null, 2) };
   const latestTurn = p.doc.listTurns().at(-1);
   const label = p.revisionLabel ?? (latestTurn?.id !== p.revisionTurn && latestTurn ? latestTurn.label : '自动保存');
-  saveSnapshot(dirOf(p.meta.id), snapshot, `${app.getVersion()}:${__DATA_BUILD__}`, p.doc.episodes().map(e => ({ episodeId: e.id, nodes: p.doc.episode(e.id).nodes(), label: checkpoint?.episodeId === e.id ? checkpoint.label : label, force: checkpoint?.episodeId === e.id })));
+  saveSnapshot(dirOf(p.meta.id), snapshot, `${app.getVersion()}:${__DATA_BUILD__}`, p.doc.episodes().map(e => ({ episodeId: e.id, nodes: p.doc.episode(e.id).nodes(), label: checkpoint?.episodeId === e.id && checkpoint.target === undefined ? checkpoint.label : label, force: checkpoint?.episodeId === e.id && checkpoint.target === undefined })), p.doc.episodes().map(e => ({ episodeId: e.id, text: p.doc.episode(e.id).outline, label: checkpoint?.episodeId === e.id && checkpoint.target === 'outline' ? checkpoint.label : label, force: checkpoint?.episodeId === e.id && checkpoint.target === 'outline' })), p.doc.episodes().map(e => ({ episodeId: e.id, text: p.doc.episode(e.id).beats, label: checkpoint?.episodeId === e.id && checkpoint.target === 'beats' ? checkpoint.label : label, force: checkpoint?.episodeId === e.id && checkpoint.target === 'beats' })));
   p.revisionTurn = latestTurn?.id;
   p.revisionLabel = undefined;
   mirrors(p.meta.id, snapshot);
@@ -105,7 +105,7 @@ export function get(id: string): Open {
     p = { meta, doc, revisionTurn: doc.listTurns().at(-1)?.id };
     open.set(id, p);
     // Existing projects start with their current script as v1; earlier drafts cannot be invented.
-    saveSnapshot(dirOf(id), { meta: JSON.stringify(meta), script: doc.snapshot() }, `${app.getVersion()}:${__DATA_BUILD__}`, doc.episodes().map(e => ({ episodeId: e.id, nodes: doc.episode(e.id).nodes(), label: '初始版本' })));
+    saveSnapshot(dirOf(id), { meta: JSON.stringify(meta), script: doc.snapshot() }, `${app.getVersion()}:${__DATA_BUILD__}`, doc.episodes().map(e => ({ episodeId: e.id, nodes: doc.episode(e.id).nodes(), label: '初始版本' })), doc.episodes().map(e => ({ episodeId: e.id, text: doc.episode(e.id).outline, label: '初始版本' })), doc.episodes().map(e => ({ episodeId: e.id, text: doc.episode(e.id).beats, label: '初始版本' })));
   }
   return p;
 }
@@ -156,6 +156,70 @@ export function undoTurn(id: string, turnId: string): ProjectState {
   p.revisionLabel = '撤销修改';
   persist(p);
   return state(p);
+}
+
+export function beatsRevisions(id: string, episodeId: string, capture = true) {
+  const p = get(id); p.doc.episode(episodeId);
+  if (capture) saveNow(p);
+  return listBeatsRevisions(dirOf(id), episodeId);
+}
+export function beatsRevision(id: string, episodeId: string, number: number) {
+  get(id).doc.episode(episodeId);
+  return readBeatsRevision(dirOf(id), episodeId, number);
+}
+export function saveBeatsRevision(id: string, episodeId: string) {
+  const p = get(id); p.doc.episode(episodeId);
+  clearTimeout(p.timer); persist(p, { episodeId, label: '手动保存', target: 'beats' });
+  return listBeatsRevisions(dirOf(id), episodeId);
+}
+export function restoreBeatsRevision(id: string, episodeId: string, number: number): ProjectState {
+  const p = get(id);
+  if (p.doc.activeEpisodeId !== episodeId) throw new Error('请先切换到这个分集');
+  if ((p.meta.workflows ?? []).some(r => r.status === 'running' || r.status === 'waiting')) throw new Error('请先完成或取消当前工作流');
+  const target = beatsRevision(id, episodeId, number);
+  saveNow(p);
+  const before = p.doc.snapshot();
+  const meta = structuredClone(p.meta);
+  try {
+    p.doc.turn(`恢复故事节拍 v${number}`, doc => doc.setBeats(target.text));
+    clearTimeout(p.timer); persist(p, { episodeId, label: `恢复自 v${number}`, target: 'beats' });
+    return state(p);
+  } catch (e) {
+    p.doc = ScriptDoc.fromSnapshot(before); p.doc.loadTurns(meta.turns ?? []); p.meta = meta;
+    throw e;
+  }
+}
+
+export function outlineRevisions(id: string, episodeId: string, capture = true) {
+  const p = get(id); p.doc.episode(episodeId);
+  if (capture) saveNow(p);
+  return listOutlineRevisions(dirOf(id), episodeId);
+}
+export function outlineRevision(id: string, episodeId: string, number: number) {
+  get(id).doc.episode(episodeId);
+  return readOutlineRevision(dirOf(id), episodeId, number);
+}
+export function saveOutlineRevision(id: string, episodeId: string) {
+  const p = get(id); p.doc.episode(episodeId);
+  clearTimeout(p.timer); persist(p, { episodeId, label: '手动保存', target: 'outline' });
+  return listOutlineRevisions(dirOf(id), episodeId);
+}
+export function restoreOutlineRevision(id: string, episodeId: string, number: number): ProjectState {
+  const p = get(id);
+  if (p.doc.activeEpisodeId !== episodeId) throw new Error('请先切换到这个分集');
+  if ((p.meta.workflows ?? []).some(r => r.status === 'running' || r.status === 'waiting')) throw new Error('请先完成或取消当前工作流');
+  const target = outlineRevision(id, episodeId, number);
+  saveNow(p);
+  const before = p.doc.snapshot();
+  const meta = structuredClone(p.meta);
+  try {
+    p.doc.turn(`恢复大纲 v${number}`, doc => doc.setOutline(target.text));
+    clearTimeout(p.timer); persist(p, { episodeId, label: `恢复自 v${number}`, target: 'outline' });
+    return state(p);
+  } catch (e) {
+    p.doc = ScriptDoc.fromSnapshot(before); p.doc.loadTurns(meta.turns ?? []); p.meta = meta;
+    throw e;
+  }
 }
 
 export function revisions(id: string, episodeId: string, capture = true) {
@@ -365,6 +429,8 @@ export function recoverBackup(id: string, name: string): ProjectMeta {
   doc.setTitle(title); doc.commit('restore local backup');
   mkdirSync(dirOf(nextId), { recursive: true });
   if (snapshot.revisions?.length) importScriptRevisions(dirOf(nextId), snapshot.revisions);
+  if (snapshot.outlineRevisions?.length) importOutlineRevisions(dirOf(nextId), snapshot.outlineRevisions);
+  if (snapshot.beatsRevisions?.length) importBeatsRevisions(dirOf(nextId), snapshot.beatsRevisions);
   if (existsSync(filesDir(id))) cpSync(filesDir(id), filesDir(nextId), { recursive: true });
   const restored = { meta, doc }; persist(restored); open.set(nextId, restored);
   return list().find((p) => p.id === nextId)!;

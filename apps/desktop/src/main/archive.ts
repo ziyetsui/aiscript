@@ -10,7 +10,7 @@ import { flushAll, get, list, rename } from './projects.ts';
 import { encryptionAvailable, getSecret } from './secrets.ts';
 import { dataDir } from './store.ts';
 import { licenseStatus } from './license.ts';
-import { loadSnapshot, exportScriptRevisions, importScriptRevisions } from './local-data.ts';
+import { loadSnapshot, exportScriptRevisions, importScriptRevisions, exportOutlineRevisions, importOutlineRevisions, exportBeatsRevisions, importBeatsRevisions } from './local-data.ts';
 
 const FORMAT = 'ancher-scripter-project';
 const MAX_IMPORT = 1024 * 1024 * 1024; // 1 GB
@@ -29,6 +29,8 @@ export async function exportProject(win: BrowserWindow, id: string): Promise<{ o
     'manifest.json': strToU8(JSON.stringify({ format: FORMAT, version: 1, app: app.getVersion(), exportedAt: new Date().toISOString(), title: p.meta.title })),
     'meta.json': strToU8(JSON.stringify(meta)),
     'script.loro': snapshot.script,
+    'beats-revisions.json': strToU8(JSON.stringify(exportBeatsRevisions(dir))),
+    'outline-revisions.json': strToU8(JSON.stringify(exportOutlineRevisions(dir))),
     'script-revisions.json': strToU8(JSON.stringify(exportScriptRevisions(dir))),
   };
   const fdir = join(dir, 'files');
@@ -63,6 +65,8 @@ export async function importProject(win: BrowserWindow, path?: string): Promise<
   const title = taken.has(meta.title) ? `${meta.title}（导入）` : meta.title;
   writeFileSync(join(dir, 'meta.json'), JSON.stringify({ ...meta, id, title, conversationId: null, pending: {}, updatedAt: Date.now() }));
   writeFileSync(join(dir, 'script.loro'), z['script.loro']);
+  if (z['beats-revisions.json']) importBeatsRevisions(dir, JSON.parse(strFromU8(z['beats-revisions.json'])));
+  if (z['outline-revisions.json']) importOutlineRevisions(dir, JSON.parse(strFromU8(z['outline-revisions.json'])));
   if (z['script-revisions.json']) importScriptRevisions(dir, JSON.parse(strFromU8(z['script-revisions.json'])));
   for (const [name, bytes] of Object.entries(z)) {
     // Only flat files under files/ with generated-style names; anything else in the archive is ignored.

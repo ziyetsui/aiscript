@@ -42,6 +42,8 @@ export interface ChatMsg {
 export interface ConversationInfo { id: string; title: string; at: number; messages: number }
 export interface EpisodeInfo { id: string; title: string; words: number; scenes: number }
 export interface ScriptRevisionInfo { episodeId: string; revision: number; at: number; label: string; words: number }
+export interface BeatsRevision extends ScriptRevisionInfo { text: string }
+export interface OutlineRevision extends ScriptRevisionInfo { text: string }
 export interface ScriptRevision extends ScriptRevisionInfo { nodes: ScriptNode[] }
 export interface ProjectState { meta: ProjectMeta; episodes: EpisodeInfo[]; activeEpisodeId: string; nodes: ScriptNode[]; scenes: SceneSummary[]; turns: TurnInfo[]; bible: Bible; chat: ChatMsg[]; runs: RunState[]; outline: string; beats: string; cover: { author: string; draft: string; date: string }; conversations: ConversationInfo[]; production: Production }
 export type WorkflowAction =
@@ -112,6 +114,14 @@ export interface Api {
     clear(which: 'ancher' | 'gemini'): Promise<void>;
   };
   projects: {
+    beatsRevisions(id: string, episodeId: string, capture?: boolean): Promise<ScriptRevisionInfo[]>;
+    beatsRevision(id: string, episodeId: string, revision: number): Promise<BeatsRevision>;
+    saveBeatsRevision(id: string, episodeId: string): Promise<ScriptRevisionInfo[]>;
+    restoreBeatsRevision(id: string, episodeId: string, revision: number): Promise<ProjectState>;
+    outlineRevisions(id: string, episodeId: string, capture?: boolean): Promise<ScriptRevisionInfo[]>;
+    outlineRevision(id: string, episodeId: string, revision: number): Promise<OutlineRevision>;
+    saveOutlineRevision(id: string, episodeId: string): Promise<ScriptRevisionInfo[]>;
+    restoreOutlineRevision(id: string, episodeId: string, revision: number): Promise<ProjectState>;
     revisions(id: string, episodeId: string, capture?: boolean): Promise<ScriptRevisionInfo[]>;
     revision(id: string, episodeId: string, revision: number): Promise<ScriptRevision>;
     saveRevision(id: string, episodeId: string): Promise<ScriptRevisionInfo[]>;

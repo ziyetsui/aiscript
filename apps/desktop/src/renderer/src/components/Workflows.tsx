@@ -16,7 +16,7 @@ export const WF_MENU: { id: WorkflowId; key: number; title: string; desc: string
   { id: 'length', key: 6, title: '控字数 / 时长', desc: '按场估算时长，给出删减方案，先预览再写入', input: 'target' },
   { id: 'transcribe', key: 7, title: '视频 → 逐字稿', desc: '本地视频转逐字稿，存进知识库', input: 'file' },
   { id: 'youtube', key: 0, title: 'YouTube 视频 → 逐字稿', desc: '粘贴链接，优先获取字幕，无字幕时调用 Gemini，存进知识库', input: 'url', hint: 'https://www.youtube.com/watch?v=… 或 https://youtu.be/…' },
-  { id: 'topics', key: 8, title: '今日热点选题', desc: '聚合热点、生成带来源的简报，筛成最多 5 个选题', input: 'none' },
+  { id: 'topics', key: 8, title: '今日热点选题', desc: '聚合热点、生成带来源的简报，逐条展示全部热点与选题方向', input: 'none' },
   { id: 'episode', key: 9, title: '一集剧本流水线', desc: '故事和锁定核心、分场都先给你确认，再逐场写完一整集', input: 'text', hint: '这一集的选题或一句话创意（留空则用大纲或选中的选题）' },
 ];
 const optKey = (n: number) => (isMac ? `⌥${n}` : `Alt+${n}`);
@@ -187,10 +187,10 @@ export function RunCard({ run, projectId, onApplied, onJump }: { run: RunState; 
         <div className="res">
           {r.fetchedAt && <span className="muted" style={{ fontSize: 12 }}>热榜抓取于 {new Date(r.fetchedAt).toLocaleString('zh-CN')} · 标题简报，新闻背景可另行联网调研</span>}
           {r.sourceWarning && <span className="err">{r.sourceWarning}</span>}
-          {r.brief?.length ? <><Markdown text="### 热点简报" />{r.brief.map((b, i) => <div className="res-card" key={i}>
+          {r.brief?.length ? <><Markdown text={`### 全部热点简报（${r.brief.length} 条）`} />{r.brief.map((b, i) => <div className="res-card" key={i}>
             <Markdown text={`**${b.headline}**`} /><Markdown text={b.summary} />
             <div className="chipset">{b.citations.map((c) => <a key={c.url} className="chip" href={c.url} target="_blank" rel="noreferrer">{c.title}</a>)}</div>
-          </div>)}<Markdown text="### 动画选题" /></> : null}
+          </div>)}<Markdown text={`### 全部选题方向（${r.items.length} 个）`} /></> : null}
           {!r.items.length && <span className="muted">本轮没有适合项目的选题，可以调整项目设定后重试。</span>}
         </div>
       )}

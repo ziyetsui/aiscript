@@ -4,10 +4,11 @@ import { createPortal } from 'react-dom';
 import type { ScriptRevisionInfo } from '../../../shared/ipc.ts';
 import { Icon, useToast } from '../lib/ui.tsx';
 
-export function RevisionPopover({ projectId, episodeId, selected, refresh, onSelect }: {
-  projectId: string; episodeId: string; selected: number | null; refresh: number;
+export function RevisionPopover({ projectId, episodeId, selected, refresh, onSelect, target = 'script' }: {
+  target?: 'script' | 'outline' | 'beats'; projectId: string; episodeId: string; selected: number | null; refresh: number;
   onSelect: (revision: number | null) => Promise<void>;
 }) {
+  const title = target === 'beats' ? '故事节拍' : target === 'outline' ? '大纲' : '剧本';
   const [versions, setVersions] = useState<ScriptRevisionInfo[]>([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -21,12 +22,12 @@ export function RevisionPopover({ projectId, episodeId, selected, refresh, onSel
     const token = ++request.current;
     if (capture) setBusy(true);
     try {
-      const list = await window.api.projects.revisions(projectId, episodeId, capture);
+      const list = await (target === 'beats' ? window.api.projects.beatsRevisions : target === 'outline' ? window.api.projects.outlineRevisions : window.api.projects.revisions)(projectId, episodeId, capture);
       if (token === request.current) setVersions(list);
     } catch (e) { if (token === request.current) toast(String(e)); }
     finally { if (capture) setBusy(false); }
   }
-  useEffect(() => { void load(); return () => { request.current++; }; }, [projectId, episodeId, refresh]);
+  useEffect(() => { void load(); return () => { request.current++; }; }, [projectId, episodeId, refresh, target]);
   useEffect(() => {
     if (!open) return;
     const close = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node) && !menu.current?.contains(e.target as Node)) setOpen(false); };
@@ -46,16 +47,16 @@ export function RevisionPopover({ projectId, episodeId, selected, refresh, onSel
   }
   async function save() {
     setBusy(true);
-    try { setVersions(await window.api.projects.saveRevision(projectId, episodeId)); setOpen(false); toast('已保存剧本版本'); }
+    try { setVersions(await (target === 'beats' ? window.api.projects.saveBeatsRevision : target === 'outline' ? window.api.projects.saveOutlineRevision : window.api.projects.saveRevision)(projectId, episodeId)); setOpen(false); toast(`已保存${title}版本`); }
     catch (e) { toast(String(e)); }
     finally { setBusy(false); }
   }
   return <div className="revision-picker no-drag" ref={ref}>
-    <button className="btn btn-quiet revision-trigger" ref={trigger} aria-label="剧本版本历史" aria-haspopup="menu" aria-expanded={open} onClick={() => { if (!open) { const rect = trigger.current!.getBoundingClientRect(); setPosition({ top: rect.bottom + 8, left: Math.max(8, Math.min(rect.left, window.innerWidth - 326)) }); void load(true); } setOpen(!open); }}>
+    <button className="btn btn-quiet revision-trigger" ref={trigger} aria-label={`${title}版本历史`} aria-haspopup="menu" aria-expanded={open} onClick={() => { if (!open) { const rect = trigger.current!.getBoundingClientRect(); setPosition({ top: rect.bottom + 8, left: Math.max(8, Math.min(rect.left, window.innerWidth - 326)) }); void load(true); } setOpen(!open); }}>
       <Icon name="history" size={14} /><span className="tnum">v{selected ?? versions[0]?.revision ?? 1}</span><Icon name="chev" size={11} />
     </button>
-    {open && createPortal(<div className="card menu revision-menu" ref={menu} style={position} role="menu" tabIndex={-1} aria-label="剧本版本" onKeyDown={onKey}>
-      <div className="revision-menu-title">本集剧本版本</div>
+    {open && createPortal(<div className="card menu revision-menu" ref={menu} style={position} role="menu" tabIndex={-1} aria-label={`${title}版本`} onKeyDown={onKey}>
+      <div className="revision-menu-title">本集{title}版本</div>
       <button role="menuitem" disabled={busy || selected !== null} onClick={() => void save()}><Icon name="plus" size={14} />保存当前版本</button>
       <div className="revision-list">{versions.map((v, i) => <button role="menuitem" key={v.revision} disabled={busy} aria-label={`预览 v${v.revision}`} aria-current={(selected ?? versions[0]?.revision) === v.revision ? 'true' : undefined} onClick={async () => {
         setBusy(true);
