@@ -29,3 +29,8 @@ apps/desktop/e2e/shots/
 .env
 .env.*
 **/private.pem
+
+# Customer delivery bundle
+/client/
+/ancherscripter/
+/ancherscripter.zip

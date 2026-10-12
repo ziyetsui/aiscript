@@ -58,6 +58,35 @@ describe('keygen machine file', () => {
 });
 
 describe('keygen client', () => {
+  it('reuses an existing machine and decrypts its checked-out certificate without network access', async () => {
+    const key = 'TEST-LICENSE';
+    const fp = 'existing-fingerprint';
+    const { cert, verifyKeyHex } = fakeMachineFile(key, fp, '2099-01-01T00:00:00Z');
+    const requests: string[] = [];
+    const client = new KeygenClient({ accountId: 'acc', verifyKeyHex, fetch: (async (input, init) => {
+      const url = new URL(String(input));
+      requests.push(`${init?.method} ${url.pathname}`);
+      if (url.pathname.endsWith('/validate-key')) {
+        expect(JSON.parse(String(init?.body))).toEqual({ meta: { key, scope: { fingerprint: fp } } });
+        return Response.json({ meta: { code: 'VALID' }, data: { id: 'lic' } });
+      }
+      expect(new Headers(init?.headers).get('Authorization')).toBe(`License ${key}`);
+      if (init?.method === 'GET') {
+        expect(url.searchParams.get('fingerprint')).toBe(fp);
+        return Response.json({ data: [{ id: 'm1' }] });
+      }
+      expect(url.pathname).toBe('/v1/accounts/acc/machines/m1/actions/check-out');
+      expect(Object.fromEntries(url.searchParams)).toEqual({ encrypt: 'true', ttl: '31556952', include: 'license' });
+      return Response.json({ data: { attributes: { certificate: cert, expiry: '2099-01-01T00:00:00Z' } } });
+    }) as typeof fetch });
+    const result = await client.activate(key, fp, 'test computer', 'macOS');
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.reason);
+    expect(readMachineFile(result.machineFile, key, fp, verifyKeyHex)).toMatchObject({ ok: true, data: { data: { id: 'm1' } } });
+    expect(requests).toHaveLength(3);
+    expect(requests).not.toContain('POST /v1/accounts/acc/machines');
+  });
+
   const routes = (handlers: Record<string, (body: any) => [number, unknown]>) =>
     (async (url: string | URL, init?: RequestInit) => {
       const path = String(url).replace(/^.*\/accounts\/acc/, '').split('?')[0]!;
