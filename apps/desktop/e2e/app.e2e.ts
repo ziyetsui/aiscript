@@ -70,6 +70,7 @@ let { app, page } = await launch();
 try {
   step('activation page shows the machine code; a code for another machine is refused');
   await page.getByRole('heading', { name: '激活 Ancher Scripter' }).waitFor();
+  await page.getByRole('tab', { name: '手动激活' }).click();
   const machine = (await page.locator('.mc .tnum').textContent())!.trim();
   assert.match(machine, /^AS-/);
   await shot(page, '01-activate');
