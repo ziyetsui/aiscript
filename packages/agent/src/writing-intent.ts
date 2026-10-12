@@ -18,8 +18,8 @@ export function writingContract(targets: readonly WritingTarget[]): string {
   return `\n\n本次是实际文档写入请求，目标：${targets.map((t) => WRITING_LABELS[t]).join('、')}。必须返回可执行的 <ops> JSON，不得只声称已经写入。\n` +
     targets.map((t) => ({
       script: '剧本正文必须拆成 insertNode / updateNode：heading、action、character、dialogue 等独立节点，不能用 setScript 或把整篇剧本塞进单个节点。',
-      outline: '大纲必须用 setOutline / appendOutline。',
+      outline: '大纲必须用一个 setOutline 写入独立完整的新版本，不要在旧稿末尾追加；修改或补充时输出整合后的完整大纲。',
       shots: '分镜必须用 setShots，sceneId 指向真实 heading ID；如果本次新增场景，使用对应插入节点的 id 或 $1、$2 引用。没有场景时先插入 heading，不能虚构已有场景 ID。',
-      beats: '故事节拍必须用 setBeats，写入独立故事节拍文档，不能写进大纲。',
+      beats: '故事节拍必须用一个 setBeats 写入独立完整的新版本，不要在旧版末尾追加；修改或补充时输出整合后的完整节拍，不能写进大纲。',
     })[t]).join('\n') + '\n所有 JSON 字符串中的换行必须转义为 \\n。只有本地校验和保存成功才会显示写入成功。';
 }

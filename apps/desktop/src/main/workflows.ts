@@ -160,8 +160,8 @@ export function confirmStep(projectId: string, runId: string, text: string, from
   confirm(run, text);
   if (run.wf === 'episode' && stepId === 'confirmStory') {
     const [story = '', core = ''] = text.split('【锁定核心】');
-    const cur = p.doc.outline.trim();
-    p.doc.setOutline(cur ? `${cur}\n\n【故事】\n${story.trim()}` : `【故事】\n${story.trim()}`);
+    saveNow(p); // Preserve the current outline before starting the new version.
+    p.doc.setOutline(`【故事】\n${story.trim()}`);
     if (core.trim()) {
       const w = p.doc.bible('world');
       const hit = w.all().find((x) => x.title === '锁定核心');
@@ -197,8 +197,8 @@ export function apply(projectId: string, runId: string, a: WorkflowAction): { ok
       const d = r.items[a.index];
       if (!d) break;
       const block = `【走向】${d.title}\n冲突：${d.conflict}\n解决：${d.resolution}\n${d.beats.map((b, i) => `${['起', '承', '转', '合'][i] ?? i + 1}：${b}`).join('\n')}${d.joke ? `\n主笑点：${d.joke}` : ''}`;
-      const cur = p.doc.outline.trim();
-      p.doc.setOutline(cur ? `${cur}\n\n${block}` : block);
+      saveNow(p); // Preserve the current outline before starting the new version.
+      p.doc.setOutline(block);
       p.doc.commit('outline: direction');
       return done(`已写进大纲：${d.title}`);
     }

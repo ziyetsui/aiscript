@@ -120,6 +120,14 @@ function registerIpc(): void {
   ipcMain.handle('projects:list', gated(() => projects.list()));
   ipcMain.handle('projects:create', gated((title: string, kind: ProjectMeta['kind']) => projects.create(title, kind)));
   ipcMain.handle('projects:open', gated((id: string) => projects.state(projects.get(id))));
+  ipcMain.handle('projects:beatsRevisions', gated(projects.beatsRevisions));
+  ipcMain.handle('projects:beatsRevision', gated(projects.beatsRevision));
+  ipcMain.handle('projects:saveBeatsRevision', gated(projects.saveBeatsRevision));
+  ipcMain.handle('projects:restoreBeatsRevision', gated((id: string, episodeId: string, revision: number) => { if (ai.isBusy(id)) throw new Error('请先停止正在生成的内容'); return projects.restoreBeatsRevision(id, episodeId, revision); }));
+  ipcMain.handle('projects:outlineRevisions', gated(projects.outlineRevisions));
+  ipcMain.handle('projects:outlineRevision', gated(projects.outlineRevision));
+  ipcMain.handle('projects:saveOutlineRevision', gated(projects.saveOutlineRevision));
+  ipcMain.handle('projects:restoreOutlineRevision', gated((id: string, episodeId: string, revision: number) => { if (ai.isBusy(id)) throw new Error('请先停止正在生成的内容'); return projects.restoreOutlineRevision(id, episodeId, revision); }));
   ipcMain.handle('projects:revisions', gated(projects.revisions));
   ipcMain.handle('projects:revision', gated(projects.revision));
   ipcMain.handle('projects:saveRevision', gated(projects.saveRevision));

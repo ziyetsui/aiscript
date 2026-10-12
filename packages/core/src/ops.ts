@@ -114,11 +114,8 @@ export function applyOps(doc: ScriptDoc, ops: readonly Op[], label: string) {
           if (hit) w.update(hit.id, { value: op.value }); else w.add({ title: op.title, value: op.value });
           break;
         }
-        case 'appendOutline': {
-          const cur = d.outline.trimEnd();
-          d.setOutline(cur ? `${cur}\n\n${op.text.trim()}` : op.text.trim());
-          break;
-        }
+        // Legacy replies use appendOutline; each write now represents a complete version.
+        case 'appendOutline': d.setOutline(op.text.trim()); break;
         case 'setOutline': d.setOutline(op.text); break;
         case 'setBeats': d.setBeats(op.text); break;
         case 'setShots': {
@@ -147,7 +144,7 @@ export type PreviewItem =
 
 /** Rewrites of existing text need review; so does replacing an outline that already has content. */
 export function needsReview(ops: readonly Op[], currentOutline = '', currentShots: readonly Shot[] = [], currentBeats = ''): boolean {
-  return ops.some((o) => (o.op === 'setBeats' && currentBeats.trim() !== '' && o.text.trim() !== currentBeats.trim()) || o.op === 'updateNode' || o.op === 'deleteNode' || o.op === 'setType' || (o.op === 'setShots' && currentShots.some((s) => s.sceneId === o.sceneId)) || (o.op === 'setOutline' && currentOutline.trim() !== '' && o.text.trim() !== currentOutline.trim()));
+  return ops.some((o) => (o.op === 'setBeats' && currentBeats.trim() !== '' && o.text.trim() !== currentBeats.trim()) || o.op === 'updateNode' || o.op === 'deleteNode' || o.op === 'setType' || (o.op === 'setShots' && currentShots.some((s) => s.sceneId === o.sceneId)) || ((o.op === 'setOutline' || o.op === 'appendOutline') && currentOutline.trim() !== '' && o.text.trim() !== currentOutline.trim()));
 }
 
 /** Describe what the ops would change, against the current document. Missing targets are reported, not guessed. */
@@ -163,8 +160,7 @@ export function previewOps(doc: ScriptDoc, ops: readonly Op[]): { items: Preview
     else if (o.op === 'upsertCharacter') items.push({ kind: 'bible', text: `登记角色：${o.name}` });
     else if (o.op === 'upsertLocation') items.push({ kind: 'bible', text: `登记地点：${o.name}` });
     else if (o.op === 'setWorld') items.push({ kind: 'bible', text: `世界观「${o.title}」` });
-    else if (o.op === 'appendOutline') items.push({ kind: 'outline', mode: 'append', before: '', after: o.text });
-    else if (o.op === 'setOutline') items.push({ kind: 'outline', mode: 'replace', before: doc.outline, after: o.text });
+    else if (o.op === 'setOutline' || o.op === 'appendOutline') items.push({ kind: 'outline', mode: 'replace', before: doc.outline, after: o.text });
     else if (o.op === 'setBeats') items.push({ kind: 'beats', before: doc.beats, after: o.text });
     else if (o.op === 'setShots') {
       if (byId.get(o.sceneId)?.type !== 'heading' && !newHeadings.has(o.sceneId)) missing.push(o.sceneId);
